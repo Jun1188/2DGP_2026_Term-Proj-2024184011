@@ -1,0 +1,2 @@
+# 2DGP_2026_-TermProj-2024184011
+2DGP_2026 과목의 Term Project, 2024184011
