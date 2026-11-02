@@ -127,7 +127,7 @@ select, input[type=number] { font: inherit; font-size: 13.5px; padding: 4px 6px;
 <nav class="toc" aria-label="목차">
   <b>목차</b>
   <a href="#overview">1. 게임 개요</a>
-  <a href="#reference">2. 기존 사례와 차별성</a>
+  <a href="#reference">2. 기존 사례와 설계 의도</a>
   <a href="#fun">3. 핵심 재미와 설계 원칙</a>
   <a href="#loop">4. 코어 루프</a>
   <a href="#round">5. 라운드 규칙</a>
@@ -143,8 +143,7 @@ select, input[type=number] { font: inherit; font-size: 13.5px; padding: 4px 6px;
   <a href="#resource">15. 리소스 목록</a>
   <a href="#plan">16. 개발 일정과 범위</a>
   <a href="#test">17. 검증 체크리스트</a>
-  <a href="#open">18. 미결정 사항</a>
-  <a href="#changes">19. 원안 대비 변경</a>
+  <a href="#decisions">18. 결정 사항</a>
 </nav>
 
 <main>
@@ -162,8 +161,8 @@ select, input[type=number] { font: inherit; font-size: 13.5px; padding: 4px 6px;
 <div class="note">
   <b>읽는 법.</b> 1차 기획서(PPTX)를 기준으로 비어 있던 규칙과 수치를 채웠습니다.
   <span class="tag ppt">원안</span>은 PPTX에 있던 내용, <span class="tag new">보완</span>은 이번에 새로 정한 내용,
-  <span class="tag ref">참고</span>는 Notion v0.2(AI 제안)에서 가져온 아이디어, <span class="tag ask">결정 필요</span>는 확정 전에 기획자가 골라야 하는 항목입니다.
-  표·수치는 모두 <code>game-data.json</code>에서 읽어 그리며, 플레이테스트 전 초깃값입니다.
+  <span class="tag ref">참고</span>는 Notion v0.2(AI 제안)에서 가져온 아이디어, <span class="tag ask">미확정</span>은 구조만 정하고 목록·수치는 바뀔 수 있는 항목입니다.
+  표·수치는 모두 <code>game-data.json</code>에서 읽어 그리며, 플레이테스트 전 초깃값입니다. 확정한 결정은 18장에 모았습니다.
 </div>
 <div class="note decide loader" id="loader">
   <b>데이터를 읽지 못했습니다.</b> 브라우저가 로컬 파일(<code>file://</code>)에서 JSON 읽기를 막았습니다.
@@ -194,13 +193,44 @@ select, input[type=number] { font: inherit; font-size: 13.5px; padding: 4px 6px;
 
 <!-- 2 -->
 <section id="reference">
-  <h2><span class="no">2</span>기존 사례와 차별성</h2>
-  <p class="lead">두 레퍼런스에서 가져오는 것과 버리는 것을 나눠 둡니다.</p>
+  <h2><span class="no">2</span>기존 사례와 설계 의도</h2>
+  <p class="lead">발라트로와 TFT의 장치를 그대로 옮기면 "윷 그림을 씌운 카드 게임"이 됩니다. 두 게임의 장치를 윷놀이의 고유 구조에 맞게 번역하는 것이 이 기획의 의도입니다.</p>
+
+  <h3>번역의 출발점: 윷놀이의 세 가지 구조</h3>
+  <div class="grid3">
+    <div class="card"><h4>① 결과를 고를 수 없다</h4><p>포커는 패를 골라 족보를 만들지만, 윷은 던지는 순간 결과가 정해진다. 플레이어가 고를 수 있는 것은 <b>무엇을 던지느냐(확률)</b>뿐이다.</p></div>
+    <div class="card"><h4>② 던진 뒤에 한 번 더 고른다</h4><p>결과가 나온 뒤 어느 말을 움직일지 고른다. 백개먼처럼 <b>운 다음에 결정</b>이 오는 구조다. 카드 게임에는 이 두 번째 결정이 없다.</p></div>
+    <div class="card"><h4>③ 쌓은 것을 함께 잃는다</h4><p>업은 말은 같이 가고 같이 잡힌다. 한곳에 몰아 키울수록 잃을 때도 크게 잃는다. <b>공유된 위험</b>이 윷놀이 긴장감의 원천이다.</p></div>
+  </div>
+  <p>그래서 윷토체스의 한 턴은 <b>확률을 짠다(던지기 전 결정) → 던진다(운) → 말을 고른다(던진 뒤 결정)</b>의 3박자다. 원안의 "통제된 랜덤"은 운을 두 번의 결정 사이에 끼워 넣는 이 구조로 구현한다.</p>
+
+  <h3>발라트로: 점수 엔진을 윷 위에 얹기</h3>
   <div class="table-wrap"><table>
-    <tr><th>레퍼런스</th><th>가져오는 것</th><th>가져오지 않는 것</th></tr>
-    <tr><td>발라트로</td><td>스테이지 → 점수 보상 → 상점 루프, Chips × Mult 점수식, 패시브(조커 → 부적), 족보 레벨업</td><td>52장 트럼프 덱, 포커 족보 자체</td></tr>
-    <tr><td>전략적 팀 전투 (TFT)</td><td>매 라운드 증강 3택 1, n라운드 주기의 특수 라운드(보스), 리스크를 골라 보상을 키우는 선택</td><td>PvP, 순위 경쟁, 실시간 전투</td></tr>
+    <tr><th>발라트로 장치</th><th>윷토체스 장치</th><th>윷놀이에 맞게 바꾼 점</th></tr>
+    <tr><td>포커 핸드 (족보)</td><td>도 · 개 · 걸 · 윷 · 모 · 빽도</td><td>족보를 고를 수 없으므로 선택을 <b>확률</b>로 옮겼다. 윷가락마다 배가 나올 확률이 달라서 덱 구성이 곧 족보 확률표가 된다(8장 계산기).</td></tr>
+    <tr><td>카드의 Chips</td><td>윷가락의 Chips와 발동 면(배·등)</td><td>윷가락 하나가 <b>결과(배의 개수)와 점수(발동)에 동시에 관여</b>한다. 은하 윷(배일 때 ×3)을 넣으면 배가 잘 나와야 이득이고, 배가 많아지면 윷이 잘 나온다. 확률과 점수가 서로 엮인다.</td></tr>
+    <tr><td>Mult와 ×Mult</td><td>보드 배율: 업기 ×말 수, 잡기 ×2</td><td>발라트로에는 공간이 없다. 윷토체스는 같은 결과로도 <b>어느 말을 움직이느냐</b>에 따라 점수가 몇 배씩 달라진다. 배율의 원천을 카드가 아니라 보드 위 상황에 둔 것이 가장 큰 차이다.</td></tr>
+    <tr><td>핸드 · 버리기 횟수</td><td>투척 · 교체 횟수</td><td>윷·모가 나오면 한 번 더 던지는 전통 규칙이 투척 자원을 돌려주는 장치가 된다.</td></tr>
+    <tr><td>조커</td><td>부적</td><td>장착 순서가 처리 순서가 되는 점을 그대로 가져왔다. 효과는 업기·잡기·완주·지름길 같은 윷놀이 사건에 걸린다.</td></tr>
+    <tr><td>행성 카드</td><td>족보 비급</td><td>도~모 각각의 레벨을 올린다. 나무 윷 덱은 개·걸, 깃털 덱은 윷, 납 윷 덱은 모처럼 덱의 확률 성향에 맞춰 키울 족보가 달라진다.</td></tr>
+    <tr><td>스몰 · 빅 · 보스 블라인드</td><td>일반 · 엘리트 · 보스 라운드</td><td>보스는 규칙을 비트는 말(도깨비, 호랑이, 저승사자)로 등장해 보드 위에서 직접 방해한다.</td></tr>
+    <tr><td>점수가 터지는 순간</td><td>넉 동 업은 말이 수문장을 잡고 완주</td><td>Chips가 쌓이고 ×4, ×2가 차례로 곱해지는 장면이 이 게임의 클라이맥스다. 다만 이를 노리려면 네 말을 한곳에 모으는 위험(구조 ③)을 져야 한다.</td></tr>
   </table></div>
+
+  <h3>TFT: 덱빌딩과 증강을 윷 한 벌에 맞추기</h3>
+  <div class="table-wrap"><table>
+    <tr><th>TFT 장치</th><th>윷토체스 장치</th><th>윷놀이에 맞게 바꾼 점</th></tr>
+    <tr><td>특성 시너지 (같은 특성 인원 수)</td><td>재질 시너지 (나무 · 불 · 쇠 · 하늘)</td><td>TFT는 필드 인원 수가 기준이지만 윷은 <b>한 번에 던지는 4개(한 벌)</b>가 자연스러운 단위다. 같은 재질 2개, 4개에서 보너스가 열린다. 덱을 한 재질로 모을지, 확률이 좋은 윷을 섞을지가 덱빌딩의 고민이 된다.</td></tr>
+    <tr><td>별 올리기 (같은 유닛 3개)</td><td>합치기: 같은 윷 3개 → 실패 없는 2단계 강화</td><td>운에 맡기는 강화(아래)와 대비되는 <b>안전한 성장 길</b>이다. 같은 윷을 모으는 데 돈과 상점 운이 든다.</td></tr>
+    <tr><td>레벨별 상점 확률</td><td>막별 윷가락 등급 확률</td><td>막이 오를수록 희귀·전설 윷이 자주 뜬다.</td></tr>
+    <tr><td>이자</td><td>엽전 이자</td><td>5냥당 1냥. 아껴서 이자를 받을지, 지금 강화에 걸지 고른다.</td></tr>
+    <tr><td>증강 (정해진 스테이지에 3택 1)</td><td>막 증강: 막이 끝날 때마다 3택 1, 은 · 금 · 옥 등급</td><td>런 전체의 방향을 정하는 영구 효과다. 1막을 끝낸 뒤 첫 증강이 나와서, 1막 동안 만든 덱을 보고 방향을 고를 수 있다.</td></tr>
+    <tr><td>리스크를 고르는 선택</td><td>라운드 특성 (원안 플로차트의 "하이리스크 &amp; 하이리턴")</td><td>매 라운드 시작 전에 고르는 변형 규칙이다. 막 증강이 런의 방향이라면 라운드 특성은 이번 판의 내기다.</td></tr>
+  </table></div>
+
+  <h3>강화: 검 강화하기식 윷 강화</h3>
+  <p>상점의 윷 강화는 단계가 오를수록 성공 확률이 떨어지고, 높은 단계에서는 실패하면 단계가 내려가거나 윷가락이 부서진다. 던지는 운과는 별개로 <b>성장에도 리스크 &amp; 리턴</b>을 둔다(원안 4장 "리스크 &amp; 리턴 Dopamine-driven"). 7단계와 10단계에는 최종 ×Mult가 붙어서 큰 도박을 할 이유가 생긴다. 확률표는 11장에 있다.</p>
+
   <h3>윷토체스만의 것 (URP)</h3>
   <div class="grid3">
     <div class="card"><h4>던질 윷을 고른다</h4><p>카드 게임은 결과를 고르지만, 윷토체스는 확률을 고른다. 윷가락마다 배가 나올 확률이 달라서 덱 구성이 곧 도·개·걸·윷·모의 확률표가 된다.</p></div>
@@ -214,23 +244,23 @@ select, input[type=number] { font: inherit; font-size: 13.5px; padding: 4px 6px;
   <h2><span class="no">3</span>핵심 재미와 설계 원칙</h2>
   <div class="grid2">
     <div class="card"><h4>시너지 빌딩 <span class="tag ppt">원안</span></h4><p>시작 덱에서 출발해 재화로 윷가락을 수집·강화·제거하고, 부적과 족보 레벨을 맞춰 나만의 윷 덱을 최적화한다.</p></div>
-    <div class="card"><h4>통제된 랜덤 <span class="tag ppt">원안</span></h4><p>던지는 순간은 운이지만 무엇을 던질지, 어느 말을 움직일지, 어떤 증강을 받을지는 플레이어가 고른다.</p></div>
+    <div class="card"><h4>통제된 랜덤 <span class="tag ppt">원안</span></h4><p>던지는 순간은 운이지만 무엇을 던질지, 어느 말을 움직일지, 어떤 라운드 특성과 막 증강을 받을지는 플레이어가 고른다.</p></div>
   </div>
   <h3>설계 원칙</h3>
   <ol>
     <li><b>정보는 먼저 보여준다.</b> 수문장의 다음 이동, 선택한 윷 4개의 결과 확률, 말을 움직였을 때의 예상 점수를 던지기 전에 보여준다. 운은 투척 결과에만 둔다.</li>
-    <li><b>점수는 쌓이는 과정을 보여준다.</b> 윷가락 하나씩, 이벤트 하나씩 Chips와 Mult가 올라가는 연출을 거친 뒤 곱한다. 폭발의 쾌감은 계산 과정을 보여줄 때 나온다.</li>
-    <li><b>윷놀이 규칙은 비틀되 깨지 않는다.</b> 도·개·걸·윷·모, 빽도, 지름길, 업기, 잡기, 윷·모 한 번 더는 그대로 둔다. 변형은 증강과 보스로만 넣는다.</li>
-    <li><b>하나를 더 하면 하나를 잃는다.</b> 리스크 증강, 업기, 완주 타이밍 모두 대가가 있다.</li>
+    <li><b>점수 계산 과정은 숨기지 않는다.</b> 윷가락 하나씩, 이벤트 하나씩 Chips와 Mult가 어떻게 더해졌는지 순서대로 보여준 뒤 곱한다. 이것은 연출이 아니라 정보이며, MVP에서도 텍스트로 제공한다. 꾸미는 연출은 이 정보를 읽기 쉽게 돕는 보조 장치다(13장).</li>
+    <li><b>윷놀이 규칙은 비틀되 깨지 않는다.</b> 도·개·걸·윷·모, 빽도, 지름길, 업기, 잡기, 윷·모 한 번 더는 그대로 둔다. 변형은 라운드 특성, 막 증강, 보스로만 넣는다.</li>
+    <li><b>하나를 더 하면 하나를 잃는다.</b> 위험한 라운드 특성, 업기, 완주 타이밍, 높은 단계의 강화 모두 대가가 있다.</li>
   </ol>
 </section>
 
 <!-- 4 -->
 <section id="loop">
   <h2><span class="no">4</span>코어 루프</h2>
-  <p class="lead">1차 기획서 8장의 4단계 순환과 코어 루프 플로차트를 하나로 정리했습니다.</p>
+  <p class="lead">1차 기획서 8장의 4단계 순환과 코어 루프 플로차트를 하나로 정리하고, 막이 끝날 때의 증강 선택을 더했습니다.</p>
   <div class="diagram">
-  <svg viewBox="0 0 900 380" role="img" aria-label="메뉴에서 덱을 고르고, 증강 선택, 라운드, 정산, 상점을 거쳐 다시 증강 선택으로 돌아가는 순환도">
+  <svg viewBox="0 0 900 440" role="img" aria-label="메뉴에서 시작해 라운드 특성 선택, 라운드, 정산, 보스 클리어 시 막 증강, 상점을 거쳐 다시 라운드 특성 선택으로 돌아가는 순환도">
     <defs>
       <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink-2)"/></marker>
     </defs>
@@ -238,40 +268,48 @@ select, input[type=number] { font: inherit; font-size: 13.5px; padding: 4px 6px;
       <rect x="20" y="150" width="130" height="64" rx="10" fill="var(--surface-2)" stroke="var(--line)"/>
       <text x="85" y="178" font-weight="700">메뉴</text><text x="85" y="198" font-size="12" fill="var(--ink-2)">시작 덱 · 설정</text>
 
-      <rect x="200" y="40" width="160" height="70" rx="10" fill="var(--surface)" stroke="var(--blue)" stroke-width="2"/>
-      <text x="280" y="68" font-weight="700">STEP 4 증강 선택</text><text x="280" y="90" font-size="12" fill="var(--ink-2)">3개 중 1개 · 리스크/보상</text>
+      <rect x="200" y="40" width="170" height="70" rx="10" fill="var(--surface)" stroke="var(--blue)" stroke-width="2"/>
+      <text x="285" y="68" font-weight="700">STEP 4 라운드 특성</text><text x="285" y="90" font-size="12" fill="var(--ink-2)">3개 중 1개 · 리스크/보상</text>
 
-      <rect x="430" y="40" width="160" height="70" rx="10" fill="var(--surface)" stroke="var(--red)" stroke-width="2"/>
-      <text x="510" y="68" font-weight="700">STEP 1 라운드 (PvE)</text><text x="510" y="90" font-size="12" fill="var(--ink-2)">투척 → 이동 → 점수</text>
+      <rect x="440" y="40" width="160" height="70" rx="10" fill="var(--surface)" stroke="var(--red)" stroke-width="2"/>
+      <text x="520" y="68" font-weight="700">STEP 1 라운드 (PvE)</text><text x="520" y="90" font-size="12" fill="var(--ink-2)">투척 → 이동 → 점수</text>
 
       <rect x="690" y="150" width="180" height="64" rx="10" fill="var(--surface)" stroke="var(--ink-2)"/>
       <text x="780" y="178" font-weight="700">목표 점수 도달?</text><text x="780" y="198" font-size="12" fill="var(--ink-2)">라운드 종료 판정</text>
 
-      <rect x="430" y="270" width="160" height="70" rx="10" fill="var(--surface)" stroke="var(--gold)" stroke-width="2"/>
-      <text x="510" y="298" font-weight="700">STEP 2 보상 정산</text><text x="510" y="320" font-size="12" fill="var(--ink-2)">기본 · 남은 투척 · 이자</text>
+      <rect x="540" y="270" width="150" height="70" rx="10" fill="var(--surface)" stroke="var(--gold)" stroke-width="2"/>
+      <text x="615" y="298" font-weight="700">STEP 2 보상 정산</text><text x="615" y="320" font-size="12" fill="var(--ink-2)">기본 · 남은 투척 · 이자</text>
 
-      <rect x="200" y="270" width="160" height="70" rx="10" fill="var(--surface)" stroke="var(--green)" stroke-width="2"/>
-      <text x="280" y="298" font-weight="700">STEP 3 상점 · 덱 편집</text><text x="280" y="320" font-size="12" fill="var(--ink-2)">영입 · 강화 · 제거 · 부적</text>
+      <rect x="360" y="270" width="150" height="70" rx="10" fill="var(--surface)" stroke="var(--gold)" stroke-width="2" stroke-dasharray="6 4"/>
+      <text x="435" y="298" font-weight="700">막 증강</text><text x="435" y="320" font-size="12" fill="var(--ink-2)">3개 중 1개 · 영구</text>
 
-      <rect x="700" y="290" width="160" height="50" rx="10" fill="var(--surface-2)" stroke="var(--line)"/>
-      <text x="780" y="320" font-weight="700">게임 오버 / 엔딩</text>
+      <rect x="170" y="270" width="160" height="70" rx="10" fill="var(--surface)" stroke="var(--green)" stroke-width="2"/>
+      <text x="250" y="298" font-weight="700">STEP 3 상점 · 덱 편집</text><text x="250" y="320" font-size="12" fill="var(--ink-2)">영입 · 강화 · 합치기 · 부적</text>
+
+      <rect x="740" y="300" width="140" height="56" rx="10" fill="var(--surface-2)" stroke="var(--line)"/>
+      <text x="810" y="324" font-weight="700">게임 오버</text><text x="810" y="344" font-size="12" fill="var(--ink-2)">엔딩 → 무한 모드</text>
     </g>
     <g fill="none" stroke="var(--ink-2)" stroke-width="2" marker-end="url(#ar)">
       <path d="M150,170 C175,150 180,100 198,85"/>
-      <path d="M360,75 L428,75"/>
-      <path d="M590,75 C680,75 760,100 775,148"/>
-      <path d="M760,214 C720,260 650,300 592,305"/>
-      <path d="M430,305 L362,305"/>
-      <path d="M280,270 L280,112"/>
-      <path d="M810,214 L810,288"/>
-      <path d="M700,330 C400,372 120,360 85,216"/>
+      <path d="M370,75 L438,75"/>
+      <path d="M600,75 C680,75 760,100 775,148"/>
+      <path d="M740,214 C735,245 700,255 682,268"/>
+      <path d="M540,305 L512,305"/>
+      <path d="M360,305 L332,305"/>
+      <path d="M570,340 C530,392 300,392 262,342"/>
+      <path d="M250,270 L250,112"/>
+      <path d="M830,214 L830,298"/>
+      <path d="M740,345 C450,432 110,425 85,216"/>
     </g>
     <g font-size="12" fill="var(--ink-2)" text-anchor="middle">
       <text x="160" y="118">플레이 시작</text>
-      <text x="660" y="265">달성</text>
-      <text x="838" y="255">미달 / 3막 클리어</text>
-      <text x="300" y="195" text-anchor="start">다음 라운드</text>
-      <text x="420" y="370">메뉴로</text>
+      <text x="725" y="232" text-anchor="end">달성</text>
+      <text x="838" y="250" text-anchor="start">미달</text>
+      <text x="838" y="266" text-anchor="start">3막 클리어</text>
+      <text x="435" y="262">보스 클리어 시</text>
+      <text x="415" y="382">일반 · 엘리트</text>
+      <text x="258" y="195" text-anchor="start">다음 라운드</text>
+      <text x="420" y="428">메뉴로</text>
     </g>
   </svg>
   </div>
@@ -292,7 +330,7 @@ select, input[type=number] { font: inherit; font-size: 13.5px; padding: 4px 6px;
 <!-- 5 -->
 <section id="round">
   <h2><span class="no">5</span>라운드 규칙</h2>
-  <p class="lead">기본 윷놀이 규칙 위에 덱, 증강, 점수 규칙을 얹습니다. <span class="tag ppt">원안</span></p>
+  <p class="lead">기본 윷놀이 규칙 위에 덱, 라운드 특성, 점수 규칙을 얹습니다. <span class="tag ppt">원안</span></p>
   <h3>라운드 자원</h3>
   <div class="table-wrap"><table id="tblRules"></table></div>
 
@@ -350,13 +388,14 @@ select, input[type=number] { font: inherit; font-size: 13.5px; padding: 4px 6px;
   <h2><span class="no">7</span>점수 시스템</h2>
   <p class="lead">원안의 "기본 족보 점수 + 윷가락 고유 강화 수치"를 발라트로식 Chips × Mult로 구체화했습니다. <span class="tag ppt">원안</span> <span class="tag new">보완</span></p>
   <div class="formula">
-    투척 점수 = ( <span class="chips">족보 Chips + Σ 윷가락 Chips + 이벤트 Chips</span> ) × ( <span class="mult">족보 Mult + Σ 윷가락 +Mult</span> ) × <span class="mult">Π 윷가락 ×Mult</span> × 업기 배율 × 잡기 배수
+    투척 점수 = ( <span class="chips">족보 Chips + Σ 윷가락 Chips + 시너지 Chips + 이벤트 Chips</span> ) × ( <span class="mult">족보 Mult + Σ 윷가락 +Mult + 시너지 +Mult</span> ) × <span class="mult">Π ×Mult</span> × 업기 배율 × 잡기 배수
   </div>
   <h3>처리 순서 <span class="tag ref">참고</span></h3>
-  <p>효과가 겹칠 때 결과가 달라지지 않도록 순서를 고정합니다. 부적과 증강은 각 단계의 훅에서 끼어듭니다.</p>
+  <p>효과가 겹칠 때 결과가 달라지지 않도록 순서를 고정합니다. 부적, 라운드 특성, 막 증강은 각 단계의 훅에서 끼어듭니다.</p>
   <ol class="steps">
     <li><b>결과 판정</b> — 족보를 정하고 <span class="chips">족보 Chips</span>, <span class="mult">족보 Mult</span>(레벨 포함)를 놓는다. 훅: <code>on_toss_result</code></li>
-    <li><b>윷가락 순회</b> — 고른 순서(왼쪽부터)대로 각 윷가락의 발동 조건(항상/배/등)을 확인해 Chips, +Mult를 더한다. ×Mult는 따로 모은다. 훅: <code>on_stick</code></li>
+    <li><b>윷가락 순회</b> — 고른 순서(왼쪽부터)대로 각 윷가락의 발동 조건(항상/배/등)을 확인해 Chips, +Mult를 더한다. 강화 단계 보너스는 면과 관계없이 더한다. ×Mult는 따로 모은다. 훅: <code>on_stick</code></li>
+    <li><b>재질 시너지</b> — 던진 4개의 재질 수를 세어, 열린 가장 높은 단계(2개 또는 4개)의 보너스를 더한다. 훅: <code>on_synergy</code></li>
     <li><b>이동 이벤트</b> — 말을 움직인 뒤 완주 Chips(말 하나당), 특수 칸 Chips를 더한다. 훅: <code>on_move</code>, <code>on_finish</code></li>
     <li><b>부적 순회</b> — 장착 순서대로 부적 효과를 적용한다. 훅: <code>on_score</code></li>
     <li><b>곱 적용</b> — ×Mult 곱, 업기 배율(묶음의 말 수), 잡기 배수를 이 순서로 곱한다. 훅: <code>on_capture</code></li>
@@ -376,7 +415,8 @@ select, input[type=number] { font: inherit; font-size: 13.5px; padding: 4px 6px;
     <div class="card">
       <h4>던질 윷가락</h4>
       <div class="slots" id="calcSlots"></div>
-      <p style="margin-top:12px;font-size:13px;color:var(--ink-2)">오른쪽 숫자는 강화 레벨입니다. 레벨마다 Chips +5, 2레벨마다 Mult +1.</p>
+      <p style="margin-top:12px;font-size:13px;color:var(--ink-2)">오른쪽 숫자는 강화 단계(0~10)입니다. 단계별 보너스는 11장 강화표를 따르고, 같은 재질이 2개·4개면 시너지가 함께 계산됩니다.</p>
+      <p id="calcSynergy" style="font-size:13px;margin:4px 0 0"></p>
     </div>
     <div class="card">
       <div style="display:flex;gap:28px;flex-wrap:wrap">
@@ -391,21 +431,28 @@ select, input[type=number] { font: inherit; font-size: 13.5px; padding: 4px 6px;
 
 <!-- 9 -->
 <section id="content">
-  <h2><span class="no">9</span>콘텐츠 목록</h2>
+  <h2><span class="no">9</span>콘텐츠 목록 <span class="tag ask">미확정</span></h2>
+  <div class="note decide"><b>이 장의 아래 내용은 모두 미확정입니다.</b> 콘텐츠의 종류(윷가락, 재질, 부적, 라운드 특성, 막 증강, 수문장, 시작 덱)와 동작 방식은 정했지만, 개별 항목의 이름·효과·가격·수치는 시스템 설계를 보여주는 예시안입니다. 프로토타입과 플레이테스트를 거치며 바꾸고, 바꿀 때는 <code>game-data.json</code>만 고칩니다.</div>
   <p class="lead">MVP는 굵게 표시한 항목만 먼저 만들고, 나머지는 2단계에서 추가합니다.</p>
-  <h3>윷가락 <span class="tag ppt">원안</span> <span class="tag new">보완</span></h3>
-  <p>원안 투척 화면 콘셉트의 나무(+5)·불꽃(+10)·황룡(+15)·은하(×3) 윷을 기준으로 삼고, 확률을 바꾸는 윷을 더했습니다.</p>
+  <h3>윷가락 <span class="tag ppt">원안</span> <span class="tag ask">미확정</span></h3>
+  <p>원안 투척 화면 콘셉트의 나무(+5)·불꽃(+10)·황룡(+15)·은하(×3) 윷을 기준으로 삼고, 확률을 바꾸는 윷을 더했습니다. 강화는 11장의 강화표를 따릅니다.</p>
   <div class="table-wrap"><table id="tblSticks"></table></div>
-  <p>강화: 최대 <span data-k="stickUpgrade.maxLevel"></span>레벨. 비용은 (<span data-k="stickUpgrade.costBase"></span> + 현재 레벨 × <span data-k="stickUpgrade.costPerLevel"></span>)냥.</p>
-  <h3>부적 (패시브) <span class="tag ppt">원안</span></h3>
+  <h3>재질 시너지 <span class="tag new">보완</span> <span class="tag ask">미확정</span></h3>
+  <p>한 번에 던지는 4개 중 같은 재질의 수로 보너스가 열린다(TFT 특성 시너지). 한 재질에서는 가장 높은 단계 하나만 적용된다.</p>
+  <div class="table-wrap"><table id="tblFamilies"></table></div>
+  <h3>부적 (패시브) <span class="tag ppt">원안</span> <span class="tag ask">미확정</span></h3>
   <p>장착 칸 <span data-k="rules.charmSlots"></span>개. 순서를 바꿀 수 있고 처리 순서에 영향을 준다.</p>
   <div class="table-wrap"><table id="tblCharms"></table></div>
-  <h3>라운드 증강 <span class="tag ppt">원안</span></h3>
-  <p>라운드 전에 무작위 3개 중 1개를 고른다. 위험도가 높을수록 목표 점수나 제약이 늘고 보상 배수가 커진다. 셋 중 적어도 하나는 위험도 0~1이 나오게 뽑는다.</p>
+  <h3>라운드 특성 <span class="tag ppt">원안</span> <span class="tag ask">미확정</span></h3>
+  <p>매 라운드 전에 무작위 3개 중 1개를 고르는 이번 판의 변형 규칙이다(원안 STEP 4, 플로차트의 "하이리스크 &amp; 하이리턴"). 위험도가 높을수록 목표 점수나 제약이 늘고 보상 배수가 커진다. 셋 중 적어도 하나는 위험도 0~1이 나오게 뽑는다.</p>
+  <div class="table-wrap"><table id="tblTraits"></table></div>
+  <h3>막 증강 <span class="tag new">보완</span> <span class="tag ask">미확정</span></h3>
+  <p>막의 보스를 깬 뒤 3개 중 1개를 고르는 영구 효과다(TFT 증강). 먼저 등급을 하나 뽑고 그 등급에서 서로 다른 3개를 보여준다. 선택지마다 한 번씩 다시 뽑을 수 있다.</p>
+  <div class="table-wrap"><table id="tblAugOdds"></table></div>
   <div class="table-wrap"><table id="tblAugments"></table></div>
-  <h3>수문장과 보스</h3>
+  <h3>수문장과 보스 <span class="tag ask">미확정</span></h3>
   <div class="table-wrap"><table id="tblGuardians"></table></div>
-  <h3>시작 덱 (덱 특성 세팅) <span class="tag ppt">원안</span></h3>
+  <h3>시작 덱 (덱 특성 세팅) <span class="tag ppt">원안</span> <span class="tag ask">미확정</span></h3>
   <p>원본 플로차트의 "덱 특성 세팅" 단계에서 고른다.</p>
   <div class="table-wrap"><table id="tblDecks"></table></div>
 </section>
@@ -416,20 +463,31 @@ select, input[type=number] { font: inherit; font-size: 13.5px; padding: 4px 6px;
   <p class="lead">3막 × 3라운드(일반 · 엘리트 · 보스). 원안의 "라운드마다 가파르게 오르는 요구 점수"를 막 단위로 크게 올리는 곡선으로 잡았습니다.</p>
   <div class="diagram" id="targetChart"></div>
   <div class="table-wrap"><table id="tblRounds"></table></div>
-  <div class="note">목표 점수에는 고른 증강의 목표 배율이 곱해집니다. 1-1은 기본 덱으로도 넉넉히 깰 수 있게, 1-3부터 강화 없이 어렵게 잡았습니다. 그래프의 점선은 위 계산기의 기본 덱(나무 윷 4개) 라운드 기대 점수이고, 완주·업기 점수는 빠져 있습니다.</div>
+  <div class="note">목표 점수에는 고른 라운드 특성의 목표 배율이 곱해집니다. 1-1은 기본 덱으로도 넉넉히 깰 수 있게, 1-3부터 강화 없이 어렵게 잡았습니다. 그래프의 점선은 8장 계산기의 기본 덱(나무 윷 4개) 라운드 기대 점수이고, 완주·업기 점수는 빠져 있습니다. 막 증강은 1막, 2막 보스를 깬 뒤에 나옵니다.</div>
+  <h3>무한 모드 <span class="tag new">보완</span></h3>
+  <p>3막 보스를 깨면 엔딩을 본 뒤 무한 모드로 이어갈 수 있다. 4막부터는 3막 구조(일반 · 엘리트 · 보스)를 정해진 규칙으로 만들어 낸다. 손으로 만든 라운드가 아니라 공식으로 생성하므로 콘텐츠를 더 만들지 않아도 끝없이 이어진다. 목표는 점수 기록 경쟁이다.</p>
+  <ul id="endlessRules"></ul>
+  <div class="table-wrap"><table id="tblEndless"></table></div>
 </section>
 
 <!-- 11 -->
 <section id="economy">
   <h2><span class="no">11</span>보상과 상점</h2>
   <h3>보상 정산 <span class="tag ppt">원안</span></h3>
-  <div class="formula">획득 엽전 = 기본 보상 × 증강 보상 배수(반올림) + 남은 투척 × <span data-k="economy.perRemainingToss"></span> + 이자( 보유 엽전 <span data-k="economy.interestPer"></span>냥당 1, 최대 <span data-k="economy.interestCap"></span> )</div>
-  <h3>상점 구성</h3>
+  <div class="formula">획득 엽전 = 기본 보상 × 라운드 특성 보상 배수(반올림) + 남은 투척 × <span data-k="economy.perRemainingToss"></span> + 이자( 보유 엽전 <span data-k="economy.interestPer"></span>냥당 1, 최대 <span data-k="economy.interestCap"></span> )</div>
+  <p>라운드 보상은 재화(엽전)만 준다. 윷가락·부적·강화는 모두 상점에서 엽전으로 산다. 런 방향을 바꾸는 큰 보상은 막 증강이 맡는다.</p>
+  <h3>상점 구성 <span class="tag ppt">원안</span></h3>
+  <p>상점의 기본 틀은 발라트로 상점(진열 칸, 리롤, 판매)이다. 여기에 윷 강화와 합치기를 더한다.</p>
   <div class="table-wrap"><table id="tblEconomy"></table></div>
+  <div class="table-wrap"><table id="tblShopOdds"></table></div>
+  <h3>윷 강화 (검 강화하기식) <span class="tag new">보완</span> <span class="tag ask">미확정</span></h3>
+  <p>덱의 윷가락 하나를 골라 엽전을 내고 다음 단계에 도전한다. 단계가 오를수록 비싸지고 성공 확률이 떨어진다. 실패하면 단계에 따라 그대로 남거나, 한 단계 내려가거나, 일정 확률로 윷가락이 부서진다. 보너스는 단계마다 누적된다.</p>
+  <div class="table-wrap"><table id="tblUpgrade"></table></div>
+  <p><b>합치기:</b> 같은 윷가락 <span data-k="stickUpgrade.merge.count"></span>개를 합치면 1개만 남고 실패 없이 <span data-k="stickUpgrade.merge.levelGain"></span>단계 오른다. 합칠 때는 셋 중 가장 높은 단계를 기준으로 한다. 운에 맡기는 강화와 대비되는 안전한 성장 길이다(TFT 별 올리기).</p>
   <h3>덱 편집에서 할 수 있는 일</h3>
   <ul>
     <li><b>영입:</b> 상점의 윷가락을 사서 덱에 넣는다. 덱은 최소 6개(손패 수), 최대 16개.</li>
-    <li><b>강화:</b> 덱의 윷가락 하나를 골라 레벨을 올린다.</li>
+    <li><b>강화 · 합치기:</b> 위 규칙대로 윷가락을 키운다.</li>
     <li><b>제거:</b> 원치 않는 윷가락을 돈을 내고 뺀다(덱 압축). 원안 8장 "윷 편집"의 핵심.</li>
     <li><b>족보 비급:</b> 도·개·걸·윷·모 중 하나의 레벨을 올린다. 상점 비급 칸에 무작위로 하나 뜬다.</li>
     <li><b>판매:</b> 윷가락과 부적은 산 값의 절반에 판다.</li>
@@ -441,7 +499,7 @@ select, input[type=number] { font: inherit; font-size: 13.5px; padding: 4px 6px;
   <h2><span class="no">12</span>3C와 조작</h2>
   <div class="grid3">
     <div class="card"><h4>Character</h4><ul><li>내 말 4개(색 하나, 업기 시 겹쳐 쌓이고 배율 배지 표시)</li><li>수문장·보스 말(머리 위 다음 이동 예고)</li><li>윷가락: 덱의 카드 역할</li></ul></div>
-    <div class="card"><h4>Camera</h4><ul><li>고정 2D 화면, 스크롤 없음</li><li>윷판은 화면 중앙에 고정</li><li>잡기·모·보스 등장 때만 짧은 흔들림과 줌 펀치(0.15초)</li></ul></div>
+    <div class="card"><h4>Camera</h4><ul><li>고정 2D 화면, 스크롤 없음</li><li>윷판은 화면 중앙에 고정</li><li>(추가 구현) 잡기·모·보스 등장 때 짧은 흔들림과 줌 펀치(0.15초)</li></ul></div>
     <div class="card"><h4>Control</h4><ul><li>마우스: 윷가락 클릭으로 고르기/해제, 버튼, 말 클릭</li><li>키보드: 1~6 윷가락 선택, Space 던지기, R 교체, Tab 말 순환, Esc 일시정지</li></ul></div>
   </div>
   <h3>입력 상태</h3>
@@ -463,11 +521,12 @@ select, input[type=number] { font: inherit; font-size: 13.5px; padding: 4px 6px;
     <tr><th>화면(mode)</th><th>내용</th><th>범위</th></tr>
     <tr><td>title</td><td>시작, 이어하기(확장), 설정, 종료</td><td>MVP</td></tr>
     <tr><td>deck_setup</td><td>시작 덱 3종 중 선택, 덱 구성 미리보기</td><td>MVP(1종) → 목표(3종)</td></tr>
-    <tr><td>augment_select</td><td>다음 라운드 정보(목표 점수, 수문장) + 증강 카드 3장</td><td>MVP</td></tr>
+    <tr><td>round_select</td><td>다음 라운드 정보(목표 점수, 수문장) + 라운드 특성 카드 3장</td><td>MVP</td></tr>
     <tr><td>play</td><td>윷판, 손패, 점수판, 부적, 수문장 예고</td><td>MVP</td></tr>
     <tr><td>reward</td><td>보상 항목을 한 줄씩 더하는 정산표</td><td>MVP</td></tr>
-    <tr><td>shop</td><td>상점 진열, 덱 보기, 강화/제거, 리롤</td><td>MVP(영입·강화) → 목표(전부)</td></tr>
-    <tr><td>result</td><td>게임 오버 / 승리, 최고 투척 점수 등 통계</td><td>MVP</td></tr>
+    <tr><td>augment_select</td><td>막 보스 클리어 후 증강 카드 3장, 선택지별 다시 뽑기</td><td>목표</td></tr>
+    <tr><td>shop</td><td>상점 진열, 덱 보기, 강화(성공·실패 판정)/합치기/제거, 리롤</td><td>MVP(영입·강화) → 목표(전부)</td></tr>
+    <tr><td>result</td><td>게임 오버 / 엔딩, 무한 모드 진입, 기록(도달 라운드, 총점, 최고 투척 점수)</td><td>MVP(게임 오버·클리어) → 목표(무한 모드)</td></tr>
     <tr><td>pause / settings</td><td>음량, 연출 속도(1×/2×), 규칙 도움말</td><td>목표</td></tr>
   </table></div>
   <h3>플레이 화면 와이어프레임 (1280 × 720)</h3>
@@ -498,8 +557,9 @@ select, input[type=number] { font: inherit; font-size: 13.5px; padding: 4px 6px;
       <text x="640" y="300" text-anchor="middle" font-size="16" fill="var(--ink-2)">말 · 묶음 배율 배지 · 수문장 다음 이동 예고</text>
       <text x="1024" y="120" font-weight="700">부적 (5칸)</text>
       <g fill="var(--surface-2)" stroke="var(--line)"><rect x="1024" y="136" width="40" height="40" rx="6"/><rect x="1072" y="136" width="40" height="40" rx="6"/><rect x="1120" y="136" width="40" height="40" rx="6"/><rect x="1168" y="136" width="40" height="40" rx="6"/><rect x="1216" y="136" width="40" height="40" rx="6"/></g>
-      <text x="1024" y="230" font-weight="700">증강</text>
-      <text x="1024" y="258" font-size="16" fill="var(--ink-2)">업고 달려 (위험 보통)</text>
+      <text x="1024" y="222" font-weight="700">라운드 특성 · 증강</text>
+      <text x="1024" y="250" font-size="16" fill="var(--ink-2)">업고 달려 (위험 보통)</text>
+      <text x="1024" y="274" font-size="16" fill="var(--ink-2)">증강: 한 벌(금)</text>
       <text x="1024" y="310" font-weight="700">수문장</text>
       <text x="1024" y="338" font-size="16" fill="var(--ink-2)">다음 이동: 2칸</text>
       <text x="1024" y="362" font-size="16" fill="var(--ink-2)">덱 남은 수 4 · 버림 2</text>
@@ -521,17 +581,19 @@ select, input[type=number] { font: inherit; font-size: 13.5px; padding: 4px 6px;
     </g>
   </svg>
   </div>
-  <div class="note decide"><b>결정 필요.</b> 원안 콘셉트의 ENHANCE · COMBINE · TOSS 버튼을 이 문서는 <b>교체 · 조합(4개 고르기) · 던지기</b>로 해석했고, 강화는 상점으로 옮겼습니다. 라운드 중 강화를 원래 의도했다면 18장의 1번 항목을 확인해 주세요. 콘셉트의 <code>00/10</code>, <code>00/13</code>은 각각 남은 투척, 덱 남은 수로 표시합니다.</div>
-  <h3>피드백 연출 (도파민 장치)</h3>
+  <div class="note"><b>확정.</b> 원안 콘셉트의 ENHANCE · COMBINE · TOSS 중 COMBINE은 <b>던질 윷 4개 고르기</b>, TOSS는 던지기입니다. ENHANCE(강화)는 라운드 화면에서 빼고 상점으로 옮겼습니다. 라운드 화면의 버튼은 교체와 던지기입니다. 콘셉트의 <code>00/10</code>, <code>00/13</code>은 각각 남은 투척, 덱 남은 수로 표시합니다.</div>
+  <h3>피드백 연출 (보조 장치)</h3>
+  <p>재미의 중심은 규칙과 점수 계산에 있고, 연출은 그 결과를 읽기 쉽게 돕는 보조 장치입니다. MVP에는 정보 전달에 꼭 필요한 최소 리소스만 넣고, 나머지는 모두 MVP 이후의 추가 구현입니다.</p>
   <div class="table-wrap"><table>
-    <tr><th>상황</th><th>시각</th><th>소리</th></tr>
-    <tr><td>윷가락 하나 발동</td><td>윷가락이 튀어 오르고 +Chips / +Mult 숫자 팝업, 점수판 숫자 굴러감</td><td>짧은 딸깍, 발동할수록 음 높이 상승</td></tr>
-    <tr><td>윷 · 모</td><td>"윷이야!" / "모다!" 큰 글자, 화면 흔들림 약</td><td>환호 효과음</td></tr>
-    <tr><td>업기</td><td>말이 겹쳐 쌓이고 ×n 배지가 커졌다 줄어듦</td><td>나무 부딪히는 소리</td></tr>
-    <tr><td>잡기</td><td>잡힌 말이 날아가고 ×2 도장 효과, 흔들림 중</td><td>타격음 + 북</td></tr>
-    <tr><td>완주</td><td>말이 참먹이로 빨려 들어가며 Chips 불꽃</td><td>징</td></tr>
-    <tr><td>최종 곱셈</td><td>Chips와 Mult 상자가 부딪혀 합쳐지고, 점수가 목표 바 위로 차오름. 점수가 클수록 불꽃 단계 상승</td><td>점수 단계별 상승음</td></tr>
-    <tr><td>목표 달성</td><td>목표 바가 금색으로 바뀌고 정산 화면으로 전환</td><td>짧은 팡파르</td></tr>
+    <tr><th>상황</th><th>MVP (최소 리소스)</th><th>추가 구현</th></tr>
+    <tr><td>윷가락 하나 발동</td><td>+Chips / +Mult 숫자 텍스트, 점수판 숫자 갱신</td><td>윷가락 튀어 오름, 숫자 굴러감, 발동할수록 음 높이 상승</td></tr>
+    <tr><td>윷 · 모</td><td>결과 이름 텍스트</td><td>"윷이야!" / "모다!" 큰 글자, 화면 흔들림, 환호 효과음</td></tr>
+    <tr><td>업기</td><td>말 겹쳐 그리기, ×n 텍스트 배지</td><td>배지 확대 트윈, 나무 부딪히는 소리</td></tr>
+    <tr><td>잡기</td><td>잡힌 말을 출발로 옮김, ×2 텍스트</td><td>날아가는 연출, 도장 효과, 흔들림, 타격음</td></tr>
+    <tr><td>완주</td><td>말 제거, 완주 Chips 텍스트</td><td>참먹이로 빨려 드는 연출, 불꽃, 징</td></tr>
+    <tr><td>최종 곱셈</td><td>Chips × Mult = 점수 텍스트, 목표 바 갱신</td><td>상자 충돌 연출, 점수 크기별 불꽃 단계, 상승음</td></tr>
+    <tr><td>강화 성공 · 실패</td><td>결과 텍스트</td><td>망치질 연출, 부서지는 효과, 성공·실패 효과음</td></tr>
+    <tr><td>목표 달성</td><td>정산 화면으로 전환</td><td>목표 바 금색 전환, 팡파르</td></tr>
   </table></div>
 </section>
 
@@ -552,12 +614,13 @@ core/                   # pico2d import 금지
   board.py  piece.py    # 경로, 이동, 업기/잡기/완주
   guardian.py           # 수문장, 보스 기믹
   scoring.py            # 처리 순서와 훅 파이프라인
-  effects.py            # 부적·증강 효과 (id → 훅 함수)
-  run_state.py          # 런 진행, 엽전, 라운드 기록
-  shop.py
+  effects.py            # 부적·라운드 특성·막 증강·재질 시너지 (id → 훅 함수)
+  run_state.py          # 런 진행, 엽전, 증강, 라운드 기록
+  run_gen.py            # 무한 모드 라운드 생성
+  shop.py               # 진열·리롤, 강화 판정, 합치기
 modes/
-  title_mode.py  deck_setup_mode.py  augment_mode.py
-  play_mode.py   reward_mode.py      shop_mode.py  result_mode.py
+  title_mode.py  deck_setup_mode.py  round_select_mode.py  play_mode.py
+  reward_mode.py augment_mode.py     shop_mode.py          result_mode.py
 ui/
   widgets.py            # 버튼, 패널, 텍스트
   fx.py                 # 숫자 팝업, 흔들림, 트윈
@@ -567,37 +630,37 @@ tools/
   <div class="card">
   <h4>핵심 객체</h4>
   <ul>
-    <li><code>RunState</code>: 덱, 부적, 족보 레벨, 엽전, 현재 막/라운드. 런 동안 유지.</li>
+    <li><code>RunState</code>: 덱(윷가락별 강화 단계 포함), 부적, 막 증강, 족보 레벨, 엽전, 현재 막/라운드, 무한 모드 여부. 런 동안 유지.</li>
     <li><code>RoundState</code>: 남은 투척·교체, 손패, 말 4개, 수문장, 라운드 점수. 라운드마다 새로 만듦.</li>
     <li><code>Piece</code>: <code>route</code>, <code>index</code>, <code>history</code>(빽도용), <code>stack</code>(업힌 말).</li>
     <li><code>ScoreContext</code>: chips, add_mult, x_mult 목록, stack, capture, log. 각 단계의 기록을 남겨 연출이 그대로 재생.</li>
-    <li><code>Effect</code>: <code>on_round_start / on_toss_result / on_stick / on_move / on_capture / on_finish / on_score / on_round_end</code> 중 필요한 것만 구현.</li>
+    <li><code>Effect</code>: <code>on_round_start / on_toss_result / on_stick / on_synergy / on_move / on_capture / on_finish / on_score / on_round_end / on_upgrade</code> 중 필요한 것만 구현.</li>
   </ul>
   <h4>연출과 로직 분리</h4>
   <p><code>scoring.py</code>는 점수를 바로 계산해 <code>log</code> 목록을 돌려주고, <code>play_mode</code>는 그 목록을 시간에 맞춰 하나씩 재생한다. 빨리감기는 재생만 건너뛰므로 결과가 달라지지 않는다.</p>
   <h4>난수</h4>
-  <p>런 시작 시 시드를 정해 <code>random.Random(seed)</code> 하나만 쓴다. 버그 재현과 밸런스 테스트에 필요하다.</p>
+  <p>런 시작 시 시드를 정해 <code>random.Random(seed)</code> 하나만 쓴다. 투척, 수문장, 상점, 강화 판정이 모두 이 난수를 쓴다. 버그 재현과 밸런스 테스트에 필요하다.</p>
   </div>
   </div>
   <h3>모드 전환</h3>
-  <p><code>title</code> → <code>deck_setup</code> → (<code>augment_select</code> → <code>play</code> → <code>reward</code> → <code>shop</code>)을 9번 반복 → <code>result</code>. 일시정지는 <code>push_mode(pause_mode)</code>로 위에 쌓는다.</p>
+  <p><code>title</code> → <code>deck_setup</code> → (<code>round_select</code> → <code>play</code> → <code>reward</code> → [보스 클리어 시 <code>augment_select</code>] → <code>shop</code>)을 9번 반복 → <code>result</code>(엔딩) → 무한 모드를 고르면 <code>run_gen</code>으로 다음 막을 만들어 같은 순환을 계속한다. 일시정지는 <code>push_mode(pause_mode)</code>로 위에 쌓는다.</p>
 </section>
 
 <!-- 15 -->
 <section id="resource">
   <h2><span class="no">15</span>리소스 목록</h2>
-  <p class="lead">원안 10장대로 AI 도구(ComfyUI 등)로 초안을 만들고 직접 다듬습니다. 외부 에셋은 라이선스를 <code>docs/credits.md</code>에 기록합니다.</p>
+  <p class="lead">원안 10장대로 AI 도구(ComfyUI 등)로 초안을 만들고 직접 다듬습니다. 외부 에셋은 라이선스를 <code>docs/credits.md</code>에 기록합니다. MVP 수량은 화면을 읽을 수 있는 최소치이고, 나머지는 추가 구현입니다.</p>
   <div class="table-wrap"><table>
     <tr><th>분류</th><th>항목</th><th>MVP 수량</th><th>최종 수량</th></tr>
-    <tr><td>이미지</td><td>윷가락 (배/등 2면, 강화 테두리)</td><td class="num">3</td><td class="num">10</td></tr>
-    <tr><td>이미지</td><td>윷판, 칸 강조, 함정</td><td class="num">1</td><td class="num">1 + 효과 3</td></tr>
-    <tr><td>이미지</td><td>내 말, 업기 배지, 수문장, 보스</td><td class="num">3</td><td class="num">6</td></tr>
-    <tr><td>이미지</td><td>부적 아이콘</td><td class="num">3</td><td class="num">10</td></tr>
-    <tr><td>이미지</td><td>증강 카드 틀, 아이콘</td><td class="num">1 + 4</td><td class="num">1 + 12</td></tr>
-    <tr><td>이미지</td><td>UI 패널, 버튼, 점수판, 배경</td><td class="num">8</td><td class="num">15</td></tr>
+    <tr><td>이미지</td><td>윷가락 (배/등 2면, 강화 단계 표시)</td><td class="num">3</td><td class="num">11</td></tr>
+    <tr><td>이미지</td><td>윷판, 칸 강조</td><td class="num">1</td><td class="num">1 + 효과 3</td></tr>
+    <tr><td>이미지</td><td>내 말, 수문장, 보스</td><td class="num">2</td><td class="num">5</td></tr>
+    <tr><td>이미지</td><td>부적 아이콘</td><td class="num">3</td><td class="num">11</td></tr>
+    <tr><td>이미지</td><td>라운드 특성 · 막 증강 카드 틀</td><td class="num">1</td><td class="num">2 + 아이콘 24</td></tr>
+    <tr><td>이미지</td><td>UI 패널, 버튼, 점수판, 배경</td><td class="num">5</td><td class="num">15</td></tr>
     <tr><td>폰트</td><td>한글 비트맵/픽셀 폰트 (OFL 등 배포 가능 라이선스)</td><td class="num">1</td><td class="num">1~2</td></tr>
-    <tr><td>사운드</td><td>투척, 착지, 발동, 잡기, 완주, 곱셈, 클리어, 실패, 버튼</td><td class="num">6</td><td class="num">12</td></tr>
-    <tr><td>음악</td><td>메뉴, 라운드, 보스, 상점</td><td class="num">1</td><td class="num">4</td></tr>
+    <tr><td>사운드</td><td>투척, 착지, 발동, 잡기, 완주, 곱셈, 강화, 클리어, 실패, 버튼</td><td class="num">3</td><td class="num">12</td></tr>
+    <tr><td>음악</td><td>메뉴, 라운드, 보스, 상점</td><td class="num">0</td><td class="num">4</td></tr>
   </table></div>
 </section>
 
@@ -607,17 +670,21 @@ tools/
   <p class="lead">원안 9장의 마일스톤을 그대로 두고, 구간마다 끝났다고 말할 수 있는 기준을 붙였습니다. <span class="tag ppt">원안</span></p>
   <div class="table-wrap"><table>
     <tr><th>기간</th><th>원안</th><th>할 일</th><th>완료 기준</th></tr>
-    <tr><td>11/3 ~ 11/10</td><td>세부 기획 ⇄ 프로토타이핑 반복</td><td>이 문서 확정(18장 결정), 저장소 골격, <code>core/toss.py</code>·<code>scoring.py</code> 콘솔 프로토타입, 경로 이동 구현</td><td>콘솔에서 한 라운드를 끝까지 플레이할 수 있다. 6장 경로 예시 전부 통과</td></tr>
-    <tr><td>11/11 ~ 11/22</td><td>주요 리소스/시스템, 코어 루프 구현</td><td>pico2d 모드 7개, 플레이 화면, 수문장, 정산, 상점(영입·강화), 임시 그래픽</td><td><b>MVP:</b> 1막 3라운드를 처음부터 끝까지, 이기고 질 수 있다</td></tr>
-    <tr><td>11/23 ~ 11/30</td><td>마일스톤 재점검 → 세부 콘텐츠 구현</td><td>콘텐츠 목록 채우기, 2·3막, 보스 3종, 시작 덱 3종, 연출, 사운드, 리소스 교체</td><td>3막 9라운드 런 완주 가능, 콘텐츠 표의 80% 이상 구현</td></tr>
+    <tr><td>11/3 ~ 11/10</td><td>세부 기획 ⇄ 프로토타이핑 반복</td><td>미확정 콘텐츠 1차안 정리, 저장소 골격, <code>core/toss.py</code>·<code>scoring.py</code> 콘솔 프로토타입, 경로 이동 구현</td><td>콘솔에서 한 라운드를 끝까지 플레이할 수 있다. 6장 경로 예시 전부 통과</td></tr>
+    <tr><td>11/11 ~ 11/22</td><td>주요 리소스/시스템, 코어 루프 구현</td><td>pico2d MVP 모드(title, deck_setup, round_select, play, reward, shop, result), 플레이 화면, 수문장, 정산, 상점(영입·강화 판정), 최소 리소스</td><td><b>MVP:</b> 1막 3라운드를 처음부터 끝까지, 이기고 질 수 있다</td></tr>
+    <tr><td>11/23 ~ 11/30</td><td>마일스톤 재점검 → 세부 콘텐츠 구현</td><td>MVP 플레이 결과로 규칙 재점검, 막 증강, 재질 시너지, 합치기, 2·3막, 보스 3종, 무한 모드, 시작 덱 3종, 연출, 사운드</td><td>3막 9라운드 런과 무한 모드 진입 가능, 콘텐츠 표의 80% 이상 구현</td></tr>
     <tr><td>12/1 ~ 12/5</td><td>테스트 → 버그/퀄리티 검증, 리팩터링, main 확정</td><td>17장 체크리스트, 밸런스 조정(JSON만 수정), 버그 수정</td><td>알려진 진행 불가 버그 0, 10번 이상 테스트 런 기록</td></tr>
     <tr><td>12/6 ~ 제출 전</td><td>최종 루프 검증 → 패키징, Release 분리</td><td>실행 파일/배포 폴더 정리, README 실행법, 시연 영상</td><td>다른 PC에서 설치 없이 실행 확인</td></tr>
   </table></div>
   <h3>범위 우선순위 <span class="tag ref">참고</span></h3>
+  <div class="note">
+    <b>MVP란?</b> Minimum Viable Product, 즉 <b>핵심 재미가 성립하는지 확인할 수 있는 가장 작은 완성본</b>입니다. 윷토체스의 가설은 "윷가락으로 확률을 짜서 던지고, 던진 뒤 말을 골라 점수를 키우고, 번 돈으로 덱을 강화하는 것이 재미있다"입니다.
+    MVP는 콘텐츠 양이나 그래픽보다 <b>이 순환이 처음부터 끝까지 한 판 돌아가는 것</b>을 기준으로 잡습니다. 콘텐츠는 적게, 리소스는 최소로 두고, MVP를 직접 플레이해 본 결과로 규칙을 고칠지 콘텐츠를 늘릴지 정합니다. 그래서 1막 3라운드(일반 · 엘리트 · 보스)까지만 만듭니다.
+  </div>
   <div class="grid3">
-    <div class="card"><h4>MVP (꼭)</h4><ul><li>투척 판정, 빽도, 윷·모 한 번 더</li><li>29칸 경로, 지름길, 업기, 잡기, 완주</li><li>수문장 1종</li><li>1막 3라운드, 정산, 상점(영입·강화)</li><li>윷가락 3, 부적 3, 증강 4</li></ul></div>
-    <div class="card"><h4>목표 (되도록)</h4><ul><li>3막 9라운드, 보스 3종</li><li>콘텐츠 표 전체</li><li>족보 비급, 제거, 리롤, 판매</li><li>시작 덱 3종</li><li>점수 연출과 사운드 전체</li></ul></div>
-    <div class="card"><h4>확장 (여유 있으면)</h4><ul><li>이어하기(세이브)</li><li>도감, 최고 기록</li><li>난이도 단계</li><li>시드 입력</li></ul></div>
+    <div class="card"><h4>MVP (꼭)</h4><ul><li>투척 판정, 빽도, 윷·모 한 번 더</li><li>29칸 경로, 지름길, 업기, 잡기, 완주</li><li>수문장 1종</li><li>1막 3라운드, 라운드 특성 4종</li><li>정산, 상점(영입, 단계 강화와 실패 판정)</li><li>윷가락 3, 부적 3</li><li>점수 과정 텍스트 표시, 최소 리소스</li></ul></div>
+    <div class="card"><h4>목표 (되도록)</h4><ul><li>3막 9라운드, 보스 3종</li><li>막 증강(은·금·옥), 재질 시너지</li><li>합치기, 족보 비급, 제거, 리롤, 판매</li><li>무한 모드(규칙 생성, 점수 기록)</li><li>콘텐츠 표 전체, 시작 덱 3종</li><li>피드백 연출과 사운드</li></ul></div>
+    <div class="card"><h4>확장 (여유 있으면)</h4><ul><li>이어하기(세이브)</li><li>도감, 기록 화면</li><li>난이도 단계</li><li>시드 입력</li></ul></div>
   </div>
   <p><b>축소 기준:</b> 11/22에 MVP가 돌아가지 않으면 2·3막을 1막 반복(목표 점수 상승)으로 바꾸고, 보스는 1종만 만든다.</p>
 </section>
@@ -632,43 +699,27 @@ tools/
     <li><b>점수식:</b> 7장 계산 예시를 단위 테스트로. 부적 순서를 바꿨을 때 결과가 문서와 같은지.</li>
     <li><b>종료 판정:</b> 목표 도달 즉시 종료 / 투척 0 / 4개 완주 / 판에 말 없이 빽도.</li>
     <li><b>수문장:</b> 업힌 묶음이 잡힐 때 배율 초기화, 잡힌 수문장 2투척 뒤 재등장.</li>
+    <li><b>강화:</b> 단계별 1,000회 강화 시뮬레이션의 성공·하락·파괴 비율이 11장 강화표와 맞는지. 합치기가 실패 없이 2단계 오르는지.</li>
+    <li><b>무한 모드:</b> 4~6막 생성 결과가 10장 표와 같은지.</li>
     <li><b>밸런스:</b> 기본 덱으로 1-1 클리어율 90% 이상, 강화 없이 1-3 클리어율 30% 이하가 되도록 목표 점수 조정.</li>
     <li><b>시간:</b> 라운드 평균 3~4분 안쪽인지(연출 1× 기준).</li>
   </ul>
 </section>
 
 <!-- 18 -->
-<section id="open">
-  <h2><span class="no">18</span>미결정 사항</h2>
-  <p class="lead">기획자가 정해야 이 문서를 확정할 수 있는 항목입니다. 이 문서는 제안안을 기준으로 썼습니다.</p>
+<section id="decisions">
+  <h2><span class="no">18</span>결정 사항</h2>
+  <p class="lead">기획자가 확정한 항목입니다. 본문은 이 결정을 기준으로 썼습니다.</p>
   <div class="table-wrap"><table>
-    <tr><th>#</th><th>질문</th><th>제안안</th><th>대안</th></tr>
-    <tr><td>1</td><td>콘셉트의 ENHANCE · COMBINE 버튼 의미</td><td>강화는 상점, COMBINE은 4개 고르기</td><td>라운드 중 엽전을 써서 즉시 강화</td></tr>
-    <tr><td>2</td><td>승리 조건: 상대 점수 경쟁 vs 목표 점수</td><td>목표 점수 PvE, 상대는 수문장</td><td>AI 상대와 점수 경쟁(구현량 큼)</td></tr>
-    <tr><td>3</td><td>목표 도달 시 즉시 종료?</td><td>즉시 종료, 남은 투척은 엽전</td><td>계속 던져 초과 점수를 보상으로</td></tr>
-    <tr><td>4</td><td>업기 배율 크기</td><td>묶음의 말 수만큼 곱(×2, ×3, ×4)</td><td>말 하나당 +0.5</td></tr>
-    <tr><td>5</td><td>완주 판정</td><td>참먹이에 닿거나 넘으면 완주</td><td>전통 규칙: 참먹이를 반드시 지나야 완주</td></tr>
-    <tr><td>6</td><td>런 길이</td><td>3막 9라운드, MVP는 1막</td><td>무한 모드(점수 기록 경쟁)</td></tr>
-    <tr><td>7</td><td>족보 레벨업 포함 여부</td><td>목표 범위에 포함(상점 비급)</td><td>빼고 윷가락·부적에 집중</td></tr>
+    <tr><th>#</th><th>항목</th><th>결정</th><th>반영</th></tr>
+    <tr><td>1</td><td>강화와 COMBINE, 상점과 보상</td><td>강화는 상점에서, COMBINE은 던질 윷 4개 고르기. 상점은 발라트로식 기본 틀에 검 강화하기식 윷 강화(실패 확률 있음)를 더한다. 라운드 보상은 재화, 막이 끝날 때마다 TFT식 랜덤 증강 3택 1</td><td>2 · 4 · 9 · 11 · 13장</td></tr>
+    <tr><td>2</td><td>승리 조건</td><td>목표 점수 PvE, 상대는 수문장</td><td>5장</td></tr>
+    <tr><td>3</td><td>목표 도달 시</td><td>즉시 종료, 남은 투척은 엽전</td><td>5 · 11장</td></tr>
+    <tr><td>4</td><td>업기 배율</td><td>묶음의 말 수만큼 곱(×2, ×3, ×4). 특수 룰(라운드 특성 · 증강 · 부적)이면 추가 배수</td><td>7 · 9장</td></tr>
+    <tr><td>5</td><td>완주 판정</td><td>참먹이에 닿거나 넘으면 완주</td><td>6장</td></tr>
+    <tr><td>6</td><td>런 길이</td><td>3막 9라운드, 이후 규칙 생성 무한 모드(점수 기록 경쟁). MVP는 1막</td><td>10 · 16장</td></tr>
+    <tr><td>7</td><td>족보 레벨업</td><td>목표 범위에 포함(상점 비급)</td><td>11 · 16장</td></tr>
   </table></div>
-</section>
-
-<!-- 19 -->
-<section id="changes">
-  <h2><span class="no">19</span>원안 대비 변경</h2>
-  <div class="table-wrap"><table>
-    <tr><th>원안 슬라이드</th><th>원안 내용</th><th>이 문서에서</th></tr>
-    <tr><td>3 게임 소개</td><td>로그라이크 덱빌딩, 윷 덱빌딩</td><td>유지. 플랫폼·해상도·플레이 시간 추가(1장)</td></tr>
-    <tr><td>4 사례·차별성</td><td>발라트로, TFT, 윷놀이 고유 룰 활용</td><td>가져올 것/뺄 것 표와 URP 3가지로 정리(2장)</td></tr>
-    <tr><td>5 핵심 재미</td><td>시너지 빌딩, 통제된 랜덤</td><td>유지. 설계 원칙 4개 추가(3장)</td></tr>
-    <tr><td>6 코어 루프</td><td>플로차트</td><td>메타 루프 + 라운드 안 8단계 턴 루프로 구체화(4장)</td></tr>
-    <tr><td>7 Round-Rule</td><td>투척·족보, 잡기·업기·완주, 증강, "상대보다 높은 점수"</td><td>수문장 PvE로 통일, 덱/손패/교체 자원, 점수식과 처리 순서 고정(5·7장)</td></tr>
-    <tr><td>8 Core-Rule</td><td>4단계 순환, 보상 요소, 상점 기능</td><td>보상 공식, 상점 칸·가격, 덱 편집 규칙을 수치로(11장)</td></tr>
-    <tr><td>9 마일스톤</td><td>5구간 일정</td><td>구간마다 완료 기준과 MVP/목표/확장 범위 추가(16장)</td></tr>
-    <tr><td>10 개발 계획</td><td>AI·개발 툴</td><td>리소스 목록과 pico2d 폴더 구조 추가(14·15장)</td></tr>
-    <tr><td>2 목차의 "실제 구현"</td><td>비어 있음(To be Continued)</td><td>3C, 화면, 콘텐츠 목록으로 채움(9·12·13장)</td></tr>
-  </table></div>
-  <p><span class="tag ref">참고</span> Notion v0.2(AI 제안)에서는 PvE 통일, 공개 순찰하는 상대 말, 처리 순서 명시, MVP를 3라운드 완주로 잡는 우선순위, "모든 수치는 초깃값" 원칙만 가져왔습니다. 구체 규칙과 수치는 이 문서에서 새로 정했습니다.</p>
 </section>
 </main>
 </div>
@@ -693,8 +744,33 @@ tools/
       rows.map((r) => "<tr>" + r.map((c, i) => `<td${head[i].num ? ' class="num"' : ""}>${c}</td>`).join("") + "</tr>").join("");
   }
 
+  // 강화 단계 누적 보너스
+  function upgradeBonus(D, level) {
+    const b = { chips: 0, addMult: 0, xMult: 1 };
+    D.stickUpgrade.levels.filter((l) => l.level <= level).forEach((l) => {
+      b.chips += l.bonus.chips || 0;
+      b.addMult += l.bonus.addMult || 0;
+      b.xMult *= l.bonus.xMult || 1;
+    });
+    return b;
+  }
+  // 재질 시너지: 재질마다 열린 가장 높은 단계 하나
+  function synergy(D, picks) {
+    const b = { chips: 0, addMult: 0, xMult: 1, active: [] };
+    for (const f of D.families) {
+      const n = picks.filter((s) => s.family === f.id).length;
+      const t = Object.keys(f.bonus).map(Number).filter((k) => k <= n).sort((x, y) => y - x)[0];
+      if (!t) continue;
+      const g = f.bonus[t];
+      b.chips += g.chips || 0; b.addMult += g.addMult || 0; b.xMult *= g.xMult || 1;
+      b.active.push(`${f.name} ${t}개`);
+    }
+    return b;
+  }
+
   // 투척 확률: 16가지 조합을 모두 따진다
   function tossOutcomes(D, picks) {
+    const syn = synergy(D, picks);
     const handById = Object.fromEntries(D.hands.map((h) => [h.id, h]));
     const res = {};
     for (let mask = 0; mask < 16; mask++) {
@@ -709,11 +785,10 @@ tools/
       if (flats === 1 && picks[faces.indexOf("flat")].marked) id = "backdo";
       else id = D.hands.find((h) => h.flats === flats && !h.markedOnly).id;
       const h = handById[id];
-      let chips = h.chips, add = h.mult, x = 1;
+      let chips = h.chips + syn.chips, add = h.mult + syn.addMult, x = syn.xMult;
       picks.forEach((s, i) => {
-        const up = s.level || 0;
-        chips += up * D.stickUpgrade.chipsPerLevel;
-        add += Math.floor(up / D.stickUpgrade.addMultEvery);
+        const up = upgradeBonus(D, s.level || 0);
+        chips += up.chips; add += up.addMult; x *= up.xMult;
         if (s.trigger !== "always" && s.trigger !== faces[i]) return;
         chips += s.chips; add += s.addMult; x *= s.xMult;
         if (s.special === "sameFaceChips") chips += s.specialValue * faces.filter((f, j) => j !== i && f === faces[i]).length;
@@ -730,7 +805,7 @@ tools/
     const r = tossOutcomes(D, picks);
     const ev = Object.values(r).reduce((a, b) => a + b.ev, 0);
     const extra = (r.yut?.p || 0) + (r.mo?.p || 0);
-    return { r, ev, extra, round: (ev * D.rules.tossesPerRound) / (1 - extra) };
+    return { r, ev, extra, round: (ev * D.rules.tossesPerRound) / (1 - extra), syn: synergy(D, picks) };
   }
 
   function render(D) {
@@ -812,7 +887,7 @@ tools/
     table($("#tblPathCases"), ["시작 칸", "결과", "도착"], cases.map(([a, b, f]) => [esc(a), esc(b), `<b>${esc(f())}</b>`]));
 
     table($("#tblEvents"), ["이벤트", "조건", "효과"], [
-      ["업기", "내 말이 내 말 칸에 멈춤", `묶음 점수에 ×(말 수 × ${R.stackMultPerPiece}). 잡히면 묶음 전체가 출발로`],
+      ["업기", "내 말이 내 말 칸에 멈춤", "묶음의 말 수만큼 곱(×2, ×3, ×4). 특수 룰(라운드 특성 · 증강 · 부적)이 있으면 추가 배수. 잡히면 묶음 전체가 출발로"],
       ["잡기", "내 말이 수문장 칸에 멈춤", `투척 +${R.captureExtraToss}, 이번 투척 ×${R.captureMult}`],
       ["잡힘", "수문장이 내 말 칸에 멈춤", "그 묶음이 출발 전 상태로. 쌓은 업기 배율 소멸"],
       ["완주", "참먹이에 닿거나 넘음", `말 하나당 Chips +${R.finishChipsPerPiece}. 그 말은 이번 라운드에서 더 못 씀`],
@@ -829,9 +904,12 @@ tools/
         if (on) { chips += s.chips; add += s.addMult; x *= s.xMult; }
         lines.push(`${esc(s.name)} (${f === "flat" ? "배" : "등"}) → ${on ? `Chips +${s.chips}${s.addMult ? `, Mult +${s.addMult}` : ""}${s.xMult !== 1 ? `, ×${s.xMult}` : ""}` : "발동 안 함(배일 때만)"}`);
       }
+      const syn = synergy(D, picks.map(([s]) => s));
+      chips += syn.chips; add += syn.addMult; x *= syn.xMult;
+      if (syn.active.length) lines.push(`재질 시너지: ${syn.active.join(", ")} → ${[syn.chips && `Chips +${syn.chips}`, syn.addMult && `Mult +${syn.addMult}`, syn.xMult !== 1 && `×${syn.xMult}`].filter(Boolean).join(", ")}`);
       const base = chips * add * x;
       const stack = 2 * R.stackMultPerPiece, cap = R.captureMult;
-      lines.push(`합계 <span class="chips">${chips}</span> × <span class="mult">${add}</span> = ${fmt(base)}`);
+      lines.push(`합계 <span class="chips">${chips}</span> × <span class="mult">${add}</span>${x !== 1 ? ` × ${x}` : ""} = ${fmt(base)}`);
       lines.push(`업기(말 2개) ×${stack}, 수문장 잡기 ×${cap} → <b>${fmt(base * stack * cap)}점</b>, 투척 +${R.captureExtraToss}`);
       $("#scoreExample").innerHTML = "<ol style='margin:0'>" + lines.map((l) => `<li>${l}</li>`).join("") + "</ol>" +
         `<p style="font-size:13px;color:var(--ink-2)">같은 걸이라도 혼자 있는 말로 빈칸에 가면 ${fmt(base)}점이다. 어느 말을 움직이느냐가 점수를 ${stack * cap}배로 바꾼다.</p>`;
@@ -847,6 +925,7 @@ tools/
       $("#calcEv").textContent = fmt(e.ev);
       $("#calcExtra").textContent = pct(e.extra);
       $("#calcRound").textContent = fmt(e.round);
+      $("#calcSynergy").textContent = e.syn.active.length ? "열린 시너지: " + e.syn.active.join(", ") : "열린 시너지 없음";
       table($("#calcTable"), ["결과", { t: "확률", num: true }, "", { t: "나왔을 때 점수", num: true }],
         D.hands.map((h) => {
           const o = e.r[h.id] || { p: 0, ev: 0 };
@@ -856,16 +935,32 @@ tools/
     slots.addEventListener("input", recalc);
     recalc();
 
-    table($("#tblSticks"), ["윷가락", "등급", { t: "가격", num: true }, { t: "배 확률", num: true }, "발동", { t: "Chips", num: true }, { t: "+Mult", num: true }, { t: "×Mult", num: true }, "효과"],
+    const famName = Object.fromEntries(D.families.map((f) => [f.id, f.name]));
+    table($("#tblSticks"), ["윷가락", "재질", "등급", { t: "가격", num: true }, { t: "배 확률", num: true }, "발동", { t: "Chips", num: true }, { t: "+Mult", num: true }, { t: "×Mult", num: true }, "효과"],
       D.sticks.map((s) => [
-        ["wood", "marked", "flame"].includes(s.id) ? `<b>${esc(s.name)}</b>` : esc(s.name), rarity[s.rarity], s.price, Math.round(s.pFlat * 100) + "%", trig[s.trigger],
+        ["wood", "marked", "flame"].includes(s.id) ? `<b>${esc(s.name)}</b>` : esc(s.name), famName[s.family], rarity[s.rarity], s.price, Math.round(s.pFlat * 100) + "%", trig[s.trigger],
         s.chips ? `<span class="chips">+${s.chips}</span>` : "-", s.addMult ? `<span class="mult">+${s.addMult}</span>` : "-", s.xMult !== 1 ? `<span class="mult">×${s.xMult}</span>` : "-", esc(s.effect),
       ]));
     table($("#tblCharms"), ["부적", { t: "가격", num: true }, "효과"],
       D.charms.map((c, i) => [i < 3 ? `<b>${esc(c.name)}</b>` : esc(c.name), c.price, esc(c.effect)]));
     const riskLabel = Object.fromEntries(D.riskLevels.map((r) => [r.risk, r.label]));
-    table($("#tblAugments"), ["증강", "위험도", { t: "목표 배율", num: true }, { t: "보상 배수", num: true }, "효과"],
-      D.augments.map((a, i) => [i < 4 ? `<b>${esc(a.name)}</b>` : esc(a.name), riskLabel[a.risk], "×" + a.targetX.toFixed(2), "×" + a.rewardX, esc(a.effect)]));
+    table($("#tblTraits"), ["라운드 특성", "위험도", { t: "목표 배율", num: true }, { t: "보상 배수", num: true }, "효과"],
+      D.roundTraits.map((a, i) => [i < 4 ? `<b>${esc(a.name)}</b>` : esc(a.name), riskLabel[a.risk], "×" + a.targetX.toFixed(2), "×" + a.rewardX, esc(a.effect)]));
+    table($("#tblFamilies"), ["재질", "윷가락", "보너스"],
+      D.families.map((f) => [esc(f.name), D.sticks.filter((s) => s.family === f.id).map((s) => esc(s.name)).join(", "), esc(f.summary)]));
+    const tierName = Object.fromEntries(D.augmentTiers.map((t) => [t.id, t.name]));
+    const O = D.augmentOdds;
+    table($("#tblAugOdds"), ["시점", ...D.augmentTiers.map((t) => ({ t: t.name, num: true }))],
+      [["1막 보스 후", O.afterAct1], ["2막 보스 후", O.afterAct2], ["무한 모드 막마다", O.endless]].map(([k, o]) => [k, ...D.augmentTiers.map((t) => pct(o[t.id]))]));
+    table($("#tblAugments"), ["막 증강", "등급", "효과"],
+      D.augments.map((a) => [esc(a.name), tierName[a.tier], esc(a.effect)]));
+    const failText = { keep: "유지", down: "1단계 하락", break: "하락, 일부 파괴" };
+    table($("#tblUpgrade"), ["도전 단계", { t: "비용", num: true }, { t: "성공", num: true }, "실패 시", "성공 보너스", "누적 보너스"],
+      D.stickUpgrade.levels.map((l) => {
+        const b = l.bonus, cum = upgradeBonus(D, l.level);
+        const show = (o) => [o.chips && `Chips +${o.chips}`, o.addMult && `Mult +${o.addMult}`, o.xMult && o.xMult !== 1 && `×${+o.xMult.toFixed(2)}`].filter(Boolean).join(", ");
+        return ["+" + l.level, l.cost + "냥", pct(l.success).replace(".0", ""), l.onFail === "break" ? `하락 (${Math.round(l.breakChance * 100)}%는 파괴)` : failText[l.onFail], show(b), show(cum)];
+      }));
     const dir = { reverse: "역방향 순찰", chase: "추격", none: "고정" };
     table($("#tblGuardians"), ["이름", "종류", "시작 칸", "이동 패턴", "효과"],
       D.guardians.map((g) => [g.kind === "normal" ? `<b>${esc(g.name)}</b>` : esc(g.name), g.kind === "boss" ? "보스" : "일반", g.start, `${dir[g.direction]} ${g.move.join("→")}`, esc(g.effect)]));
@@ -905,6 +1000,34 @@ tools/
       ["족보 비급", `${E.handBookPrice}냥`],
       ["판매", `산 값의 ${E.sellRatio * 100}%`],
     ].map((r) => r.map(esc)));
+    const SO = E.shopOdds;
+    table($("#tblShopOdds"), ["상점 윷가락 등급 확률", { t: "일반", num: true }, { t: "희귀", num: true }, { t: "전설", num: true }],
+      [["1막", SO["1"]], ["2막", SO["2"]], ["3막", SO["3"]], ["무한 모드", SO.endless]].map(([k, o]) => [k, pct(o.common), pct(o.rare), pct(o.legendary)]));
+
+    // 무한 모드: 3막을 기준으로 규칙 생성
+    {
+      const X = D.run.endless;
+      $("#endlessRules").innerHTML = [
+        `목표 점수 = 직전 막의 같은 칸(일반 · 엘리트 · 보스) 목표 × ${X.targetGrowth}`,
+        `수문장 수 = ${X.guardianStepEveryActs}막마다 +1 (최대 ${X.maxGuardians})`,
+        `보스 = ${X.bossCycle.map((id) => esc(gName[id])).join(" → ")} 순서로 반복`,
+        `기본 보상 = ${X.baseReward.join(" / ")}냥, 막이 끝날 때마다 막 증강`,
+        `기록: ${X.record.join(", ")}`,
+      ].map((t) => `<li>${t}</li>`).join("");
+      let prev = D.run.acts[D.run.acts.length - 1].rounds;
+      const gen = [];
+      for (let act = 4; act <= 6; act++) {
+        const step = Math.floor((act - 3) / X.guardianStepEveryActs);
+        prev = prev.map((r, i) => ({
+          id: `${act}-${i + 1}`, type: r.type, target: Math.round((r.target * X.targetGrowth) / 100) * 100,
+          guardians: Math.min(X.maxGuardians, D.run.acts[2].rounds[i].guardians + step),
+          boss: r.type === "boss" ? X.bossCycle[(act - 4) % X.bossCycle.length] : null,
+        }));
+        gen.push(...prev);
+      }
+      table($("#tblEndless"), ["라운드(예시)", "종류", { t: "목표 점수", num: true }, "상대"],
+        gen.map((r) => [r.id, type[r.type], fmt(r.target), r.boss ? `보스: ${esc(gName[r.boss])} + 수문장 ${r.guardians}` : `수문장 ${r.guardians}`]));
+    }
   }
 
   function fail() { $("#loader").classList.add("show"); }
@@ -913,7 +1036,7 @@ tools/
     if (!f) return;
     try { render(JSON.parse(await f.text())); $("#loader").classList.remove("show"); } catch (err) { alert("JSON을 읽지 못했습니다: " + err.message); }
   });
-  fetch("game-data.json").then((r) => (r.ok ? r.json() : Promise.reject())).then(render).catch(fail);
+  fetch("game-data.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : Promise.reject())).then(render).catch(fail);
 })();
 </script>
 </body>

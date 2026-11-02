@@ -22,4 +22,4 @@ python -m http.server 8000 --directory docs/detailed-design
 
 - 수치는 `game-data.json`만 고칩니다. HTML에 같은 숫자를 다시 적지 않습니다.
 - 모든 수치는 플레이테스트 전 초깃값입니다.
-- 확정이 필요한 항목은 `index.html`의 18장 "미결정 사항"에 모아 두었습니다.
+- 확정한 결정은 `index.html`의 18장 "결정 사항"에 있습니다. 9장 콘텐츠 목록의 개별 항목과 모든 수치는 미확정입니다.
