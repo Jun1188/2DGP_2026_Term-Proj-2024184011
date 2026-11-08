@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "id": "yutochess-game-data",
-  "version": "1.1.0-draft",
+  "version": "1.2.0-draft",
   "source": {
     "design": "docs/2dgp_1차기획서-제출용.pptx (변준영, 2026-11)",
     "reference": "Notion '윷토체스 | 상세 기획명세 v0.2 제안' (AI 작성, 참고만)",
@@ -23,7 +23,8 @@
     "finishChipsPerPiece": 150,
     "charmSlots": 5,
     "guardianRespawnTosses": 2,
-    "endRoundOnTarget": true
+    "finishTargetPerRound": 1,
+    "endRoundWhenGoalsMet": true
   },
 
   "hands": [
