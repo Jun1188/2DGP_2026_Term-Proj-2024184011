@@ -24,7 +24,7 @@
 .box-roster button b { font-size: 16px; }
 .box-roster button span, .box-roster button small { font-size: 11px; }
 .box-board { min-width: 0; background: var(--bg); position: relative; }
-.box-board svg { display: block; width: 100%; height: auto; max-height: 630px; touch-action: none; }
+.box-board svg { display: block; width: 100%; height: auto; max-height: none; touch-action: none; }
 .box-route { fill: none; stroke: var(--line); stroke-width: 3; }
 .box-route.diagonal { stroke-dasharray: 5 4; }
 .box-node { fill: var(--surface); stroke: var(--ink-2); stroke-width: 1.5; }
@@ -117,8 +117,8 @@
 .box-memory-grid > div { padding: 10px; background: var(--surface); font-size: 12px; }
 .box-memory-grid b { display: block; font: bold 21px/1.5 Georgia,serif; color: var(--gold); }
 .box-memory-grid small { display: block; color: var(--ink-2); }
-.box-battle-scrim { position: absolute; z-index: 20; inset: 0; display: flex; align-items: flex-start; justify-content: center; padding: 80px 18px 24px; background: rgba(15,17,21,.74); }
-.box-battle-panel { position: sticky; top: 40px; width: min(100%,640px); padding: 22px; border: 2px solid var(--gold); border-radius: 6px; background: var(--surface); box-shadow: 0 18px 55px #0005; }
+.box-battle-scrim { position: fixed; z-index: 20; inset: 0; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(15,17,21,.74); }
+.box-battle-panel { position: relative; width: min(100%,720px); max-height: calc(100dvh - 40px); overflow-y: auto; padding: 22px; border: 2px solid var(--gold); border-radius: 6px; background: var(--surface); box-shadow: 0 18px 55px #0005; }
 #boxingGame .box-battle-panel h4 { font-size: 22px; margin-top: 8px; }
 .box-battle-panel > small { font: 11px Consolas,monospace; letter-spacing: .16em; color: var(--gold); }
 .box-battle-actors { display: grid; grid-template-columns: minmax(0,1fr) 30px minmax(0,1fr); align-items: center; text-align: center; gap: 12px; margin: 16px 0; }
@@ -160,3 +160,57 @@
 .box-header-tools { max-width: 180px; }
 .box-header-tools > label { display: block; padding-top: 8px; }
 @media(max-width:580px) { .box-metrics.simple { grid-template-columns: 1fr 1fr; } .box-metrics.simple > div:last-child { grid-column: 1/-1; } }
+
+/* One toss, one result. Keep the action and its numbers above the board. */
+.box-active-piece { display: grid; gap: 7px; padding: 12px; border: 2px solid var(--box-accent); background: var(--surface-2); }
+.box-weight-number { font: bold 32px/1.2 Consolas,monospace; color: var(--box-accent); overflow-wrap: anywhere; }
+.box-weight-number small { font: 12px 'Malgun Gothic',sans-serif; }
+.box-active-piece > small { font-size: 11px; }
+.box-mini-hp, .box-hp-track { display: block; overflow: hidden; background: var(--line); border-radius: 3px; height: 7px; }
+.box-mini-hp i, .box-hp-track i { display: block; height: 100%; background: var(--box-accent); transition: width .45s ease-out; }
+#boxingGame .box-roster button[aria-pressed="true"] { border: 2px solid var(--box-accent); }
+.box-master-fold { padding: 8px 14px; border-bottom: 1px solid var(--line); font-size: 12px; }
+.box-roll-result { border-block: 1px solid var(--line); padding: 12px 16px; background: var(--surface-2); display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; }
+.box-roll-name { display: grid; grid-template-columns: auto auto; gap: 3px 14px; align-items: baseline; }
+.box-roll-name > small { grid-column: 1/-1; font-size: 11px; color: var(--ink-2); }
+.box-roll-name > b { font: bold 36px/1.2 'Malgun Gothic',sans-serif; color: var(--box-accent); }
+.box-roll-name > strong { font: bold 26px/1.2 Consolas,'Malgun Gothic',monospace; }
+.box-score-equation { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font: bold 23px/1.3 Consolas,monospace; }
+.box-score-equation div { display: grid; text-align: center; min-width: 48px; }
+.box-score-equation small { display: block; font: 11px/1.5 'Malgun Gothic',sans-serif; color: var(--ink-2); }
+.box-score-equation div:first-child b { color: var(--chips); }
+.box-score-equation div:nth-of-type(2) b { color: var(--mult); }
+.box-score-equation > strong { padding: 7px 12px; color: var(--gold); border-left: 2px solid var(--line); animation: box-burst .35s ease-out; }
+.box-roll-result > p { margin: 0; font-size: 12px; }
+.box-hand-edit { padding-top: 8px; font-size: 12px; }
+.box-junction { padding: 4px 16px 16px; border-bottom: 2px solid var(--gold); }
+.box-junction article { padding: 12px; border: 1px solid var(--line); min-width: 0; }
+.box-junction .box-forecast { border: 0; }
+/* HP boxes and simple boxing silhouettes remain readable until acknowledgement. */
+.box-fighter { display: flex; flex-direction: column; gap: 10px; min-height: 255px; position: relative; overflow: visible; }
+.box-fighter > strong { font-size: 19px; overflow-wrap: anywhere; }
+.box-hp-box { padding: 8px; background: var(--surface); border: 1px solid var(--line); text-align: left; }
+.box-hp-box > div:first-child { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px; margin-bottom: 6px; }
+.box-hp-box b { font: bold 24px/1.2 Consolas,monospace; }
+.box-hp-box small { font: 12px/1.2 Consolas,monospace; color: var(--ink-2); }
+.box-hp-track { height: 15px; }
+.box-fighter.boss .box-hp-track i { background: var(--red); }
+.box-avatar { position: relative; height: 100px; width: 110px; margin: auto; color: var(--box-accent); }
+.boss .box-avatar { color: var(--red); transform: scaleX(-1); }
+.box-avatar i { display: block; position: absolute; background: currentColor; }
+.box-avatar-head { width: 34px; height: 34px; border-radius: 50%; left: 38px; top: 2px; }
+.box-avatar-body { width: 52px; height: 56px; border-radius: 20px 20px 9px 9px; left: 29px; top: 40px; }
+.box-avatar .box-glove { width: 27px; height: 27px; border-radius: 40%; background: var(--gold); border: 3px solid var(--surface); }
+.box-glove.left { left: 7px; top: 47px; transform: rotate(-25deg); }
+.box-glove.right { right: 0; top: 30px; transform: rotate(15deg); }
+.box-damage { position: absolute; z-index: 2; inset: 20px -35px auto; font: bold 34px/1.3 Consolas,monospace; color: var(--red); text-shadow: 2px 2px var(--surface); animation: box-damage .9s ease-out both; }
+.boss .box-damage { transform: scaleX(-1); }
+.box-fighter.hit { animation: box-hit .5s ease-out; }
+.box-combat-prediction { font: 12px/1.7 Consolas,'Malgun Gothic',monospace; color: var(--ink-2); }
+.box-battle-panel .box-burst-number { font-size: 18px; overflow-wrap: anywhere; }
+@keyframes box-hit { 25%,75% { background: #e9aa6566; transform: translateX(5px); } 50% { transform: translateX(-5px); } }
+@keyframes box-damage { from { opacity: 1; margin-top: 12px; } to { opacity: 0; margin-top: -20px; } }
+@media(max-width:580px) { .box-battle-scrim { padding: 10px; } .box-battle-panel { max-height: calc(100dvh - 20px); } .box-battle-actors { gap: 5px; grid-template-columns: minmax(0,1fr) 23px minmax(0,1fr); } .box-fighter { padding: 7px; } .box-hp-box b { font-size: 20px; } .box-roll-result { gap: 10px; } .box-score-equation { font-size: 20px; } }
+@media(prefers-reduced-motion:reduce) { .box-fighter.hit, .box-damage, .box-score-equation > strong { animation: none !important; } .box-hp-track i { transition: none; } }
+
+.box-piece.active circle { stroke: var(--gold); stroke-width: 4; }

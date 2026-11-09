@@ -6,7 +6,7 @@
   function table(id,head,rows){const el=$(id);if(el)el.innerHTML='<tr>'+head.map(v=>'<th>'+esc(v)+'</th>').join('')+'</tr>'+rows.map(row=>'<tr>'+row.map(v=>'<td>'+esc(v)+'</td>').join('')+'</tr>').join('');}
   $('themeBtn').addEventListener('click',()=>{const root=document.documentElement,dark=root.dataset.theme?root.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;root.dataset.theme=dark?'light':'dark';});
   function render(D){
-    if(D.schemaVersion!==4||!D.boxing||!D.deckTraits||!D.riskChoices||!D.gameMaster||!D.specialTiles)throw new Error('1.4 기획 데이터가 필요합니다.');
+    if(D.schemaVersion!==5||!D.boxing||!D.deckTraits||!D.riskChoices||!D.gameMaster||!D.specialTiles)throw new Error('1.5 기획 데이터가 필요합니다.');
     window.YutoBoxing.mount(D);
     const C=D.boxing,R=D.rules,engine=window.YutoCore.create(D),all=engine.rounds;
     table('tblRules',['자원','값','설명'],[
@@ -15,12 +15,12 @@
     engine.state.collection=sample;engine.state.trait=D.riskChoices.find(t=>t.id==='standard');
     const baseline=engine.outcomes(sample.map(i=>i.uid));
     table('tblHands',['결과','이동','N','M','윷 공격 배율','윷 HP 배율','기본 확률(나무3+표시1)'],D.hands.map(h=>[h.name,h.move,h.chips,h.mult,'×'+h.attackX,'×'+h.healthX,pct(baseline.rows.find(v=>v.hand.id===h.id).p)]));
-    const xy=id=>{const n=D.board.nodes.find(n=>n.id===(id==='END'?'0':id));return [36+n.x*64,36+n.y*64];};
-    let svg='<svg viewBox="0 0 410 450" role="img" aria-label="전통 윷판과 완주 관문 G">';
-    for(const route of Object.values(D.board.routes))svg+='<polyline points="'+route.map(id=>xy(id).join(',')).join(' ')+'" fill="none" stroke="var(--line)" stroke-width="2"/>';
-    for(const n of D.board.nodes){const [x,y]=xy(n.id);svg+='<circle cx="'+x+'" cy="'+y+'" r="'+(n.tag?12:8)+'" fill="var(--surface)" stroke="'+(['C','G'].includes(n.id)?'var(--red)':'var(--ink-2)')+'"/><text x="'+x+'" y="'+(y+23)+'" font-size="10" text-anchor="middle" fill="var(--ink)">'+esc(n.id==='G'?'관문 G':n.id)+'</text>';}
+    const xy=id=>{const source=D.board.nodes.find(n=>n.id===id),n=source.aliasOf?D.board.nodes.find(n=>n.id===source.aliasOf):source;return [36+n.x*64,36+n.y*64];};
+    let svg='<svg viewBox="0 0 410 535" role="img" aria-label="전통 윷판과 완주 관문 G">';
+    for(const route of Object.values(D.board.drawPaths))svg+='<polyline points="'+route.map(id=>xy(id).join(',')).join(' ')+'" fill="none" stroke="var(--line)" stroke-width="2"/>';
+    for(const n of D.board.nodes.filter(n=>!n.aliasOf)){const [x,y]=xy(n.id);svg+='<circle cx="'+x+'" cy="'+y+'" r="'+(n.tag?12:8)+'" fill="var(--surface)" stroke="'+(['C','G'].includes(n.id)?'var(--red)':'var(--ink-2)')+'"/><text x="'+x+'" y="'+(y+23)+'" font-size="10" text-anchor="middle" fill="var(--ink)">'+esc(n.id==='G'?'관문 G':n.id==='0'?'출발·귀환':n.id==='END'?'완주':n.id)+'</text>';}
     $('boardSvg').innerHTML=svg+'</svg>';
-    table('tblPathCases',['시작','결과','도착과 전투'],[['5','도','a1 · 교전 없음'],['5','걸','C · 지름길 보스 교전'],['a1','걸','a3 · C는 경유이므로 교전 없음'],['C · 생존 보스','도/개 등','현재 칸에서 재공격'],['19','도','G · 관문 보스 교전 → 처치 시 END'],['C · 보스 처치됨','걸','G → 관문 전투'],['1','빽도','출발 대기']]);
+    table('tblPathCases',['시작','결과','도착과 전투'],[['5','도','외곽 6 / 지름길 a1 중 실제 갈림길 선택'],['5','걸 · 지름길 선택','C · 지름길 보스 교전'],['a1','걸','a3 · C는 경유이므로 교전 없음'],['C · 생존 보스','도/개 등','현재 칸에서 자동 재공격'],['19','도','J · 출발 모서리와 같은 귀환 합류'],['J','도','G · 관문 보스 교전 → 처치 시 아래 END'],['C · 처치 후','윷 · 중앙 지름길','G · 관문 정지·전투'],['1','빽도','출발 대기']]);
     table('tblEvents',['사건','효과'],[['윷 효과','N·M·×M과 HP/공격 배율 귀속'],['업기','최고 weight 주말 증폭, 이후 투척 지원 배율'],['보스 처치','주말 weight ×처치 배율 + 추가 투척'],['HP 0','말 사망, 미정산 weight 0'],['완주','완주 보너스 적용 후 weight 합계 1회 정산']]);
     $('scoreExample').innerHTML='<p>시작 weight 100에 <b>N 100 × M 3 × X 2 = 600</b>을 더하면 weight 700이다. 기본 HP 40·HP 계수 0.25·윷 HP ×1.25이면 최대 HP는 <b>268</b>이다. 기본 공격 8·공격 계수 0.18·윷 공격 ×1.4이면 공격은 <b>187</b>이다.</p><p>이후 weight 100인 말이 합류하고 지원 계수가 0.5면 주말에 350 weight를 더한다. 묶음 weight는 1,150이 되고 HP·공격은 각 식으로 다시 계산한다. 미완주 상태의 정산 점수는 여전히 변하지 않는다. 실제 초깃값 변경과 구분한 수식 설명용 예시다.</p>';
     const init=['marked','wood','wood','wood'];
@@ -42,7 +42,7 @@
     table('tblShopOdds',['칸','추첨 방식'],[['윷 1칸','허용 윷 '+D.shopPool.sticks.length+'종 중 균등'],['덱 특성 1칸','특성 '+D.deckTraits.length+'종 중 균등'],['말 특성/부적 1칸','종류 각각 50%, 해당 풀 내 균등']]);
     table('tblUpgrade',['도전','비용','성공','박싱 실패'],D.stickUpgrade.levels.map(l=>['+'+l.level,l.cost,pct(l.success),l.onFail==='keep'?'유지':'1단계 하락']));
   }
-  function fail(error){$('loader').classList.add('show');const root=$('boxingGame');if(root)root.innerHTML='<p class="note">데이터를 읽지 못했습니다. 문서 상단에서 1.4 game-data.json을 선택하세요. '+esc(error?.message||'')+'</p>';}
+  function fail(error){$('loader').classList.add('show');const root=$('boxingGame');if(root)root.innerHTML='<p class="note">데이터를 읽지 못했습니다. 문서 상단에서 1.5 game-data.json을 선택하세요. '+esc(error?.message||'')+'</p>';}
   $('jsonFile').addEventListener('change',async e=>{if(!e.target.files[0])return;try{render(JSON.parse((await e.target.files[0].text()).replace(/^\uFEFF/,'')));$('loader').classList.remove('show');}catch(error){fail(error);}});
   fetch('game-data.json',{cache:'no-cache'}).then(r=>r.ok?r.json():Promise.reject()).then(render).catch(()=>{try{render(JSON.parse($('embeddedGameData').textContent));}catch(error){fail(error);}});
 })();
