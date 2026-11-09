@@ -152,10 +152,10 @@ select, input[type=number] { font: inherit; font-size: 13.5px; padding: 4px 6px;
 <header class="cover">
   <div class="eyebrow">2D 게임 프로그래밍 · 상세 기획서</div>
   <h1>윷토체스 YUTOCHESS</h1>
-  <p>고전 게임 윷놀이로 점수 폭발 도파민을 즐기는 로그라이크 덱빌딩</p>
+  <p>업고, 곱하고, 돌파한다. 윷으로 키우는 로그라이크 덱빌딩</p>
   <div class="meta">
     <span>2026년도 2반 · 2024184011 게임공학과 변준영</span>
-    <span>문서 v1.1 초안 · 2026-11-09</span>
+    <span>문서 v1.2 초안 · 2026-11-09</span>
     <span>근거: 1차 기획서(PPTX 10장)</span>
   </div>
 </header>
@@ -175,559 +175,121 @@ select, input[type=number] { font: inherit; font-size: 13.5px; padding: 4px 6px;
 <!-- 1 -->
 <section id="overview">
   <h2><span class="no">1</span>게임 개요</h2>
-  <p class="lead">한 줄 소개: 윷가락을 모아 덱을 만들고, 매 턴 던질 윷을 골라 말의 weight를 키우고, 길목 전투를 거쳐 완주로 점수를 확정하는 1인용 로그라이크. SRPG 요소로 위치·경로·업기·교전 순서를 판단한다.</p>
-  <div class="table-wrap"><table>
-    <tr><th>항목</th><th>내용</th></tr>
-    <tr><td>장르</td><td>로그라이크 덱빌딩 · 턴제 보드 <span class="tag ppt">원안</span></td></tr>
-    <tr><td>플랫폼 / 엔진</td><td>Windows PC · Python 3 + pico2d (2DGP 수업 프레임워크)</td></tr>
-    <tr><td>해상도</td><td>1280 × 720 고정, 창 모드 <span class="tag new">보완</span></td></tr>
-    <tr><td>플레이 인원</td><td>1인 (길목에 상주하는 수문장과 전술 전투) <span class="tag new">보완</span></td></tr>
-    <tr><td>조작</td><td>마우스 중심, 키보드 단축키 보조</td></tr>
-    <tr><td>목표 플레이 시간</td><td>라운드 3~4분, MVP 런(1막 3라운드) 약 12분, 전체 런(3막 9라운드) 약 35분</td></tr>
-    <tr><td>승리 / 패배</td><td>3막 보스 라운드 클리어 시 승리. 어느 라운드든 목표 점수를 못 채우면 그 자리에서 런 종료 <span class="tag ppt">원안</span></td></tr>
-    <tr><td>타깃</td><td>발라트로류 점수 빌드를 좋아하고 윷놀이 규칙을 아는 한국 플레이어. 규칙은 게임 안에서 처음부터 설명</td></tr>
-  </table></div>
-  <figure>
-    <img src="img/toss-screen-concept.png" alt="윷가락 네 개를 던져 Chips와 Mult가 오르는 투척 화면 콘셉트" style="max-width:420px">
-    <figcaption>1차 기획서 7장의 투척 화면 콘셉트. 강화된 윷가락이 Chips(파랑)와 Mult(빨강)를 더한다. 수정안에서는 이 곱을 선택한 말의 weight 증가량으로 표시하고, 완주 때 라운드 점수에 합산한다.</figcaption>
-  </figure>
+  <p class="lead"><b>윷토체스 — 업고, 곱하고, 돌파한다.</b> 윷을 고르고 말을 키워 두 보스를 돌파하는 로그라이크 덱빌딩 보드 게임.</p>
+  <div class="table-wrap"><table><tr><th>항목</th><th>설계</th></tr><tr><td>기반</td><td>윷놀이의 도·개·걸·윷·모와 업기, 발라트로식 N × M 빌드. SRPG는 칸 도착 → 전투 예측 → 선공·반격 문법만 사용한다.</td></tr><tr><td>런</td><td>3막 9라운드, 라운드 3~4분·약 30분 목표. 실제 지속 시간은 미측정.</td></tr><tr><td>승리</td><td>완주 정산 점수 ≥ 목표. 미완주 weight는 참고용 잠재 점수이며 승리 판정에 직접 더하지 않는다.</td></tr><tr><td>보스</td><td>지름길 C·완주 관문 G 수문장 2체 유지. 초기 리스크 픽이 일반 보스 수·HP·공격·기믹을 추가로 바꾼다.</td></tr><tr><td>실행</td><td>현재 HTML 박싱과 장면 편집기. Python/pico2d 구현은 별도.</td></tr></table></div>
+  <p>이번 개정은 초기 HP=weight 완전 통합안 대신, <b>weight 점수 폭발과 HP·공격 폭발을 분리하고 weight 계수로 연동</b>하라는 최신 결정을 따른다.</p>
 </section>
 
 <!-- 2 -->
 <section id="reference">
-  <h2><span class="no">2</span>기존 사례와 설계 의도</h2>
-  <p class="lead">발라트로와 TFT의 장치를 그대로 옮기면 "윷 그림을 씌운 카드 게임"이 됩니다. 두 게임의 장치를 윷놀이의 고유 구조에 맞게 번역하는 것이 이 기획의 의도입니다.</p>
-
-  <h3>번역의 출발점: 윷놀이의 세 가지 구조</h3>
-  <div class="grid3">
-    <div class="card"><h4>① 결과를 고를 수 없다</h4><p>포커는 패를 골라 족보를 만들지만, 윷은 던지는 순간 결과가 정해진다. 플레이어가 고를 수 있는 것은 <b>무엇을 던지느냐(확률)</b>뿐이다.</p></div>
-    <div class="card"><h4>② 던진 뒤에 한 번 더 고른다</h4><p>결과가 나온 뒤 어느 말을 움직일지 고른다. 백개먼처럼 <b>운 다음에 결정</b>이 오는 구조다. 카드 게임에는 이 두 번째 결정이 없다.</p></div>
-    <div class="card"><h4>③ 쌓은 것을 함께 잃는다</h4><p>업은 말은 같이 가고 같이 잡힌다. 한곳에 몰아 키울수록 잃을 때도 크게 잃는다. <b>공유된 위험</b>이 윷놀이 긴장감의 원천이다.</p></div>
-  </div>
-  <p>그래서 윷토체스의 한 턴은 <b>확률을 짠다(던지기 전 결정) → 던진다(운) → 말을 고른다(던진 뒤 결정)</b>의 3박자다. 원안의 "통제된 랜덤"은 운을 두 번의 결정 사이에 끼워 넣는 이 구조로 구현한다.</p>
-
-  <h3>발라트로: 점수 엔진을 윷 위에 얹기</h3>
-  <div class="table-wrap"><table>
-    <tr><th>발라트로 장치</th><th>윷토체스 장치</th><th>윷놀이에 맞게 바꾼 점</th></tr>
-    <tr><td>포커 핸드 (족보)</td><td>도 · 개 · 걸 · 윷 · 모 · 빽도</td><td>족보를 고를 수 없으므로 선택을 <b>확률</b>로 옮겼다. 윷가락마다 배가 나올 확률이 달라서 덱 구성이 곧 족보 확률표가 된다(8장 계산기).</td></tr>
-    <tr><td>카드의 Chips</td><td>윷가락의 Chips와 발동 면(배·등)</td><td>윷가락 하나가 <b>결과(배의 개수)와 점수(발동)에 동시에 관여</b>한다. 은하 윷(배일 때 ×3)을 넣으면 배가 잘 나와야 이득이고, 배가 많아지면 윷이 잘 나온다. 확률과 점수가 서로 엮인다.</td></tr>
-    <tr><td>Mult와 ×Mult</td><td>보드 배율: 업기 ×말 수, 잡기 ×2</td><td>발라트로에는 공간이 없다. 윷토체스는 같은 결과로도 <b>어느 말을 움직이느냐</b>에 따라 점수가 몇 배씩 달라진다. 이 배율은 선택한 말의 weight 증가량에 적용하고 완주 때 점수로 확정한다.</td></tr>
-    <tr><td>핸드 · 버리기 횟수</td><td>투척 · 교체 횟수</td><td>윷·모가 나오면 한 번 더 던지는 전통 규칙이 투척 자원을 돌려주는 장치가 된다.</td></tr>
-    <tr><td>조커</td><td>부적</td><td>장착 순서가 처리 순서가 되는 점을 그대로 가져왔다. 효과는 업기·잡기·완주·지름길 같은 윷놀이 사건에 걸린다.</td></tr>
-    <tr><td>행성 카드</td><td>족보 비급</td><td>도~모 각각의 레벨을 올린다. 나무 윷 덱은 개·걸, 깃털 덱은 윷, 납 윷 덱은 모처럼 덱의 확률 성향에 맞춰 키울 족보가 달라진다.</td></tr>
-    <tr><td>스몰 · 빅 · 보스 블라인드</td><td>일반 · 엘리트 · 보스 라운드</td><td>보스는 규칙을 비트는 말(도깨비, 호랑이, 저승사자)로 등장해 보드 위에서 직접 방해한다.</td></tr>
-    <tr><td>점수가 터지는 순간</td><td>넉 동 업은 말이 수문장을 잡고 완주</td><td>Chips가 쌓이고 ×4, ×2가 차례로 곱해지는 장면이 이 게임의 클라이맥스다. 다만 이를 노리려면 네 말을 한곳에 모으는 위험(구조 ③)을 져야 한다.</td></tr>
-  </table></div>
-
-  <h3>TFT: 덱빌딩과 증강을 윷 한 벌에 맞추기</h3>
-  <div class="table-wrap"><table>
-    <tr><th>TFT 장치</th><th>윷토체스 장치</th><th>윷놀이에 맞게 바꾼 점</th></tr>
-    <tr><td>특성 시너지 (같은 특성 인원 수)</td><td>재질 시너지 (나무 · 불 · 쇠 · 하늘)</td><td>TFT는 필드 인원 수가 기준이지만 윷은 <b>한 번에 던지는 4개(한 벌)</b>가 자연스러운 단위다. 같은 재질 2개, 4개에서 보너스가 열린다. 덱을 한 재질로 모을지, 확률이 좋은 윷을 섞을지가 덱빌딩의 고민이 된다.</td></tr>
-    <tr><td>별 올리기 (같은 유닛 3개)</td><td>합치기: 같은 윷 3개 → 실패 없는 2단계 강화</td><td>운에 맡기는 강화(아래)와 대비되는 <b>안전한 성장 길</b>이다. 같은 윷을 모으는 데 돈과 상점 운이 든다.</td></tr>
-    <tr><td>레벨별 상점 확률</td><td>막별 윷가락 등급 확률</td><td>막이 오를수록 희귀·전설 윷이 자주 뜬다.</td></tr>
-    <tr><td>이자</td><td>엽전 이자</td><td>5냥당 1냥. 아껴서 이자를 받을지, 지금 강화에 걸지 고른다.</td></tr>
-    <tr><td>증강 (정해진 스테이지에 3택 1)</td><td>막 증강: 막이 끝날 때마다 3택 1, 은 · 금 · 옥 등급</td><td>런 전체의 방향을 정하는 영구 효과다. 1막을 끝낸 뒤 첫 증강이 나와서, 1막 동안 만든 덱을 보고 방향을 고를 수 있다.</td></tr>
-    <tr><td>리스크를 고르는 선택</td><td>라운드 특성 (원안 플로차트의 "하이리스크 &amp; 하이리턴")</td><td>매 라운드 시작 전에 고르는 변형 규칙이다. 막 증강이 런의 방향이라면 라운드 특성은 이번 판의 내기다.</td></tr>
-  </table></div>
-
-  <h3>강화: 검 강화하기식 윷 강화</h3>
-  <p>상점의 윷 강화는 단계가 오를수록 성공 확률이 떨어지고, 높은 단계에서는 실패하면 단계가 내려가거나 윷가락이 부서진다. 던지는 운과는 별개로 <b>성장에도 리스크 &amp; 리턴</b>을 둔다(원안 4장 "리스크 &amp; 리턴 Dopamine-driven"). 7단계와 10단계에는 최종 ×Mult가 붙어서 큰 도박을 할 이유가 생긴다. 확률표는 11장에 있다.</p>
-
-  <h3>윷토체스만의 것 (URP)</h3>
-  <div class="grid3">
-    <div class="card"><h4>던질 윷을 고른다</h4><p>카드 게임은 결과를 고르지만, 윷토체스는 확률을 고른다. 윷가락마다 배가 나올 확률이 달라서 덱 구성이 곧 도·개·걸·윷·모의 확률표가 된다.</p></div>
-    <div class="card"><h4>보드 위의 weight 배율</h4><p>점수가 손패에서 끝나지 않는다. 업기는 weight 증가 배율을 쌓고, 전투 승리는 배수와 추가 투척을 준다. 완주해야 말의 weight가 라운드 점수로 확정된다. 같은 결과라도 어느 말을 움직이느냐에 따라 점수가 몇 배씩 달라진다.</p></div>
-    <div class="card"><h4>잃을 수 있는 배율</h4><p>업은 말이 잡히면 쌓은 배율이 통째로 출발로 돌아간다. 완주는 누적 weight를 점수로 확정하지만 그 말은 더 쓸 수 없다. 쌓을지 굳힐지가 매 턴의 고민이다.</p></div>
-  </div>
+  <h2><span class="no">2</span>레퍼런스와 적용 범위</h2>
+  <div class="table-wrap"><table><tr><th>레퍼런스</th><th>가져올 문법</th><th>윷토체스 적용</th></tr><tr><td>발라트로</td><td>라운드 목표, 점수를 키우는 카드 조합, 제한된 슬롯과 상점 선택</td><td>N·M에 더하기와 곱하기 효과를 누적한다. 시작 덱의 효과는 특성 카드로 주고 구매·강화·삭제로 편집한다.</td></tr><tr><td>윷놀이</td><td>확률을 갖는 투척, 결과 뒤 말 선택, 업기, 지름길, 완주</td><td>던질 윷 4개 선택 → 투척 → 어느 말을 키우고 이동할지 판단한다. 작은 말도 큰 말의 지원 배율이 된다.</td></tr><tr><td>파이어 엠블렘</td><td>칸 이동 뒤 전투 예측과 공격·반격의 순서</td><td>정확한 도착 칸에서만 교전한다. 투척 후 아군·보스 HP 전후값, 공격·반격과 사망 여부를 보여주고 전투를 확정한다.</td></tr></table></div>
+  <p>발라트로의 상점·점수 효과는 <a href="https://www.playbalatro.com/faq">공식 FAQ</a>, 격자 기반 턴제 전투와 지원·반격은 <a href="https://www.nintendo.com/sg/switch/ayfn/system/battle.html">Nintendo 공식 전투 소개</a>를 참고했다. 위 수식·보스/마스터 배치·8개 출전 규칙은 윷토체스의 설계안이다.</p>
+  <p>무기 상성표·직업·대규모 부대·별도 전술 지도·명중률·숨은 치명타는 이번 박싱에 추가하지 않는다. 랜덤성의 중심은 윷과 주어지는 빌드 재료다.</p>
+  <h3>사용자 제공 레퍼런스와 정보 공개</h3><p><a href="https://excidus.tistory.com/228">발라트로 점수 예측에 관한 글</a>은 계산 편의와 결과 확인의 긴장감이 충돌한다는 해석을 제시한다. <a href="https://www.youtube.com/watch?v=zk3S3o1qOHo">GMTK 영상</a>은 제목·외부 전사 일부, <a href="https://www.youtube.com/watch?v=g86eP48WN78">ThatGuyGlen 영상</a>은 제작자 설명을 확인했고 직접 시청은 하지 않았다.</p><p>현재 합계·필요 점수와 전투 HP/피해는 공개한다. 미래 weight·정산 상세는 펼쳐서 보며, N × M 결과의 공개 연출을 남긴다. 말 RPG·마스터는 윷·업기·배율을 돕는 보조 수단이다. 접힌 상세 표시만으로 재미 문제가 해결됐다고 단정하지 않는다.</p>
 </section>
 
 <!-- 3 -->
 <section id="fun">
-  <h2><span class="no">3</span>핵심 재미와 설계 원칙</h2>
-  <div class="grid2">
-    <div class="card"><h4>시너지 빌딩 <span class="tag ppt">원안</span></h4><p>시작 덱에서 출발해 재화로 윷가락을 수집·강화·제거하고, 부적과 족보 레벨을 맞춰 나만의 윷 덱을 최적화한다.</p></div>
-    <div class="card"><h4>통제된 랜덤 <span class="tag ppt">원안</span></h4><p>던지는 순간은 운이지만 무엇을 던질지, 어느 말을 움직일지, 어떤 라운드 특성과 막 증강을 받을지는 플레이어가 고른다.</p></div>
-  </div>
-  <h3>설계 원칙</h3>
-  <ol>
-    <li><b>정보는 먼저 보여준다.</b> 수문장의 주둔 칸·공격 범위·다음 행동, 선택한 윷 4개의 결과 확률, 말별 예상 weight와 완주 정산액을 던지기 전에 보여준다. 운은 투척 결과에만 둔다.</li>
-    <li><b>점수 계산 과정은 숨기지 않는다.</b> 윷가락 하나씩, 이벤트 하나씩 Chips와 Mult를 계산해 어느 말의 weight에 귀속됐는지 보여준다. 완주 정산만 라운드 점수에 더한다. 이것은 연출이 아니라 정보이며, MVP에서도 텍스트로 제공한다. 꾸미는 연출은 이 정보를 읽기 쉽게 돕는 보조 장치다(13장).</li>
-    <li><b>윷놀이 규칙은 비틀되 깨지 않는다.</b> 도·개·걸·윷·모, 빽도, 지름길, 업기, 잡기, 윷·모 한 번 더는 그대로 둔다. 변형은 라운드 특성, 막 증강, 보스로만 넣는다.</li>
-    <li><b>하나를 더 하면 하나를 잃는다.</b> 위험한 라운드 특성, 업기, 완주 타이밍, 높은 단계의 강화 모두 대가가 있다.</li>
-  </ol>
+  <h2><span class="no">3</span>핵심 재미와 3·3·3</h2>
+  <div class="grid3"><div class="card"><h4>고르고 던진다</h4><p>주어진 손패에서 확률과 발동 면을 골라 통제한다. 결과 자체는 윷의 앞뒤 난수로 정해진다.</p></div><div class="card"><h4>업고 증폭한다</h4><p>N × M, 덱 특성, 작은 말 지원, 보스 처치 배율을 연결한다. 점수 폭발과 HP·공격 폭발을 구분해 읽는다.</p></div><div class="card"><h4>예측하고 돌파한다</h4><p>보스 수치·위치·전투 결과를 공개한다. 점수를 더 키울지 완주로 확정할지 선택한다.</p></div></div>
+  <div class="table-wrap"><table><tr><th>3·3·3 기준</th><th>설계 장치</th><th>사용자 확인 방법</th></tr><tr><td>3초 안에 게임명 기억</td><td>첫 화면과 결과 카드에 큰 제목 ‘윷토체스’, 한 문장 ‘업고, 곱하고, 돌파한다’, 윷·말·보스의 시각 구분을 반복한다.</td><td>3초 노출 뒤 화면을 가리고 이름을 회상하게 한다.</td></tr><tr><td>30분 플레이 지속</td><td>3막 9라운드. 매 라운드 리스크 선택·출전 윷 편집, 매 승리 뒤 상점·말 성장. 앞선 빌드가 다음 목표와 두 보스에 대응한다.</td><td>자발적 세션 길이·막별 이탈·조작 피로를 기록한다. 강제 대기나 시간을 늘리는 연출로 맞추지 않는다.</td></tr><tr><td>종료 3시간 내 다시 떠오름</td><td>결과에 최대 N·M·X, 큰 피해, 강해진 말과 덱 카드, 동일 시드를 남겨 재도전할 이유를 만든다.</td><td>3시간 이내에 유도 없이 이름·기억나는 폭발·다시 해볼 빌드를 회상하는지 확인한다.</td></tr></table></div>
+  <p class="note">3·3·3은 사용자가 제공한 설계 기준이며 달성 보장이 아니다. 숫자를 표시하거나 기록을 저장한 사실만으로 기억·몰입을 검증했다고 보고하지 않는다.</p>
+  <h3>통제와 비통제의 균형</h3><div class="table-wrap"><table><tr><th>통제·예측 가능</th><th>통제 불가능한 재료</th><th>연결</th></tr><tr><td>보스 위치·능력치·교전 선택, 던질 윷, 움직일 말, 업기, 제시된 라운드 중 선택, 다음 기본 목표, 보유 재화·이자</td><td>리스크 선택지의 추첨, 덱에서 뽑히는 윷, 윷의 면, 상점 상품과 강화 성공</td><td>확률·가격·피해·다음 목표를 공개하고 난수 결과 뒤에 다시 선택 기회를 준다. 미리보기는 난수를 소비하지 않는다.</td></tr></table></div>
+  <h3>작게 시작하고 넓힌다</h3><p>메뉴 아래에 선택형 ‘첫 수 체험’을 배치한다. 실제 첫 라운드는 정석·안전·질주, 보너스·회복 2칸, 고요한 판으로 시작한다. 둘째 라운드부터 작은 디메리트와 이동·공격 보상을 소개한다. 세부 수식·잠재 점수·상점 세부 성장·미래 배치·편집기는 접어 두되, 현재 위험·피해 예측은 공개한다.</p>
 </section>
 
 <!-- 4 -->
 <section id="loop">
   <h2><span class="no">4</span>코어 루프</h2>
-  <p class="lead">1차 기획서 8장의 4단계 순환과 코어 루프 플로차트를 하나로 정리하고, 막이 끝날 때의 증강 선택을 더했습니다.</p>
-  <div class="diagram">
-  <svg viewBox="0 0 900 440" role="img" aria-label="메뉴에서 시작해 라운드 특성 선택, 라운드, 정산, 보스 클리어 시 막 증강, 상점을 거쳐 다시 라운드 특성 선택으로 돌아가는 순환도">
-    <defs>
-      <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink-2)"/></marker>
-    </defs>
-    <g font-size="14" fill="var(--ink)" text-anchor="middle">
-      <rect x="20" y="150" width="130" height="64" rx="10" fill="var(--surface-2)" stroke="var(--line)"/>
-      <text x="85" y="178" font-weight="700">메뉴</text><text x="85" y="198" font-size="12" fill="var(--ink-2)">시작 덱 · 설정</text>
-
-      <rect x="200" y="40" width="170" height="70" rx="10" fill="var(--surface)" stroke="var(--blue)" stroke-width="2"/>
-      <text x="285" y="68" font-weight="700">STEP 4 라운드 특성</text><text x="285" y="90" font-size="12" fill="var(--ink-2)">3개 중 1개 · 리스크/보상</text>
-
-      <rect x="440" y="40" width="160" height="70" rx="10" fill="var(--surface)" stroke="var(--red)" stroke-width="2"/>
-      <text x="520" y="68" font-weight="700">STEP 1 라운드 (PvE)</text><text x="520" y="90" font-size="12" fill="var(--ink-2)">투척 → 전투 → 완주 정산</text>
-
-      <rect x="690" y="150" width="180" height="64" rx="10" fill="var(--surface)" stroke="var(--ink-2)"/>
-      <text x="780" y="178" font-weight="700">목표 점수 달성?</text><text x="780" y="198" font-size="12" fill="var(--ink-2)">라운드 종료 판정</text>
-
-      <rect x="540" y="270" width="150" height="70" rx="10" fill="var(--surface)" stroke="var(--gold)" stroke-width="2"/>
-      <text x="615" y="298" font-weight="700">STEP 2 보상 정산</text><text x="615" y="320" font-size="12" fill="var(--ink-2)">기본 · 남은 투척 · 이자</text>
-
-      <rect x="360" y="270" width="150" height="70" rx="10" fill="var(--surface)" stroke="var(--gold)" stroke-width="2" stroke-dasharray="6 4"/>
-      <text x="435" y="298" font-weight="700">막 증강</text><text x="435" y="320" font-size="12" fill="var(--ink-2)">3개 중 1개 · 영구</text>
-
-      <rect x="170" y="270" width="160" height="70" rx="10" fill="var(--surface)" stroke="var(--green)" stroke-width="2"/>
-      <text x="250" y="298" font-weight="700">STEP 3 상점 · 덱 편집</text><text x="250" y="320" font-size="12" fill="var(--ink-2)">영입 · 강화 · 합치기 · 부적</text>
-
-      <rect x="740" y="300" width="140" height="56" rx="10" fill="var(--surface-2)" stroke="var(--line)"/>
-      <text x="810" y="324" font-weight="700">게임 오버</text><text x="810" y="344" font-size="12" fill="var(--ink-2)">엔딩 → 무한 모드</text>
-    </g>
-    <g fill="none" stroke="var(--ink-2)" stroke-width="2" marker-end="url(#ar)">
-      <path d="M150,170 C175,150 180,100 198,85"/>
-      <path d="M370,75 L438,75"/>
-      <path d="M600,75 C680,75 760,100 775,148"/>
-      <path d="M740,214 C735,245 700,255 682,268"/>
-      <path d="M540,305 L512,305"/>
-      <path d="M360,305 L332,305"/>
-      <path d="M570,340 C530,392 300,392 262,342"/>
-      <path d="M250,270 L250,112"/>
-      <path d="M830,214 L830,298"/>
-      <path d="M740,345 C450,432 110,425 85,216"/>
-    </g>
-    <g font-size="12" fill="var(--ink-2)" text-anchor="middle">
-      <text x="160" y="118">플레이 시작</text>
-      <text x="725" y="232" text-anchor="end">달성</text>
-      <text x="838" y="250" text-anchor="start">미달</text>
-      <text x="838" y="266" text-anchor="start">3막 클리어</text>
-      <text x="435" y="262">보스 클리어 시</text>
-      <text x="415" y="382">일반 · 엘리트</text>
-      <text x="258" y="195" text-anchor="start">다음 라운드</text>
-      <text x="420" y="428">메뉴로</text>
-    </g>
-  </svg>
-  </div>
-  <p>원본 플로차트: <a href="../core-loop-flowchart.png">docs/core-loop-flowchart.png</a></p>
-  <h3>라운드 안의 턴 루프 <span class="tag new">보완</span></h3>
-  <ol class="steps">
-    <li><b>손패 확인.</b> 첫 턴에 덱에서 6개를 뽑는다. 이후 매 턴 사용한 윷을 버리고 손패를 보충한다. 덱 소진 시 버림 더미를 섞는다. 수문장의 주둔 칸·공격 범위·다음 행동을 공개한다.</li>
-    <li><b>교체(선택).</b> 남은 교체 횟수가 있으면 손패 최대 4개를 버리고 새로 뽑는다. 투척은 소모하지 않는다.</li>
-    <li><b>조합.</b> 손패에서 윷가락 정확히 4개를 고른다. 결과 확률과 말에 귀속될 weight 증가량을 미리 보여준다.</li>
-    <li><b>투척.</b> 투척 1회를 소모해 결과를 판정한다. 윷·모면 투척 1회를 돌려받는다. 윷의 점수·특성은 이번 결과로 움직일 말에 귀속될 효과로 보관한다.</li>
-    <li><b>말 선택·이동·전투.</b> 말 또는 묶음을 고르고 이동한다. 도착 칸·업기·교전·완주를 미리 보여주며, 수문장과의 교전은 완주 처리보다 먼저 해결한다.</li>
-    <li><b>weight 누적.</b> 7장의 순서로 증가량을 계산해 선택한 말에 누적한다. 미완주 상태에서는 라운드 점수가 늘지 않는다.</li>
-    <li><b>완주 정산·수문장 행동.</b> 전투를 통과해 완주한 말의 weight만 라운드 점수에 한 번 합산한다. 남은 말에 대해 주둔 수문장의 예고된 공격·기믹을 처리한다.</li>
-    <li><b>종료 판정.</b> 라운드 점수 ≥ 목표면 클리어한다. 목표 미달 상태에서 투척이 소진되거나 말 4개가 모두 완주하면 패배한다. 계속할 수 있으면 사용한 윷 4개를 버리고 손패를 보충한다.</li>
-  </ol>
+  <p class="formula">메뉴·덱 효과 선택 → 리스크/리턴 3택 1 → 출전 윷 편집 → PvE → 보상 수령 → 상점·말 성장 → 다음 리스크 선택</p>
+  <p>기존 <a href="../core-loop-flowchart.png">코어 루프 플로우차트</a>의 메뉴·라운드·보상·덱빌딩 순서를 유지한다. 윷 편집은 매 라운드 출전 직전에 둔다. 3막 마지막 라운드 뒤에는 런 결과와 재시작으로 이어진다.</p>
+  <ol class="steps"><li><b>손패와 공개 정보.</b> 말 합계 weight, 정산 점수, 남은 목표, 재화와 이자, 보스와 다음 목표를 확인한다.</li><li><b>윷 4개 선택.</b> 각 결과 확률과 기본 weight 증가 구간을 확인하고 필요하면 교체한다.</li><li><b>투척.</b> 면을 판정한다. 사용한 윷을 덱으로 돌려보내고 덱을 셔플한다. 다음 턴에 손패를 보충한다.</li><li><b>말과 도착점 선택.</b> 이동·업기·전투·완주를 예측한다. 투척 후에는 전투용 추가 난수가 없다.</li><li><b>성장과 전투.</b> 주말에 weight와 윷의 라운드 배율을 귀속한다. 최종 도착 칸의 보스와 선공→생존 시 반격을 실행하고 증폭을 보여준다.</li><li><b>정산.</b> 관문 보스를 처치하고 완주한 말의 weight만 한 번 점수로 바꾼다. 목표·투척·생존 말로 종료 여부를 판정한다.</li></ol>
 </section>
 
 <!-- 5 -->
 <section id="round">
-  <h2><span class="no">5</span>라운드 규칙</h2>
-  <p class="lead">기본 윷놀이 규칙 위에 덱, 라운드 특성, 점수 규칙을 얹습니다. <span class="tag ppt">원안</span></p>
-  <h3>라운드 자원</h3>
-  <div class="table-wrap"><table id="tblRules"></table></div>
-
-  <h3>투척 판정</h3>
-  <p>윷가락은 하나씩 따로 굴린다. 각 윷가락은 자기 <code>pFlat</code> 확률로 배(평평한 면)가 나오고, 나머지는 등이 나온다. 배가 나온 개수로 결과가 정해진다.</p>
-  <div class="table-wrap"><table id="tblHands"></table></div>
-  <ul>
-    <li><b>빽도:</b> 배가 하나만 나왔고 그 하나가 <em>표시 윷</em>일 때만 빽도다. 표시 윷을 고르지 않으면 빽도는 나오지 않는다.</li>
-    <li><b>윷·모 한 번 더:</b> 결과를 처리한 뒤 투척 1회를 돌려받는다. 윷·모가 이어지면 계속 돌려받는다.</li>
-    <li><b>판에 말이 없을 때 빽도:</b> 움직일 말이 없으면 이동과 weight 귀속을 생략한다. 라운드 점수도 오르지 않는다.</li>
-  </ul>
-
-  <h3>상대: 길목을 지키는 수문장 <span class="tag new">수정</span></h3>
-  <p>기본 PvE는 <b>완주한 말의 weight 합계로 목표 점수를 채우는 방식</b>이다. 수문장은 지정 길목에 상주하며 플레이어 말과 전투한다. 보스도 주둔 위치를 유지한다.</p>
-  <ul>
-    <li><b>SRPG 요소:</b> 주둔 칸·공격 범위·다음 행동을 읽고 진입 경로, 이동할 말, 업기와 교전 순서를 선택한다. 적의 전투 범위에 진입하면 전투를 해결한 뒤 이동·완주를 확정한다.</li>
-    <li>수문장은 매 턴 위치를 유지하고 공격·방어·고유 기믹을 수행한다. 플레이어 말을 따라 이동하거나 윷판을 순찰하지 않는다.</li>
-    <li>전투 승리 시 잡기 보상(추가 투척과 이번 weight 증가 배수)을 적용한다. 같은 칸에 도착했다는 이유만으로 승리하지 않는다. 처치된 수문장은 2투척 뒤 원래 주둔 칸에 재등장한다.</li>
-    <li>전투 패배로 잡힌 말 묶음은 출발 대기로 돌아간다. 해당 말의 미정산 weight·귀속 효과·업기 배율은 초기화한다. 이미 완주해 확정한 점수는 유지한다.</li>
-    <li><b>미확정:</b> 정식 HP·공격력·방어력·공격 범위 수치, 피해식, 업기의 전투 보정은 플레이테스트로 정한다. 이 페이지 박싱 게임은 JSON boxing의 임시 수치로 전투를 실행한다. 아래 콘텐츠 효과와 수치도 초안이다.</li>
-  </ul>
-  <h3>라운드 종료와 결과</h3>
-  <div class="grid3">
-    <div class="card"><h4>목표 점수 이상</h4><p>완주 정산 후 라운드 점수 ≥ 목표면 즉시 클리어한다. 별도 완주 개수 조건은 두지 않는다. 목표를 넘은 점수와 초과 달성 보너스를 유지하며 남은 투척은 보상으로 바꾼다.</p></div>
-    <div class="card"><h4>투척 소진</h4><p>마지막 투척의 전투·weight·완주·추가 투척을 반영한 뒤 판정한다. 목표 미달이며 투척이 0이면 런 종료. 미완주 말의 weight는 점수로 정산하지 않는다.</p></div>
-    <div class="card"><h4>내 말 4개 모두 완주</h4><p>각 말의 weight를 한 번씩 정산한 최종 점수로 판정한다. 목표 이상이면 승리, 미달이면 패배한다. 초과분을 목표 값으로 잘라내지 않는다.</p></div>
-  </div>
+  <h2><span class="no">5</span>라운드 규칙</h2><div class="table-wrap"><table id="tblRules"></table></div>
+  <h3>투척 판정과 RPG 배율</h3><p>각 윷의 배 확률과 발동 면을 개별 판정한다. 표시 윷만 배인 경우는 빽도다. 윷·모는 추가 투척을 준다. 아래 HP·공격 배율은 해당 말을 다음에 움직일 때 새 결과로 바뀌며, 최대 HP 감소 시 현재 HP도 상한까지만 유지한다.</p><div class="table-wrap"><table id="tblHands"></table></div>
+  <h3>보스와 교전</h3><p>매 라운드 지름길 C와 완주 직전 G에 특수 수문장 2체가 있다. 픽과 라운드가 일반 보스 0~3체를 추가한다. 지름길 수문장은 지원 묶음의 선공을 강화하고 완주 수문장은 절반 HP 이하 반격이 강해진다. 지름길 보스는 <b>최종 도착 칸이 일치</b>할 때만 교전한다. 옆 칸·경유 칸에서는 전투하지 않는다. G는 모든 완주 경로의 정지 관문이며 격파 후 완주한다. 같은 보스 칸에서 생존한 말은 다음 투척으로 재공격하거나 아군의 업기 지원을 받을 수 있다.</p>
+  <p>리스크 증가 시 보스 weight·기본 HP·공격 계수가 함께 오른다. 다음 행동은 선공 후 반격 1회로 고정하며 추격·범위 공격·자동 재등장은 없다.</p>
+  <h3>승리와 죽음</h3><p>정산 점수가 목표 이상이면 즉시 보상 단계로 간다. 목표 미달이고 투척이 0이거나 생존 미완주 말이 없으면 런 종료다. HP 0 또는 weight 0인 말은 라운드에서 사망하고 미정산 weight가 0이 된다. 이미 정산한 점수는 보존한다. 말 원형의 성장과 특성은 런 동안 유지하고 새 라운드에서는 원형으로 다시 출전한다.</p>
+  <h3>세 종류의 특성과 마스터</h3><div class="table-wrap"><table><tr><th>부류</th><th>결정</th><th>상대 스케일</th></tr><tr><td>초기 리스크 선택</td><td>플레이어 픽</td><td>목표·보스 능력치·기믹·수·보상의 가장 큰 변화</td></tr><tr><td>구매 덱 카드</td><td>플레이어의 구매·편집</td><td>이익 중심, 재화·슬롯 기회비용</td></tr><tr><td>마스터의 판 전체 특성</td><td>마스터 정기 갱신</td><td>초기 픽보다 변화 폭은 작고 구매 카드보다 직접 디메리트는 큼</td></tr></table></div><p>마스터는 기본 3턴마다 특수칸 위치·개수·종류와 판 전체 특성을 갱신한다. 칸에 최종 도착하면 메리트·디메리트를 준다. ‘핏값의 행군’은 턴말 생존 말·보스 weight -12 대신 말 이동 +1·공격 ×1.15다. 현재 효과와 다음 갱신 시점을 공개하며, 다음 배치는 펼쳐서 확인한다. 예측·확정은 같은 턴말 효과를 계산한다. 첫 라운드의 고요한 판은 학습 예외다.</p>
 </section>
 
 <!-- 6 -->
 <section id="board">
-  <h2><span class="no">6</span>윷판과 말 이동</h2>
-  <p class="lead">전통 윷판 29칸을 그대로 씁니다. 칸 번호와 경로는 JSON <code>board</code>에 있고, 아래 그림도 그 데이터로 그립니다.</p>
-  <div class="grid2">
-    <div class="diagram" id="boardSvg"></div>
-    <div>
-      <h3 style="margin-top:0">이동 규칙</h3>
-      <ul>
-        <li>출발 전 말은 판 밖에서 대기한다. 0번 칸이 출발이자 참먹이(도착)다.</li>
-        <li>말은 0 → 1 → … → 5 방향(오른쪽 변을 따라 위)으로 출발한다.</li>
-        <li><b>지름길:</b> 이동을 <em>시작하는 칸</em>이 모서리 5 또는 10, 중앙 C면 대각선으로 들어간다. 지나가기만 하면 바깥길을 그대로 간다.</li>
-        <li>5에서 들어간 대각선은 C를 지나 15로 이어진다. C에 멈췄다가 다시 출발하면 참먹이 쪽(b3)으로 간다.</li>
-        <li><b>완주:</b> 경로의 끝(참먹이를 지나는 지점)에 닿거나 넘으면 완주다. 남은 칸 수는 버린다.</li>
-        <li><b>빽도:</b> 그 말이 지나온 바로 앞 칸으로 한 칸 돌아간다. 1번 칸에서 빽도면 출발 전 상태로 돌아간다.</li>
-        <li><b>업기:</b> 내 말이 내 말 칸에 멈추면 묶음이 되어 이후 함께 움직인다. 묶음은 나눌 수 없다.</li>
-      </ul>
-    </div>
-  </div>
-  <h3>경로 확인용 예시 (구현 테스트 케이스)</h3>
-  <div class="table-wrap"><table id="tblPathCases"></table></div>
+  <h2><span class="no">6</span>윷판과 이동</h2><p class="lead">전통 윷판 29칸에 공유 완주 관문 G를 추가했다. 0은 출발·참먹이 표식, G는 완주 정산 직전 전투 칸이다.</p><div class="grid2"><div class="diagram" id="boardSvg"></div><div><ul><li>5·10·중앙에서 이동을 시작하면 지름길에 진입한다. 이동 중 경유만 하면 현재 경로를 따른다.</li><li>전진은 윷 이동 + 주말 기본 속도 -1 + 말·판 전체 보너스(최소 1칸)다. 기본 속도 1은 전통 윷 이동과 같다. 빽도는 -1로 그 묶음의 실제 이전 위치를 되짚는다. 판에 말이 없으면 이동·귀속을 생략한다.</li><li>자기 말 도착 칸에서 업는다. 분리할 수 없고 최고 weight 말이 주말이 된다.</li><li>G에 도달하면 남은 이동을 멈춘다. 보스를 격파했거나 이미 격파된 관문이면 END로 완주 정산한다.</li><li>지름길 C를 지나쳐 다른 칸에 도착하면 전투하지 않는다. C에 정확히 도착하면 전투를 예측·확정한다.</li></ul></div></div><h3>사용자 확인용 경로 예시</h3><div class="table-wrap"><table id="tblPathCases"></table></div>
 </section>
 
 <section id="boxing">
-  <h2>박싱 게임 · PvE 테스트베드</h2>
-  <p class="lead">기획서의 보드 데이터로 직접 플레이합니다. 메뉴 → 덱 세팅 → 라운드 특성 → PvE → 보상 → 상점·덱 편집 → 다음 라운드 순서로 1막 3라운드를 진행합니다.</p>
-  <div id="boxingGame" tabindex="0" aria-label="윷토체스 플레이 및 장면 편집기"><p class="note">게임 데이터를 불러오는 중입니다. 자동 로딩에 실패하면 문서 상단에서 game-data.json을 선택하세요.</p></div>
-  <p class="note">파란 원은 말, 붉은 사각형은 길목 수문장입니다. 편집 모드에서는 보드·말·수문장을 선택하고 장면 값을 바꿀 수 있습니다. 전투 수치와 초과 보너스 환산은 박싱용 초기값이며 게임 실행·사용자 테스트는 별도입니다.</p>
+  <h2>박싱 게임 · 플레이 / 편집</h2><p class="lead">선택형 첫 수 체험 → 실제 3막 9라운드 코어 루프. 덱 특성 → 리스크 선택 → 출전 윷 편집 → 투척·업기·보스 전투 → 완주 정산 → 보상·상점.</p>
+  <div id="boxingGame" tabindex="0" aria-label="윷토체스 게임 및 장면 편집기"><p class="note">게임 데이터를 불러오는 중입니다. 실패하면 문서 상단에서 game-data.json을 선택하세요.</p></div>
+  <p class="note">편집 모드에서 weight와 HP·공격의 기본값/계수/윷 배율을 각각 조정할 수 있습니다. 전투와 연출은 작성 상태이며 빌드·브라우저 실행·플레이 테스트는 사용자에게 맡깁니다.</p>
 </section>
 
 <!-- 7 -->
 <section id="score">
-  <h2><span class="no">7</span>점수 시스템</h2>
-  <p class="lead">윷가락의 점수와 특성은 매 턴 선택한 말의 <code>weight</code>(미정산 가치)에 귀속된다. 라운드 점수는 완주 정산으로만 증가한다.</p>
-  <div class="formula">묶음 weight 증가량 = ⌊(족보 Chips + Σ 윷가락 Chips + 시너지 Chips + 이벤트 Chips) × (족보 Mult + Σ +Mult) × Π ×Mult × 업기 배율 × 전투 승리 배수⌋</div>
-  <div class="formula">말.weight += 배분된 증가량　 /　 라운드 점수 += 이번에 완주한 말들의 weight 합계</div>
-  <p>말은 라운드 시작 시 weight 0으로 시작한다. 윷은 덱·손패·버림 더미를 순환하고, 사용한 윷의 발동 효과와 그 효과로 얻은 weight는 선택한 말에 귀속한다. 지난 투척의 효과를 다음 턴에 자동으로 재발동하지 않는다. 지속 효과는 개별 설명의 지속 기간을 따른다.</p>
-  <p class="note">말별 배분·효과 지속·패배 초기화 세칙은 첫 프로토타입 기준안입니다.</p>
-  <h3>처리 순서</h3>
-  <ol class="steps">
-    <li><b>결과와 귀속 대상</b> — 족보·발동 면을 판정한 뒤 이동할 말을 선택한다. 해당 말에 이번 윷의 효과를 연결한다. 귀속할 말이 없는 빽도는 weight와 라운드 점수를 얻지 않는다.</li>
-    <li><b>윷가락·시너지</b> — 선택한 순서대로 Chips·+Mult·×Mult와 강화 보너스를 모은다. 족보 레벨, 재질 시너지, 부적은 기존 순서를 따른다.</li>
-    <li><b>이동·전투</b> — 업기와 길목 전투를 처리한다. 완주 가능한 경우 해당 말마다 완주 Chips를 더한다. 전투를 통과하지 못하면 완주할 수 없다. 패배로 잡힌 묶음은 초기화하며 이번 증가량도 받지 않는다.</li>
-    <li><b>weight 누적</b> — 곱을 적용하고 내림한다. 묶음 증가량은 구성 말에 균등 배분하고 나머지는 말 ID 순서로 1씩 준다. 기존 말별 weight는 보존하므로 업기 자체로 복제되지 않는다.</li>
-    <li><b>완주 정산</b> — 완주한 말의 weight 합계를 라운드 점수에 한 번 더하고 정산 완료로 표시한다. 미완주 말은 weight만 유지한다. 잡힌 말은 미정산 weight와 귀속 효과를 초기화한다.</li>
-    <li><b>종료 판정</b> — 정산된 라운드 점수로 목표 달성을 판단한다. 초과 점수·초과 달성 보너스·남은 투척 보상은 유지한다.</li>
-  </ol>
-  <h3>보드 이벤트</h3>
-  <div class="table-wrap"><table id="tblEvents"></table></div>
-  <h3>계산 예시</h3>
-  <div class="card" id="scoreExample"></div>
+  <h2><span class="no">7</span>점수 폭발과 전투력 폭발</h2><p class="lead">점수 축은 weight, 전투 축은 HP·공격이다. weight를 체력처럼 직접 소모하지 않고 계수로 연결한다.</p>
+  <div class="formula">Δweight = ⌊(족보 N + 윷·강화·시너지 +N) × (족보 M + 윷·덱 카드 +M) × Π ×M × 지원 배율 × 말 성장 특성⌋</div>
+  <div class="formula">HPmax = ⌊(기본 HP + weight × HP계수) × 윷 HP배율 × 말 HP특성⌋</div><div class="formula">공격 = ⌊(기본 공격 + weight × 공격계수) × 윷 공격배율 × 말 공격특성 × 판 전체 공격배율⌋</div>
+  <ol class="steps"><li><b>N·M 빌드.</b> +N, +M을 모은 후 ×M과 덱·말 특성을 곱한다. 각 발동과 최종 곱을 표시한다.</li><li><b>작은 말 지원.</b> 합류 때 최고 weight 주말에 ‘현재 weight × 지원 계수 × 새 지원 수’를 더한다. 이후 투척 증가량에도 지원 배율이 붙는다. 업기를 해제하지 않아 동일 합류를 반복 발동할 수 없다.</li><li><b>전투 성장.</b> HPmax·공격을 식으로 다시 계산한다. 최대 HP가 증가한 만큼만 현재 HP에 보충해 이전 피해를 보존한다. HP와 공격을 독립 강화하면 같은 weight라도 다른 전투력이 된다.</li><li><b>교전.</b> 아군 공격 합계로 보스 HP를 깎는다. 살아남은 보스만 한 번 반격한다. 반격은 낮은 weight 지원 말부터 HP로 받으며 HP 0인 말은 사망한다. weight 자체는 피해량만큼 줄지 않는다.</li><li><b>보스 돌파.</b> 처치 배율로 주말 weight를 증폭하고 추가 투척을 준다. 이 증폭이 다시 HP·공격의 weight 계수에 연결된다.</li><li><b>완주.</b> 완주 보너스를 weight에 반영한 뒤 생존 완주 말 합계를 점수로 한 번 정산한다. 초과 점수와 보너스를 유지한다.</li></ol>
+  <div class="table-wrap"><table id="tblEvents"></table></div><h3>분리·연동 예시</h3><div class="card" id="scoreExample"></div>
 </section>
 
 <!-- 8 -->
 <section id="calc">
-  <h2><span class="no">8</span>투척 계산기</h2>
-  <p class="lead">윷가락 4개를 골라 결과 확률과 말에 귀속될 투척당 기대 weight 증가량(보드 이벤트 제외)을 계산합니다. 완주 확률·전투·경로를 포함하지 않으므로 최종 라운드 점수 예측값이 아닙니다. 16가지 앞뒤 조합을 모두 따지는 정확한 계산입니다. 밸런스를 잡을 때 쓰세요.</p>
-  <div class="calc">
-    <div class="card">
-      <h4>던질 윷가락</h4>
-      <div class="slots" id="calcSlots"></div>
-      <p style="margin-top:12px;font-size:13px;color:var(--ink-2)">오른쪽 숫자는 강화 단계(0~10)입니다. 단계별 보너스는 11장 강화표를 따르고, 같은 재질이 2개·4개면 시너지가 함께 계산됩니다.</p>
-      <p id="calcSynergy" style="font-size:13px;margin:4px 0 0"></p>
-    </div>
-    <div class="card">
-      <div style="display:flex;gap:28px;flex-wrap:wrap">
-        <div><div style="font-size:13px;color:var(--ink-2)">투척당 기대 weight 증가량</div><div class="big" id="calcEv">-</div></div>
-        <div><div style="font-size:13px;color:var(--ink-2)">윷·모 확률(한 번 더)</div><div class="big" id="calcExtra">-</div></div>
-        <div><div style="font-size:13px;color:var(--ink-2)">투척 자원 기준 weight 누적 추정</div><div class="big" id="calcRound">-</div></div>
-      </div>
-      <div class="table-wrap"><table id="calcTable"></table></div>
-    </div>
-  </div>
+  <h2><span class="no">8</span>윷 확률과 weight 계산기</h2><p class="lead">4개 윷의 16가지 앞뒤 조합을 계산한다. 기본 N·M·윷 강화·재질 시너지 기준이며 실제 말의 업기·HP·전투·완주 효과는 게임의 투척 후 미리보기로 확인한다.</p><div class="calc"><div class="card"><h4>윷과 강화 단계</h4><div id="calcSlots" class="slots"></div><p id="calcSynergy"></p></div><div class="card"><p>기본 기대 증가량 <b id="calcEv">-</b> W</p><p>윷·모 확률 <b id="calcExtra">-</b></p><p>기본 증가 구간 <b id="calcRound">-</b> W</p><div class="table-wrap"><table id="calcTable"></table></div></div></div>
 </section>
 
 <!-- 9 -->
 <section id="content">
-  <h2><span class="no">9</span>콘텐츠 목록 <span class="tag ask">미확정</span></h2>
-  <div class="note decide"><b>이 장의 아래 내용은 모두 미확정입니다.</b> 콘텐츠의 종류(윷가락, 재질, 부적, 라운드 특성, 막 증강, 수문장, 시작 덱)와 동작 방식은 정했지만, 개별 항목의 이름·효과·가격·수치는 시스템 설계를 보여주는 예시안입니다. 프로토타입과 플레이테스트를 거치며 바꾸고, 바꿀 때는 <code>game-data.json</code>만 고칩니다.</div>
-  <p class="lead">MVP는 굵게 표시한 항목만 먼저 만들고, 나머지는 2단계에서 추가합니다.</p>
-  <h3>윷가락 <span class="tag ppt">원안</span> <span class="tag ask">미확정</span></h3>
-  <p>원안 투척 화면 콘셉트의 나무(+5)·불꽃(+10)·황룡(+15)·은하(×3) 윷을 기준으로 삼고, 확률을 바꾸는 윷을 더했습니다. 강화는 11장의 강화표를 따릅니다.</p>
-  <div class="table-wrap"><table id="tblSticks"></table></div>
-  <h3>재질 시너지 <span class="tag new">보완</span> <span class="tag ask">미확정</span></h3>
-  <p>한 번에 던지는 4개 중 같은 재질의 수로 보너스가 열린다(TFT 특성 시너지). 한 재질에서는 가장 높은 단계 하나만 적용된다.</p>
-  <div class="table-wrap"><table id="tblFamilies"></table></div>
-  <h3>부적 (패시브) <span class="tag ppt">원안</span> <span class="tag ask">미확정</span></h3>
-  <p>장착 칸 <span data-k="rules.charmSlots"></span>개. 순서를 바꿀 수 있고 처리 순서에 영향을 준다.</p>
-  <div class="table-wrap"><table id="tblCharms"></table></div>
-  <h3>라운드 특성 <span class="tag ppt">원안</span> <span class="tag ask">미확정</span></h3>
-  <p>매 라운드 전에 무작위 3개 중 1개를 고르는 이번 판의 변형 규칙이다(원안 STEP 4, 플로차트의 "하이리스크 &amp; 하이리턴"). 위험도가 높을수록 목표 점수나 제약이 늘고 보상 배수가 커진다. 셋 중 적어도 하나는 위험도 0~1이 나오게 뽑는다.</p>
-  <div class="table-wrap"><table id="tblTraits"></table></div>
-  <h3>막 증강 <span class="tag new">보완</span> <span class="tag ask">미확정</span></h3>
-  <p>막의 보스를 깬 뒤 3개 중 1개를 고르는 영구 효과다(TFT 증강). 먼저 등급을 하나 뽑고 그 등급에서 서로 다른 3개를 보여준다. 선택지마다 한 번씩 다시 뽑을 수 있다.</p>
-  <div class="table-wrap"><table id="tblAugOdds"></table></div>
-  <div class="table-wrap"><table id="tblAugments"></table></div>
-  <h3>수문장과 보스 <span class="tag ask">미확정</span></h3>
-  <div class="table-wrap"><table id="tblGuardians"></table></div>
-  <h3>시작 덱 (덱 특성 세팅) <span class="tag ppt">원안</span> <span class="tag ask">미확정</span></h3>
-  <p>원본 플로차트의 "덱 특성 세팅" 단계에서 고른다.</p>
-  <div class="table-wrap"><table id="tblDecks"></table></div>
+  <h2><span class="no">9</span>빌드 재료와 특성 카드</h2><p class="lead">기본 윷·특성·상점 가격과 확률은 조정용 초깃값이다. 덱 특성은 슬롯 3개, 말 특성은 말마다 슬롯 2개로 시작한다.</p><h3>윷가락</h3><div class="table-wrap"><table id="tblSticks"></table></div><h3>재질 시너지</h3><div class="table-wrap"><table id="tblFamilies"></table></div><h3>부적</h3><p>박싱은 까치·거북·복주머니를 제공한다. 나머지는 후속 콘텐츠다.</p><div class="table-wrap"><table id="tblCharms"></table></div><h3>덱·말 특성</h3><div class="table-wrap"><table id="tblBuildTraits"></table></div><h3>리스크·리턴 선택지</h3><div class="table-wrap"><table id="tblTraits"></table></div><h3>보스</h3><div class="table-wrap"><table id="tblGuardians"></table></div><h3>시작 덱</h3><div class="table-wrap"><table id="tblDecks"></table></div><h3>마스터의 판 전체 특성과 특수칸</h3><div class="table-wrap"><table id="tblMasterTraits"></table></div><h3>후속 막 증강</h3><p>별도 막 증강 선택은 이번 박싱 범위 밖이다. 우선 덱 특성 카드 구매·강화로 런 성장을 확인한다.</p>
 </section>
 
 <!-- 10 -->
 <section id="run">
-  <h2><span class="no">10</span>런 구조와 레벨</h2>
-  <p class="lead">3막 × 3라운드(일반 · 엘리트 · 보스). 원안의 "라운드마다 가파르게 오르는 요구 점수"를 막 단위로 크게 올리는 곡선으로 잡았습니다.</p>
-  <div class="diagram" id="targetChart"></div>
-  <div class="table-wrap"><table id="tblRounds"></table></div>
-  <div class="note">목표 점수에는 고른 라운드 특성의 목표 배율이 곱해집니다. 기존 목표 수치는 초깃값으로 유지하며, 완주 정산 규칙과 길목 전투를 적용한 뒤 조정합니다. 8장 weight 기댓값을 라운드 점수와 직접 비교하지 않습니다. 막 증강은 1막, 2막 보스를 깬 뒤에 나옵니다.</div>
-  <h3>무한 모드 <span class="tag new">보완</span></h3>
-  <p>3막 보스를 깨면 엔딩을 본 뒤 무한 모드로 이어갈 수 있다. 4막부터는 3막 구조(일반 · 엘리트 · 보스)를 정해진 규칙으로 만들어 낸다. 손으로 만든 라운드가 아니라 공식으로 생성하므로 콘텐츠를 더 만들지 않아도 끝없이 이어진다. 목표는 점수 기록 경쟁이다.</p>
-  <ul id="endlessRules"></ul>
-  <div class="table-wrap"><table id="tblEndless"></table></div>
+  <h2><span class="no">10</span>3막 9라운드와 다음 목표</h2><p class="lead">라운드 3~4분, 전체 약 30분의 가설이다. 매 라운드 특수 수문장 2체와 픽의 일반 보스를 배치하고 막·라운드·선택한 위험도로 능력치를 키운다.</p><div class="diagram" id="targetChart"></div><div class="table-wrap"><table id="tblRounds"></table></div><p>현재 화면에서 다음 라운드의 기본 목표를 미리 보여준다. 그다음 리스크 선택지의 추첨 결과는 아직 확정하지 않으며, 실제 목표는 선택한 특성 배율을 반영한다. 무한 모드는 후속 범위다.</p>
 </section>
 
 <!-- 11 -->
 <section id="economy">
-  <h2><span class="no">11</span>보상과 상점</h2>
-  <h3>보상 정산 <span class="tag ppt">원안</span></h3>
-  <div class="formula">획득 엽전 = 기본 보상 × 라운드 특성 보상 배수(반올림) + 남은 투척 × <span data-k="economy.perRemainingToss"></span> + 이자( 보유 엽전 <span data-k="economy.interestPer"></span>냥당 1, 최대 <span data-k="economy.interestCap"></span> )</div>
-  <p>초과 점수는 <code>max(0, 라운드 점수 - 목표 점수)</code>로 기록하고 초과 달성 보너스를 유지한다. 초과분의 보상 환산식·비율은 미확정이며 위 기본 엽전 식과 별도 항목으로 둔다. 라운드 보상은 재화(엽전)만 준다. 윷가락·부적·강화는 모두 상점에서 엽전으로 산다. 런 방향을 바꾸는 큰 보상은 막 증강이 맡는다.</p>
-  <h3>상점 구성 <span class="tag ppt">원안</span></h3>
-  <p>상점의 기본 틀은 발라트로 상점(진열 칸, 리롤, 판매)이다. 여기에 윷 강화와 합치기를 더한다.</p>
-  <div class="table-wrap"><table id="tblEconomy"></table></div>
-  <div class="table-wrap"><table id="tblShopOdds"></table></div>
-  <h3>윷 강화 (검 강화하기식) <span class="tag new">보완</span> <span class="tag ask">미확정</span></h3>
-  <p>덱의 윷가락 하나를 골라 엽전을 내고 다음 단계에 도전한다. 단계가 오를수록 비싸지고 성공 확률이 떨어진다. 실패하면 단계에 따라 그대로 남거나, 한 단계 내려가거나, 일정 확률로 윷가락이 부서진다. 보너스는 단계마다 누적된다.</p>
-  <div class="table-wrap"><table id="tblUpgrade"></table></div>
-  <p><b>합치기:</b> 같은 윷가락 <span data-k="stickUpgrade.merge.count"></span>개를 합치면 1개만 남고 실패 없이 <span data-k="stickUpgrade.merge.levelGain"></span>단계 오른다. 합칠 때는 셋 중 가장 높은 단계를 기준으로 한다. 운에 맡기는 강화와 대비되는 안전한 성장 길이다(TFT 별 올리기).</p>
-  <h3>덱 편집에서 할 수 있는 일</h3>
-  <ul>
-    <li><b>영입:</b> 상점의 윷가락을 사서 덱에 넣는다. 덱은 최소 6개(손패 수), 최대 16개.</li>
-    <li><b>강화 · 합치기:</b> 위 규칙대로 윷가락을 키운다.</li>
-    <li><b>제거:</b> 원치 않는 윷가락을 돈을 내고 뺀다(덱 압축). 원안 8장 "윷 편집"의 핵심.</li>
-    <li><b>족보 비급:</b> 도·개·걸·윷·모 중 하나의 레벨을 올린다. 상점 비급 칸에 무작위로 하나 뜬다.</li>
-    <li><b>판매:</b> 윷가락과 부적은 산 값의 절반에 판다.</li>
-  </ul>
+  <h2><span class="no">11</span>재화·이자·상점·편집</h2><div class="formula">엽전 = 기본 보상 × 리스크 보상배수 + 남은 투척 보상 + 이자 + 초과 점수 보너스</div><p>현재 재화와 이번 잔액 기준 이자를 항상 표시한다. 보상 화면에서는 확정된 이자를 표시하고, 수령할 때 한 번만 지급한다. 박싱은 초과 600점마다 1냥을 초기값으로 둔다.</p><div class="table-wrap"><table id="tblEconomy"></table></div><h3>상점의 통제와 난수</h3><p>윷 상품 1칸, 덱 특성 1칸, 말 특성 또는 부적 1칸을 시드로 뽑는다. 어떤 상품을 살지, 돈을 남겨 이자를 받을지, 상품을 다시 뽑을지는 플레이어가 고른다.</p><div class="table-wrap"><table id="tblShopOdds"></table></div><h3>덱과 말 편집</h3><ul><li>시작 출전 상한은 8개. 구매한 윷은 보유함에 두고 매 라운드 직전 4~상한 개를 고른다. 상점에서 상한을 늘리거나 구매와 동시에 기존 윷을 삭제·교체할 수 있다.</li><li>덱 특성 카드는 시작 덱의 효과를 표현한다. 구매·삭제·강화(최대 3레벨)로 바꾸며 별도 고정 패시브와 중복 적용하지 않는다.</li><li>말 강화는 다음 라운드의 시작 weight·기본 HP·기본 공격·weight 계수를 높인다. 말 특성은 HP·공격·성장 중 방향을 고르고 삭제·교체할 수 있다.</li></ul><h3>윷 강화</h3><div class="table-wrap"><table id="tblUpgrade"></table></div><p>박싱은 확률 성공과 유지/하락을 적용한다. 파괴는 아직 적용하지 않는다. 확률·비용은 구매 전에 공개한다.</p>
 </section>
 
 <!-- 12 -->
 <section id="3c">
-  <h2><span class="no">12</span>3C와 조작</h2>
-  <div class="grid3">
-    <div class="card"><h4>Character</h4><ul><li>내 말 4개(색 하나, 업기 시 겹쳐 쌓이고 배율 배지 표시)</li><li>수문장·보스 말(주둔 칸·공격 범위·다음 행동 예고)</li><li>윷가락: 덱의 카드 역할</li></ul></div>
-    <div class="card"><h4>Camera</h4><ul><li>고정 2D 화면, 스크롤 없음</li><li>윷판은 화면 중앙에 고정</li><li>(추가 구현) 잡기·모·보스 등장 때 짧은 흔들림과 줌 펀치(0.15초)</li></ul></div>
-    <div class="card"><h4>Control</h4><ul><li>마우스: 윷가락 클릭으로 고르기/해제, 버튼, 말 클릭</li><li>키보드: 1~6 윷가락 선택, Space 던지기, R 교체, Tab 말 순환, Esc 일시정지</li></ul></div>
-  </div>
-  <h3>입력 상태</h3>
-  <div class="table-wrap"><table>
-    <tr><th>상태</th><th>받는 입력</th><th>다음 상태</th></tr>
-    <tr><td>SELECT</td><td>윷가락 선택/해제, 교체, 던지기(4개 선택 시만 활성)</td><td>TOSSING</td></tr>
-    <tr><td>TOSSING</td><td>없음(연출 약 0.8초, 클릭 시 빨리감기)</td><td>MOVE</td></tr>
-    <tr><td>MOVE</td><td>말 클릭(가능한 말만 강조, 마우스를 올리면 도착 미리보기)</td><td>SCORING</td></tr>
-    <tr><td>SCORING</td><td>없음(weight 누적·완주 정산 표시, 클릭 시 빨리감기)</td><td>GUARDIAN</td></tr>
-    <tr><td>GUARDIAN</td><td>없음(주둔 수문장의 예고 행동 처리)</td><td>SELECT 또는 ROUND_END</td></tr>
-  </table></div>
+  <h2><span class="no">12</span>조작과 진행 상태</h2><p>마우스로 윷·말·선택지를 고른다. 게임 영역에 포커스가 있을 때 1~6은 손패, Space는 투척, R은 교체다. 편집 중과 전투 연출 중에는 게임 입력을 잠근다.</p><div class="table-wrap"><table><tr><th>상태</th><th>선택</th><th>전환</th></tr><tr><td>MENU → TRAIT</td><td>덱의 시작 효과와 주어진 리스크 3택 1</td><td>PREP</td></tr><tr><td>PREP</td><td>보유함에서 출전 윷 편집</td><td>SELECT</td></tr><tr><td>SELECT</td><td>윷 4개·교체·확률 확인</td><td>MOVE</td></tr><tr><td>MOVE</td><td>말과 전투 예측 확인</td><td>교전 확인·연출 → 다음 턴/REWARD/LOSE</td></tr><tr><td>REWARD → SHOP</td><td>보상 수령, 재화·상품·능력치 편집</td><td>다음 TRAIT 또는 WIN</td></tr></table></div>
 </section>
 
 <!-- 13 -->
 <section id="ui">
-  <h2><span class="no">13</span>화면과 피드백</h2>
-  <h3>화면 목록</h3>
-  <div class="table-wrap"><table>
-    <tr><th>화면(mode)</th><th>내용</th><th>범위</th></tr>
-    <tr><td>title</td><td>시작, 이어하기(확장), 설정, 종료</td><td>MVP</td></tr>
-    <tr><td>deck_setup</td><td>시작 덱 3종 중 선택, 덱 구성 미리보기</td><td>MVP(1종) → 목표(3종)</td></tr>
-    <tr><td>round_select</td><td>다음 라운드 정보(목표 점수, 수문장) + 라운드 특성 카드 3장</td><td>MVP</td></tr>
-    <tr><td>play</td><td>윷판, 손패, 점수판, 부적, 수문장 예고</td><td>MVP</td></tr>
-    <tr><td>reward</td><td>보상 항목을 한 줄씩 더하는 정산표</td><td>MVP</td></tr>
-    <tr><td>augment_select</td><td>막 보스 클리어 후 증강 카드 3장, 선택지별 다시 뽑기</td><td>목표</td></tr>
-    <tr><td>shop</td><td>상점 진열, 덱 보기, 강화(성공·실패 판정)/합치기/제거, 리롤</td><td>MVP(영입·강화) → 목표(전부)</td></tr>
-    <tr><td>result</td><td>게임 오버 / 엔딩, 무한 모드 진입, 기록(도달 라운드, 총점, 최고 완주 정산액)</td><td>MVP(게임 오버·클리어) → 목표(무한 모드)</td></tr>
-    <tr><td>pause / settings</td><td>음량, 연출 속도(1×/2×), 규칙 도움말</td><td>목표</td></tr>
-  </table></div>
-  <h3>플레이 화면 와이어프레임 (1280 × 720)</h3>
-  <div class="diagram">
-  <svg viewBox="0 0 1280 720" role="img" aria-label="플레이 화면 배치: 위쪽 상태 바, 왼쪽 점수판, 가운데 윷판, 오른쪽 부적과 수문장 정보, 아래쪽 손패와 버튼">
-    <rect x="0" y="0" width="1280" height="720" fill="var(--surface-2)"/>
-    <g fill="var(--surface)" stroke="var(--line)" stroke-width="2">
-      <rect x="16" y="12" width="1248" height="56" rx="8"/>
-      <rect x="16" y="84" width="260" height="400" rx="8"/>
-      <rect x="296" y="84" width="688" height="400" rx="8"/>
-      <rect x="1004" y="84" width="260" height="400" rx="8"/>
-      <rect x="16" y="500" width="1000" height="204" rx="8"/>
-      <rect x="1032" y="500" width="232" height="204" rx="8"/>
-    </g>
-    <g font-size="22" fill="var(--ink)">
-      <text x="36" y="48">1막 · 2라운드(엘리트)   목표 800   점수 412</text>
-      <text x="880" y="48">투척 4/7   교체 2/3   엽전 9냥</text>
-      <text x="36" y="120" font-weight="700">말 weight</text>
-      <text x="36" y="150" font-size="16" fill="var(--ink-2)">족보: 걸 Lv.1</text>
-      <rect x="36" y="170" width="105" height="64" rx="8" fill="var(--chips)"/><text x="88" y="212" text-anchor="middle" fill="#fff" font-size="28" font-weight="700">150</text>
-      <text x="150" y="212" fill="var(--mult)" font-size="26" font-weight="700">×</text>
-      <rect x="170" y="170" width="90" height="64" rx="8" fill="var(--mult)"/><text x="215" y="212" text-anchor="middle" fill="#fff" font-size="28" font-weight="700">12</text>
-      <text x="36" y="280" font-size="16" fill="var(--ink-2)">미리보기: 말 B 이동 시</text>
-      <text x="36" y="306" font-size="16" fill="var(--ink-2)">업기 ×2 · weight +3,600</text>
-      <text x="36" y="360" font-size="16" fill="var(--ink-2)">확률  도 12%  개 35%</text>
-      <text x="36" y="384" font-size="16" fill="var(--ink-2)">걸 35%  윷 13%  모 3%</text>
-      <text x="640" y="120" text-anchor="middle" font-weight="700">윷판 (29칸)</text>
-      <text x="640" y="300" text-anchor="middle" font-size="16" fill="var(--ink-2)">말 · 묶음 배율 배지 · 수문장 주둔·공격 범위</text>
-      <text x="1024" y="120" font-weight="700">부적 (5칸)</text>
-      <g fill="var(--surface-2)" stroke="var(--line)"><rect x="1024" y="136" width="40" height="40" rx="6"/><rect x="1072" y="136" width="40" height="40" rx="6"/><rect x="1120" y="136" width="40" height="40" rx="6"/><rect x="1168" y="136" width="40" height="40" rx="6"/><rect x="1216" y="136" width="40" height="40" rx="6"/></g>
-      <text x="1024" y="222" font-weight="700">라운드 특성 · 증강</text>
-      <text x="1024" y="250" font-size="16" fill="var(--ink-2)">업고 달려 (위험 보통)</text>
-      <text x="1024" y="274" font-size="16" fill="var(--ink-2)">증강: 한 벌(금)</text>
-      <text x="1024" y="310" font-weight="700">수문장</text>
-      <text x="1024" y="338" font-size="16" fill="var(--ink-2)">주둔: 10번 · 행동: 공격</text>
-      <text x="1024" y="362" font-size="16" fill="var(--ink-2)">덱 남은 수 4 · 버림 2</text>
-      <text x="36" y="536" font-weight="700">손패 (6개 중 4개 선택)</text>
-    </g>
-    <g stroke="var(--line)" stroke-width="2">
-      <rect x="40" y="556" width="140" height="130" rx="8" fill="var(--surface-2)"/>
-      <rect x="196" y="540" width="140" height="130" rx="8" fill="var(--surface)" stroke="var(--blue)" stroke-width="3"/>
-      <rect x="352" y="540" width="140" height="130" rx="8" fill="var(--surface)" stroke="var(--blue)" stroke-width="3"/>
-      <rect x="508" y="556" width="140" height="130" rx="8" fill="var(--surface-2)"/>
-      <rect x="664" y="540" width="140" height="130" rx="8" fill="var(--surface)" stroke="var(--blue)" stroke-width="3"/>
-      <rect x="820" y="540" width="140" height="130" rx="8" fill="var(--surface)" stroke="var(--blue)" stroke-width="3"/>
-    </g>
-    <g font-size="22" fill="var(--ink)" text-anchor="middle">
-      <rect x="1052" y="528" width="192" height="64" rx="10" fill="var(--surface-2)" stroke="var(--line)" stroke-width="2"/>
-      <text x="1148" y="568">교체 (R)</text>
-      <rect x="1052" y="612" width="192" height="72" rx="10" fill="var(--red)"/>
-      <text x="1148" y="656" fill="#fff" font-weight="700">던지기 (Space)</text>
-    </g>
-  </svg>
-  </div>
-  <div class="note"><b>확정.</b> 원안 콘셉트의 ENHANCE · COMBINE · TOSS 중 COMBINE은 <b>던질 윷 4개 고르기</b>, TOSS는 던지기입니다. ENHANCE(강화)는 라운드 화면에서 빼고 상점으로 옮겼습니다. 라운드 화면의 버튼은 교체와 던지기입니다. 콘셉트의 <code>00/10</code>, <code>00/13</code>은 각각 남은 투척, 덱 남은 수로 표시합니다.</div>
-  <h3>피드백 연출 (보조 장치)</h3>
-  <p>재미의 중심은 규칙과 점수 계산에 있고, 연출은 그 결과를 읽기 쉽게 돕는 보조 장치입니다. MVP에는 정보 전달에 꼭 필요한 최소 리소스만 넣고, 나머지는 모두 MVP 이후의 추가 구현입니다.</p>
-  <div class="table-wrap"><table>
-    <tr><th>상황</th><th>MVP (최소 리소스)</th><th>추가 구현</th></tr>
-    <tr><td>윷가락 하나 발동</td><td>+Chips / +Mult와 귀속 말 표시, 말 weight 갱신</td><td>윷가락 튀어 오름, 숫자 굴러감, 발동할수록 음 높이 상승</td></tr>
-    <tr><td>윷 · 모</td><td>결과 이름 텍스트</td><td>"윷이야!" / "모다!" 큰 글자, 화면 흔들림, 환호 효과음</td></tr>
-    <tr><td>업기</td><td>말 겹쳐 그리기, ×n 텍스트 배지</td><td>배지 확대 트윈, 나무 부딪히는 소리</td></tr>
-    <tr><td>잡기</td><td>전투 승패 표시, 패배한 말은 출발로 복귀, weight 초기화</td><td>날아가는 연출, 도장 효과, 흔들림, 타격음</td></tr>
-    <tr><td>완주</td><td>완주 말 제거, weight 정산액 텍스트</td><td>참먹이로 빨려 드는 연출, 불꽃, 징</td></tr>
-    <tr><td>최종 곱셈</td><td>Chips × Mult = weight 증가량. 목표 바는 완주 정산 때 갱신</td><td>상자 충돌 연출, 점수 크기별 불꽃 단계, 상승음</td></tr>
-    <tr><td>강화 성공 · 실패</td><td>결과 텍스트</td><td>망치질 연출, 부서지는 효과, 성공·실패 효과음</td></tr>
-    <tr><td>목표 달성</td><td>정산 화면으로 전환</td><td>목표 바 금색 전환, 팡파르</td></tr>
-  </table></div>
+  <h2><span class="no">13</span>정보·폭발 연출·편집기</h2><ul><li><b>정산/잠재 점수:</b> 정산 점수, 현재 말 weight 합계, 남은 정산 목표와 전원 완주 가정 부족분을 구분한다.</li><li><b>확률:</b> 투척 전에 결과 확률과 기본 증가 구간, 투척 뒤에는 실제 발동 면과 윷의 HP·공격 배율을 보여준다.</li><li><b>전투:</b> 도착 칸·공격·반격·양쪽 HP 전후·사망·처치 증폭·완주 정산을 예측한다. 확인 뒤 선공·반격·숫자 증폭을 순서대로 재생한다. 연출 생략과 동작 줄이기를 지원한다.</li><li><b>편집:</b> 레이어 표시, 좌표 드래그, 말·보스 weight/HP/기본 능력치/weight 계수/윷 배율, 목표·투척·재화·위험도, UI 프레임을 바꾸고 같은 장면을 플레이한다.</li><li><b>저장:</b> 장면 형식 2는 카드·원형 성장·난수·상점·손패·배치·기록을 JSON으로 저장한다. 1.3의 장면은 규칙이 달라 호환하지 않는다.</li></ul>
 </section>
 
 <!-- 14 -->
 <section id="impl">
-  <h2><span class="no">14</span>pico2d 구현 설계</h2>
-  <p class="lead">규칙 로직은 pico2d 없이 돌아가게 분리합니다. 현재 HTML 박싱은 아래 Python 구조를 검토하기 위한 별도 JavaScript 구현이며 실제 Python 게임 구현과 구분합니다. 그래야 콘솔에서 먼저 프로토타이핑하고, 확률과 점수식을 따로 테스트할 수 있습니다.</p>
-  <div class="grid2">
-  <div class="card">
-  <h4>폴더 구조 (제안)</h4>
-<pre style="margin:0;font-size:13px;overflow-x:auto"><code>main.py                 # open_canvas(1280, 720), game_framework.run(title_mode)
-game_framework.py       # 수업 프레임워크: change_mode / push_mode / pop_mode
-data/game-data.json     # 이 문서의 데이터 (docs에서 복사)
-core/                   # pico2d import 금지
-  data.py               # JSON 로드, id로 조회
-  stick.py  deck.py     # 윷가락, 덱/손패/버림 더미
-  toss.py               # 투척 판정, 확률 계산
-  board.py  piece.py    # 경로, 이동, 업기/잡기/완주
-  guardian.py           # 고정 길목 전투, 보스 기믹
-  scoring.py            # 처리 순서와 훅 파이프라인
-  effects.py            # 부적·라운드 특성·막 증강·재질 시너지 (id → 훅 함수)
-  run_state.py          # 런 진행, 엽전, 증강, 라운드 기록
-  run_gen.py            # 무한 모드 라운드 생성
-  shop.py               # 진열·리롤, 강화 판정, 합치기
-modes/
-  title_mode.py  deck_setup_mode.py  round_select_mode.py  play_mode.py
-  reward_mode.py augment_mode.py     shop_mode.py          result_mode.py
-ui/
-  widgets.py            # 버튼, 패널, 텍스트
-  fx.py                 # 숫자 팝업, 흔들림, 트윈
-tools/
-  sim_toss.py           # 확률 검증 (pico2d 없이 실행)</code></pre>
-  </div>
-  <div class="card">
-  <h4>핵심 객체</h4>
-  <ul>
-    <li><code>RunState</code>: 덱(윷가락별 강화 단계 포함), 부적, 막 증강, 족보 레벨, 엽전, 현재 막/라운드, 무한 모드 여부. 런 동안 유지.</li>
-    <li><code>RoundState</code>: 남은 투척·교체, 손패, 말 4개, 수문장, 라운드 점수(완주 weight 합계), 초과 점수, 보상 지급 여부. 라운드마다 새로 만듦.</li>
-    <li><code>Piece</code>: <code>route</code>, <code>index</code>, <code>history</code>(빽도용), <code>stack</code>(업힌 말), <code>weight</code>, 귀속 효과, 전투 상태, 완주·정산 완료 여부.</li>
-    <li><code>ScoreContext</code>: 귀속 말 ID, chips, add_mult, x_mult 목록, stack, 전투 결과, weight 증가량, 완주 정산액, log. 각 단계의 기록을 남겨 연출이 그대로 재생.</li>
-    <li><code>Effect</code>: <code>on_round_start / on_toss_result / on_stick / on_synergy / on_move / on_capture / on_finish / on_score / on_round_end / on_upgrade</code> 중 필요한 것만 구현.</li>
-  </ul>
-  <h4>연출과 로직 분리</h4>
-  <p><code>scoring.py</code>는 weight 누적과 완주 정산을 구분해 계산하고 <code>log</code> 목록을 돌려주고, <code>play_mode</code>는 그 목록을 시간에 맞춰 하나씩 재생한다. 빨리감기는 재생만 건너뛰므로 결과가 달라지지 않는다.</p>
-  <h4>난수</h4>
-  <p>런 시작 시 시드를 정해 <code>random.Random(seed)</code> 하나만 쓴다. 투척, 수문장, 상점, 강화 판정이 모두 이 난수를 쓴다. 버그 재현과 밸런스 테스트에 필요하다.</p>
-  </div>
-  </div>
-  <h3>모드 전환</h3>
-  <p><code>title</code> → <code>deck_setup</code> → (<code>round_select</code> → <code>play</code> → <code>reward</code> → [보스 클리어 시 <code>augment_select</code>] → <code>shop</code>)을 9번 반복 → <code>result</code>(엔딩) → 무한 모드를 고르면 <code>run_gen</code>으로 다음 막을 만들어 같은 순환을 계속한다. 일시정지는 <code>push_mode(pause_mode)</code>로 위에 쌓는다.</p>
+  <h2><span class="no">14</span>박싱과 Python 구현 경계</h2><div class="table-wrap"><table><tr><th>파일/객체</th><th>책임</th></tr><tr><td>boxing-core.js</td><td>시드 난수, 손패 반환·셔플, 리스크/상점 추첨, 성장 수식, 순수 이동·전투 예측, 같은 결과 확정, 상점·메타 성장</td></tr><tr><td>boxing-game.js</td><td>플레이·HUD·연출·편집기·장면 저장/불러오기. 연출 중 규칙 입력을 막고 최신 상태에 대해서만 확정</td></tr><tr><td>design-view.js</td><td>기획서 표·보드·계산기. 점수 계산은 공통 코어 사용</td></tr><tr><td>Piece / template</td><td>현재 weight·HP·기본 HP/공격·weight 계수·윷 배율·특성·사망/정산 상태와 다음 라운드용 원형</td></tr></table></div><p>JavaScript 박싱이 Python/pico2d 실행을 대신하지 않는다. 이후 이식 시 같은 데이터·시드·입력과 사건 로그를 대조한다. 이번에는 빌드·실행·테스트를 수행하지 않는다.</p>
 </section>
 
 <!-- 15 -->
 <section id="resource">
-  <h2><span class="no">15</span>리소스 목록</h2>
-  <p class="lead">원안 10장대로 AI 도구(ComfyUI 등)로 초안을 만들고 직접 다듬습니다. 외부 에셋은 라이선스를 <code>docs/credits.md</code>에 기록합니다. MVP 수량은 화면을 읽을 수 있는 최소치이고, 나머지는 추가 구현입니다.</p>
-  <div class="table-wrap"><table>
-    <tr><th>분류</th><th>항목</th><th>MVP 수량</th><th>최종 수량</th></tr>
-    <tr><td>이미지</td><td>윷가락 (배/등 2면, 강화 단계 표시)</td><td class="num">3</td><td class="num">11</td></tr>
-    <tr><td>이미지</td><td>윷판, 칸 강조</td><td class="num">1</td><td class="num">1 + 효과 3</td></tr>
-    <tr><td>이미지</td><td>내 말, 수문장, 보스</td><td class="num">2</td><td class="num">5</td></tr>
-    <tr><td>이미지</td><td>부적 아이콘</td><td class="num">3</td><td class="num">11</td></tr>
-    <tr><td>이미지</td><td>라운드 특성 · 막 증강 카드 틀</td><td class="num">1</td><td class="num">2 + 아이콘 24</td></tr>
-    <tr><td>이미지</td><td>UI 패널, 버튼, 점수판, 배경</td><td class="num">5</td><td class="num">15</td></tr>
-    <tr><td>폰트</td><td>한글 비트맵/픽셀 폰트 (OFL 등 배포 가능 라이선스)</td><td class="num">1</td><td class="num">1~2</td></tr>
-    <tr><td>사운드</td><td>투척, 착지, 발동, 잡기, 완주, 곱셈, 강화, 클리어, 실패, 버튼</td><td class="num">3</td><td class="num">12</td></tr>
-    <tr><td>음악</td><td>메뉴, 라운드, 보스, 상점</td><td class="num">0</td><td class="num">4</td></tr>
-  </table></div>
+  <h2><span class="no">15</span>리소스와 읽기 쉬운 박싱</h2><p>현재는 SVG의 보드·말·보스 레이어와 CSS의 UI 프레임·공격·숫자 증폭을 사용한다. 외부 라이브러리·네트워크 에셋 없이 문서 폴더만으로 연다. 실제 이미지·사운드 제작은 예측 수치와 조작이 검증된 뒤 진행한다.</p>
 </section>
 
 <!-- 16 -->
 <section id="plan">
-  <h2><span class="no">16</span>개발 일정과 범위</h2>
-  <p class="lead">원안 9장의 마일스톤을 그대로 두고, 구간마다 끝났다고 말할 수 있는 기준을 붙였습니다. <span class="tag ppt">원안</span></p>
-  <div class="table-wrap"><table>
-    <tr><th>기간</th><th>원안</th><th>할 일</th><th>완료 기준</th></tr>
-    <tr><td>11/3 ~ 11/10</td><td>세부 기획 ⇄ 프로토타이핑 반복</td><td>미확정 콘텐츠 1차안 정리, 저장소 골격, <code>core/toss.py</code>·<code>scoring.py</code> 콘솔 프로토타입, 경로 이동 구현</td><td>콘솔에서 한 라운드를 끝까지 플레이할 수 있다. 6장 경로 예시 전부 통과</td></tr>
-    <tr><td>11/11 ~ 11/22</td><td>주요 리소스/시스템, 코어 루프 구현</td><td>pico2d MVP 모드(title, deck_setup, round_select, play, reward, shop, result), 플레이 화면, 수문장, 정산, 상점(영입·강화 판정), 최소 리소스</td><td><b>MVP:</b> 1막 3라운드를 처음부터 끝까지, 이기고 질 수 있다</td></tr>
-    <tr><td>11/23 ~ 11/30</td><td>마일스톤 재점검 → 세부 콘텐츠 구현</td><td>MVP 플레이 결과로 규칙 재점검, 막 증강, 재질 시너지, 합치기, 2·3막, 보스 3종, 무한 모드, 시작 덱 3종, 연출, 사운드</td><td>3막 9라운드 런과 무한 모드 진입 가능, 콘텐츠 표의 80% 이상 구현</td></tr>
-    <tr><td>12/1 ~ 12/5</td><td>테스트 → 버그/퀄리티 검증, 리팩터링, main 확정</td><td>17장 체크리스트, 밸런스 조정(JSON만 수정), 버그 수정</td><td>알려진 진행 불가 버그 0, 10번 이상 테스트 런 기록</td></tr>
-    <tr><td>12/6 ~ 제출 전</td><td>최종 루프 검증 → 패키징, Release 분리</td><td>실행 파일/배포 폴더 정리, README 실행법, 시연 영상</td><td>다른 PC에서 설치 없이 실행 확인</td></tr>
-  </table></div>
-  <h3>범위 우선순위 <span class="tag ref">참고</span></h3>
-  <div class="note">
-    <b>MVP란?</b> Minimum Viable Product, 즉 <b>핵심 재미가 성립하는지 확인할 수 있는 가장 작은 완성본</b>입니다. 윷토체스의 가설은 "윷가락으로 확률을 짜서 던지고, 던진 뒤 말을 골라 점수를 키우고, 번 돈으로 덱을 강화하는 것이 재미있다"입니다.
-    MVP는 콘텐츠 양이나 그래픽보다 <b>이 순환이 처음부터 끝까지 한 판 돌아가는 것</b>을 기준으로 잡습니다. 콘텐츠는 적게, 리소스는 최소로 두고, MVP를 직접 플레이해 본 결과로 규칙을 고칠지 콘텐츠를 늘릴지 정합니다. 그래서 1막 3라운드(일반 · 엘리트 · 보스)까지만 만듭니다.
-  </div>
-  <div class="grid3">
-    <div class="card"><h4>MVP (꼭)</h4><ul><li>투척 판정, 빽도, 윷·모 한 번 더</li><li>29칸 경로, 지름길, 업기, 잡기, 완주</li><li>수문장 1종</li><li>1막 3라운드, 라운드 특성 4종</li><li>정산, 상점(영입, 단계 강화와 실패 판정)</li><li>윷가락 3, 부적 3</li><li>점수 과정 텍스트 표시, 최소 리소스</li></ul></div>
-    <div class="card"><h4>목표 (되도록)</h4><ul><li>3막 9라운드, 보스 3종</li><li>막 증강(은·금·옥), 재질 시너지</li><li>합치기, 족보 비급, 제거, 리롤, 판매</li><li>무한 모드(규칙 생성, 점수 기록)</li><li>콘텐츠 표 전체, 시작 덱 3종</li><li>피드백 연출과 사운드</li></ul></div>
-    <div class="card"><h4>확장 (여유 있으면)</h4><ul><li>이어하기(세이브)</li><li>도감, 기록 화면</li><li>난이도 단계</li><li>시드 입력</li></ul></div>
-  </div>
-  <p><b>축소 기준:</b> 11/22에 MVP가 돌아가지 않으면 2·3막을 1막 반복(목표 점수 상승)으로 바꾸고, 보스는 1종만 만든다.</p>
+  <h2><span class="no">16</span>제작 순서와 범위</h2><ol><li>기획·데이터·수식과 통제/난수 경계를 맞춘다.</li><li>3막 코어 루프, 전투 예측·연출, 덱·말 성장과 편집기를 연결한다.</li><li>사용자가 박싱 확인 절차를 수행하고 균형·세션 시간·기억을 기록한다.</li><li>확인한 규칙을 Python/pico2d에 옮기고 리소스를 붙인다.</li></ol><p>이번 HTML 박싱 범위는 3막 9라운드·덱/말 특성·상점·출전 편집·이동속도·마스터·특수칸이다. 대규모 SRPG 기능, PvP, 별도 막 증강, 무한 모드, 세이브 호환 마이그레이션은 후속 범위다.</p>
 </section>
 
 <!-- 17 -->
 <section id="test">
-  <h2><span class="no">17</span>검증 체크리스트</h2>
-  <p class="lead">구현 후 직접 돌려볼 항목입니다.</p>
-  <ul>
-    <li><b>확률:</b> <code>tools/sim_toss.py</code>로 윷가락 조합별 10,000회 투척 → 8장 계산기 값과 ±1%p 안에서 맞는지.</li>
-    <li><b>경로:</b> 6장 경로 예시 표 전체를 단위 테스트로.</li>
-    <li><b>점수식:</b> 7장 계산 예시에서 미완주 시 점수 불변, 말별 weight 누적, 업기 배분 합계 보존, 완주 1회 정산을 단위 테스트로. 부적 순서를 바꿨을 때 결과가 문서와 같은지.</li>
-    <li><b>종료 판정:</b> 완주 정산 후 목표 이상이면 종료 / 초과 점수·보너스 보존 / 미완주 weight는 목표 판정에서 제외 / 마지막 투척 완주 / 투척 0 / 4개 완주 / 판에 말 없이 빽도 / 보상 1회만 지급.</li>
-    <li><b>수문장:</b> 모든 턴에서 주둔 위치 유지, 공격 범위·예고 행동과 전투 결과 일치, 패배 묶음의 weight·효과 초기화, 처치된 수문장 2투척 뒤 원래 길목에 재등장. 피해·능력치 수치는 미확정.</li>
-    <li><b>강화:</b> 단계별 1,000회 강화 시뮬레이션의 성공·하락·파괴 비율이 11장 강화표와 맞는지. 합치기가 실패 없이 2단계 오르는지.</li>
-    <li><b>무한 모드:</b> 4~6막 생성 결과가 10장 표와 같은지.</li>
-    <li><b>밸런스:</b> 기본 덱으로 1-1 클리어율 90% 이상, 강화 없이 1-3 클리어율 30% 이하가 되도록 목표 점수 조정.</li>
-    <li><b>시간:</b> 라운드 평균 3~4분 안쪽인지(연출 1× 기준).</li>
-  </ul>
+  <h2><span class="no">17</span>사용자 확인 체크리스트</h2><p class="lead">실행 전 목록이다. 이번 작성에서 빌드·브라우저 실행·자동/수동 테스트는 수행하지 않는다.</p><ul><li>작은 말을 큰 말에 업고 주말의 weight와 HP·공격이 서로 다른 식으로 증가하는지.</li><li>투척 전 확률·증가 구간과 투척 후 실제 발동, 전투 HP·피해 예측이 확정 결과와 같은지.</li><li>C를 경유해 다른 칸에 도착하면 전투하지 않고 C에 멈추면 전투하는지. G에서 관문 보스 처치 후 완주하는지.</li><li>위험도 증가가 보스 HP·공격에 함께 반영되는지. 아군 HP 0 사망 시 미정산 weight만 잃는지.</li><li>사용한 윷 반환·셔플, 보유/출전 분리, 매 라운드 출전 편집, 특성 카드·말 성장의 다음 라운드 유지.</li><li>상품·선택지 추첨은 시드로 재현되고, 미리보기를 반복해도 난수와 결과가 변하지 않는지.</li><li>보상 1회 지급, 현재 재화와 이번 이자·다음 목표 표시, 초과 보너스, 3막 결과와 같은 시드 재시작.</li><li>편집·장면 저장/복원·연출 생략·키보드 입력·동작 줄이기, 잘못된 JSON 거부.</li><li>픽별 일반 보스 수·HP·공격·기믹, 마스터의 3턴 위치/개수/종류 갱신, 현재 불이익 예고와 턴말 예측 일치.</li><li>첫 수 체험의 고정 결과 표시, 실제 런과의 분리, 기본 HUD·접힌 세부 설정의 학습 흐름.</li><li>3초 게임명 회상·30분 세션·종료 3시간 내 비유도 회상을 별도로 측정.</li></ul>
 </section>
 
 <!-- 18 -->
 <section id="decisions">
-  <h2><span class="no">18</span>결정 사항</h2>
-  <p class="lead">기획자가 확정한 항목입니다. 본문은 이 결정을 기준으로 썼습니다.</p>
-  <div class="table-wrap"><table>
-    <tr><th>#</th><th>항목</th><th>결정</th><th>반영</th></tr>
-    <tr><td>1</td><td>강화와 COMBINE, 상점과 보상</td><td>강화는 상점에서, COMBINE은 던질 윷 4개 고르기. 상점은 발라트로식 기본 틀에 검 강화하기식 윷 강화(실패 확률 있음)를 더한다. 라운드 보상은 재화, 막이 끝날 때마다 TFT식 랜덤 증강 3택 1</td><td>2 · 4 · 9 · 11 · 13장</td></tr>
-    <tr><td>2</td><td>승리 조건</td><td>완주 weight 합계로 목표 점수 이상 달성하는 PvE. 수문장은 길목에 상주하며 전투(SRPG 요소)</td><td>5장</td></tr>
-    <tr><td>3</td><td>목표 도달 시</td><td>완주 정산 후 목표 점수 이상이면 종료. 별도 완주 개수 조건 없음. 초과 점수·보너스와 남은 투척 보상 유지 (2026-11-09 수정)</td><td>5 · 11장</td></tr>
-    <tr><td>4</td><td>업기 배율</td><td>이번 weight 증가량에 묶음 말 수만큼 곱한 뒤 말별 배분. 기존 weight는 합산 보존. 특수 룰이면 추가 배수</td><td>7 · 9장</td></tr>
-    <tr><td>5</td><td>완주 판정</td><td>길목 전투를 통과하고 참먹이에 닿거나 넘으면 완주. 해당 말의 weight를 한 번 정산</td><td>6장</td></tr>
-    <tr><td>6</td><td>런 길이</td><td>3막 9라운드, 이후 규칙 생성 무한 모드(점수 기록 경쟁). MVP는 1막</td><td>10 · 16장</td></tr>
-    <tr><td>7</td><td>족보 레벨업</td><td>목표 범위에 포함(상점 비급)</td><td>11 · 16장</td></tr>
-  </table></div>
+  <h2><span class="no">18</span>최신 결정과 미확인 사항</h2><div class="table-wrap"><table><tr><th>항목</th><th>결정</th></tr><tr><td>점수 / 전투</td><td>weight와 HP·공격을 느슨하게 분리. 기본 능력치 + weight 계수 × 윷 배율로 연결.</td></tr><tr><td>업기</td><td>작은 말 지원이 높은 weight 주말을 증폭. 동일 합류 반복 없음.</td></tr><tr><td>승리</td><td>완주 정산 목표 이상. 말 합계와 잠재 부족분은 참고 지표. 초과 보너스 유지.</td></tr><tr><td>보스</td><td>C·G 특수 수문장 2체 + 픽의 일반 보스. 도착 칸에서 교전하며 픽이 수·능력치·기믹을 바꿈.</td></tr><tr><td>덱</td><td>시작 최대 8개, 매 라운드 직전 출전 편집, 사용 윷 반환·셔플. 덱 효과는 구매/강화/삭제 가능한 카드.</td></tr><tr><td>말</td><td>상점의 원형 강화·HP/공격/weight 계수·특성은 다음 라운드 유지. 현재 HP 소진 시 사망.</td></tr><tr><td>3·3·3</td><td>3초 이름·30분 플레이·3시간 내 회상의 사용자 기준. 현재는 설계 가설, 실측 미확인.</td></tr><tr><td>검증</td><td>소스 대조만 수행. 빌드·브라우저·플레이·균형 검증은 사용자에게 맡김.</td></tr></table></div>
 </section>
 </main>
 </div>
@@ -735,213 +297,1079 @@ tools/
 
 <script id="embeddedGameData" type="application/json">
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "yutochess-game-data",
-  "version": "1.3.0-draft",
+  "version": "1.4.0-draft",
   "source": {
     "design": "docs/2dgp_1차기획서-제출용.pptx (변준영, 2026-11)",
     "reference": "Notion '윷토체스 | 상세 기획명세 v0.2 제안' (AI 작성, 참고만)",
-    "note": "2026-11-09 수정: 길목 상주 전투와 말별 weight의 완주 정산을 적용한다. rules·board·run 구조는 설계 기준이다. HTML 박싱은 1막 코어 루프를 구현하며 Python/pico2d 구현은 별도다. sticks·families·charms·roundTraits·augments·guardians와 모든 수치는 플레이테스트 전 미확정 초깃값이다. 게임 코드는 이 파일을 그대로 읽는 것을 전제로 한다."
+    "note": "2026-11-09 개정. 점수 weight와 전투 HP/공격력을 분리하되 기본 능력치·weight 계수·윷 배율로 연동한다. 3막 9라운드 박싱과 편집기를 위한 초깃값이며 실제 균형·3·3·3 달성은 미검증이다. 리스크 선택·덱 카드·마스터 판 전체 특성은 별도 데이터 부류다. 기본 이동속도, 특수 수문장과 추가 보스, 특수칸·마스터 주기 갱신을 포함한다."
   },
-
   "rules": {
     "piecesPerPlayer": 4,
-    "deckSize": 10,
+    "deckSize": 8,
     "handSize": 6,
     "sticksPerToss": 4,
-    "tossesPerRound": 7,
+    "tossesPerRound": 8,
     "swapsPerRound": 3,
     "maxSwapCards": 4,
-    "extraTossOn": ["yut", "mo"],
-    "stackMultPerPiece": 1,
-    "captureMult": 2,
+    "extraTossOn": [
+      "yut",
+      "mo"
+    ],
     "captureExtraToss": 1,
     "finishChipsPerPiece": 150,
     "charmSlots": 5,
-    "guardianRespawnTosses": 2,
     "endRoundOnTarget": true,
     "scoring": {
       "mode": "finish_weight_only",
-      "initialPieceWeight": 0,
-      "effectOwner": "selected_piece_or_stack",
-      "stackWeightAllocation": "equal_then_piece_id_remainder",
-      "resetUnsettledWeightOnCapture": true,
+      "initialPieceWeight": 100,
+      "growth": "(N + addN) * (M + addM) * product(xMult)",
+      "stackSupportBonus": 0.5,
+      "mergeBurst": "highest_weight_carrier * stackSupportBonus * newly_added_supports",
+      "gainOwner": "carrier",
       "settleEachPieceOnce": true,
       "preserveOverflowScoreAndBonus": true,
-      "comment": "투척 효과는 선택한 말의 weight에 귀속하고 완주한 말의 weight만 라운드 점수에 가산한다. 완주 개수는 독립 승리 조건이 아니다. 초과 달성 보너스 환산식은 미확정."
+      "death": "HP 0 or weight 0: dead for this round; unsettled weight becomes 0",
+      "comment": "업기는 합류한 지원 말마다 주말의 현재 weight를 증폭한다. 분리할 수 없어 같은 합류의 반복 증폭은 없다. 미정산 weight는 HP와 별도이며 HP/공격력 계수에 연결된다."
     },
     "guardianCombat": {
-      "mode": "stationary_gate",
-      "posts": ["5", "10", "C", "15"],
-      "resolveBeforeFinish": true,
-      "comment": "수문장은 지정 길목에 상주한다. 주둔 칸·공격 범위·다음 행동을 공개하고 전투로 길목 통과를 판정한다. 정식 HP·공격력·방어력·사거리 수치와 피해식은 미확정. HTML 박싱은 boxing의 임시 수치를 사용한다."
-    }
+      "mode": "stationary_landing_only",
+      "shortcutPost": "C",
+      "gatePost": "G",
+      "gateStopsBeforeFinish": true,
+      "respawn": false,
+      "comment": "C·G 수문장 2체 유지. 플레이어 리스크 픽이 추가 일반 보스 수·능력치·기믹을 바꾼다. 최종 도착 칸에서만 교전하며 관문 G는 정지 후 돌파한다.",
+      "gatekeepersPerRound": 2
+    },
+    "startingDeckMax": 8,
+    "minDeckSize": 4,
+    "deckTraitSlots": 3,
+    "pieceTraitSlots": 2,
+    "deckReturn": "used_return_shuffle_each_turn",
+    "movementFormula": "forward=max(1, 윷 이동 + 주말 기본 이동속도 - 1 + 말 이동보너스 + 판 전체 이동보너스). 빽도는 -1 고정."
   },
-
   "boxing": {
     "defaultSeed": 20261109,
-    "pieceHealth": 6,
-    "pieceAttack": 4,
-    "guardianHealth": 6,
-    "guardianAttack": 2,
-    "guardianRange": 0,
-    "bossHealth": 10,
-    "bossRange": 1,
-    "defenseBonus": 2,
-    "weightAttackDivisor": 100,
-    "weightAttackCap": 4,
+    "pieceBaseWeight": 100,
+    "pieceBaseHealth": 40,
+    "pieceBaseAttack": 8,
+    "pieceHealthWeightCoeff": 0.25,
+    "pieceAttackWeightCoeff": 0.18,
+    "bossBaseHealth": 35,
+    "bossBaseAttack": 6,
+    "bossHealthWeightCoeff": 0.35,
+    "bossAttackWeightCoeff": 0.15,
+    "riskHealthStep": 0.35,
+    "riskAttackStep": 0.25,
+    "bossVictoryX": 1.5,
+    "bossVictoryRiskStep": 0.25,
+    "pieceUpgradeCost": 3,
+    "pieceUpgradeWeight": 40,
+    "pieceUpgradeHealth": 8,
+    "pieceUpgradeAttack": 2,
+    "pieceTraitCost": 4,
+    "deckCapacityCost": 5,
+    "deckCapacityMax": 16,
+    "traitUpgradeCost": 3,
     "overflowStep": 600,
     "overflowCoins": 1,
-    "comment": "HTML 박싱 전용 조정값. 정식 전투·보너스 균형 확정이 아니다. 공격=말 수×pieceAttack+min(weightAttackCap, 이번 기본 weight/weightAttackDivisor 내림). 피해=공격-방어(최소 1). 적 생존 시 반격하고 길목 진입 중단. 묶음 각 말이 반격 피해를 받고 한 말이라도 HP 0이면 묶음 전체 출발 복귀. 초과 overflowStep점마다 overflowCoins냥."
+    "animationStepMs": 550,
+    "maxWeight": 1000000000000,
+    "comment": "HPmax=floor((baseHP + weight*hpCoeff)*윷HP배율*말특성). 공격=floor((baseATK + weight*atkCoeff)*윷공격배율*말특성*판전체공격배율). 최대 HP 증가분만 현재 HP에 보충해 이전 피해를 보존한다. 이동은 윷 이동+기본속도-1+말/판 전체 보너스. 전투는 도착 칸 선공→생존 보스 반격. 특수칸·마스터 턴말 효과도 예측과 확정에 공통 적용.",
+    "pieceMoveSpeed": 1
   },
-
   "hands": [
-    { "id": "backdo", "name": "빽도", "flats": 1, "markedOnly": true, "move": -1, "chips": 5,   "mult": 1, "perLevel": { "chips": 5,  "mult": 1 } },
-    { "id": "do",     "name": "도",   "flats": 1, "move": 1, "chips": 10,  "mult": 1, "perLevel": { "chips": 10, "mult": 1 } },
-    { "id": "gae",    "name": "개",   "flats": 2, "move": 2, "chips": 20,  "mult": 1, "perLevel": { "chips": 15, "mult": 1 } },
-    { "id": "geol",   "name": "걸",   "flats": 3, "move": 3, "chips": 30,  "mult": 2, "perLevel": { "chips": 20, "mult": 1 } },
-    { "id": "yut",    "name": "윷",   "flats": 4, "move": 4, "chips": 60,  "mult": 3, "perLevel": { "chips": 30, "mult": 2 } },
-    { "id": "mo",     "name": "모",   "flats": 0, "move": 5, "chips": 100, "mult": 4, "perLevel": { "chips": 40, "mult": 2 } }
+    {
+      "id": "backdo",
+      "name": "빽도",
+      "flats": 1,
+      "markedOnly": true,
+      "move": -1,
+      "chips": 5,
+      "mult": 1,
+      "perLevel": {
+        "chips": 5,
+        "mult": 1
+      },
+      "attackX": 0.9,
+      "healthX": 1.0
+    },
+    {
+      "id": "do",
+      "name": "도",
+      "flats": 1,
+      "move": 1,
+      "chips": 10,
+      "mult": 1,
+      "perLevel": {
+        "chips": 10,
+        "mult": 1
+      },
+      "attackX": 1.0,
+      "healthX": 1.0
+    },
+    {
+      "id": "gae",
+      "name": "개",
+      "flats": 2,
+      "move": 2,
+      "chips": 20,
+      "mult": 1,
+      "perLevel": {
+        "chips": 15,
+        "mult": 1
+      },
+      "attackX": 1.05,
+      "healthX": 1.0
+    },
+    {
+      "id": "geol",
+      "name": "걸",
+      "flats": 3,
+      "move": 3,
+      "chips": 30,
+      "mult": 2,
+      "perLevel": {
+        "chips": 20,
+        "mult": 1
+      },
+      "attackX": 1.15,
+      "healthX": 1.1
+    },
+    {
+      "id": "yut",
+      "name": "윷",
+      "flats": 4,
+      "move": 4,
+      "chips": 60,
+      "mult": 3,
+      "perLevel": {
+        "chips": 30,
+        "mult": 2
+      },
+      "attackX": 1.4,
+      "healthX": 1.25
+    },
+    {
+      "id": "mo",
+      "name": "모",
+      "flats": 0,
+      "move": 5,
+      "chips": 100,
+      "mult": 4,
+      "perLevel": {
+        "chips": 40,
+        "mult": 2
+      },
+      "attackX": 1.6,
+      "healthX": 1.4
+    }
   ],
-
   "families": [
-    { "id": "wood", "name": "나무", "bonus": { "2": { "chips": 5 }, "4": { "chips": 15 } },           "summary": "2개: Chips +5 · 4개: Chips +15 (기본 재질이라 약하다)" },
-    { "id": "fire", "name": "불",   "bonus": { "2": { "addMult": 3 }, "4": { "addMult": 10 } },       "summary": "2개: Mult +3 · 4개: Mult +10" },
-    { "id": "iron", "name": "쇠",   "bonus": { "2": { "chips": 30 }, "4": { "xMult": 1.5 } },         "summary": "2개: Chips +30 · 4개: 최종 Mult ×1.5" },
-    { "id": "sky",  "name": "하늘", "bonus": { "2": { "addMult": 2 }, "4": { "xMult": 2 } },          "summary": "2개: Mult +2 · 4개: 최종 Mult ×2" }
+    {
+      "id": "wood",
+      "name": "나무",
+      "bonus": {
+        "2": {
+          "chips": 5
+        },
+        "4": {
+          "chips": 15
+        }
+      },
+      "summary": "2개: Chips +5 · 4개: Chips +15 (기본 재질이라 약하다)"
+    },
+    {
+      "id": "fire",
+      "name": "불",
+      "bonus": {
+        "2": {
+          "addMult": 3
+        },
+        "4": {
+          "addMult": 10
+        }
+      },
+      "summary": "2개: Mult +3 · 4개: Mult +10"
+    },
+    {
+      "id": "iron",
+      "name": "쇠",
+      "bonus": {
+        "2": {
+          "chips": 30
+        },
+        "4": {
+          "xMult": 1.5
+        }
+      },
+      "summary": "2개: Chips +30 · 4개: 최종 Mult ×1.5"
+    },
+    {
+      "id": "sky",
+      "name": "하늘",
+      "bonus": {
+        "2": {
+          "addMult": 2
+        },
+        "4": {
+          "xMult": 2
+        }
+      },
+      "summary": "2개: Mult +2 · 4개: 최종 Mult ×2"
+    }
   ],
-
   "sticks": [
-    { "id": "wood",    "name": "나무 윷",   "family": "wood", "rarity": "basic",     "price": 2, "pFlat": 0.60, "chips": 5,  "addMult": 0, "xMult": 1, "trigger": "always", "effect": "기본 윷가락." },
-    { "id": "marked",  "name": "표시 윷",   "family": "wood", "rarity": "basic",     "price": 2, "pFlat": 0.60, "chips": 5,  "addMult": 0, "xMult": 1, "trigger": "always", "marked": true, "effect": "이 윷만 배가 나오면 빽도. 빽도일 때 Mult +4." },
-    { "id": "bamboo",  "name": "대나무 윷", "family": "wood", "rarity": "common",    "price": 3, "pFlat": 0.60, "chips": 0,  "addMult": 2, "xMult": 1, "trigger": "back",   "effect": "등이 나오면 Mult +2." },
-    { "id": "flame",   "name": "불꽃 윷",   "family": "fire", "rarity": "common",    "price": 3, "pFlat": 0.60, "chips": 10, "addMult": 0, "xMult": 1, "trigger": "always", "effect": "Chips +10." },
-    { "id": "lead",    "name": "납 윷",     "family": "iron", "rarity": "common",    "price": 3, "pFlat": 0.30, "chips": 8,  "addMult": 0, "xMult": 1, "trigger": "always", "effect": "무거워서 등이 잘 나온다. 모 확률이 오른다." },
-    { "id": "feather", "name": "깃털 윷",   "family": "sky",  "rarity": "common",    "price": 3, "pFlat": 0.85, "chips": 0,  "addMult": 1, "xMult": 1, "trigger": "always", "effect": "가벼워서 배가 잘 나온다. 윷 확률이 오른다." },
-    { "id": "twin",    "name": "쌍둥이 윷", "family": "wood", "rarity": "rare",      "price": 5, "pFlat": 0.60, "chips": 0,  "addMult": 0, "xMult": 1, "trigger": "always", "special": "sameFaceChips", "specialValue": 10, "effect": "같은 면이 나온 다른 윷가락 하나당 Chips +10." },
-    { "id": "pouch",   "name": "복조리 윷", "family": "wood", "rarity": "rare",      "price": 5, "pFlat": 0.60, "chips": 5,  "addMult": 0, "xMult": 1, "trigger": "flat",   "special": "coin", "specialValue": 1, "effect": "배가 나오면 엽전 +1 (라운드당 최대 3)." },
-    { "id": "anvil",   "name": "모루 윷",   "family": "iron", "rarity": "rare",      "price": 5, "pFlat": 0.40, "chips": 20, "addMult": 0, "xMult": 1, "trigger": "back",   "effect": "등이 나오면 Chips +20. 강화 실패 시 하락하지 않는다." },
-    { "id": "dragon",  "name": "황룡 윷",   "family": "fire", "rarity": "rare",      "price": 6, "pFlat": 0.60, "chips": 15, "addMult": 1, "xMult": 1, "trigger": "always", "effect": "Chips +15, Mult +1." },
-    { "id": "galaxy",  "name": "은하 윷",   "family": "sky",  "rarity": "legendary", "price": 8, "pFlat": 0.50, "chips": 0,  "addMult": 0, "xMult": 3, "trigger": "flat",   "effect": "배가 나오면 최종 Mult ×3." }
+    {
+      "id": "wood",
+      "name": "나무 윷",
+      "family": "wood",
+      "rarity": "basic",
+      "price": 2,
+      "pFlat": 0.6,
+      "chips": 5,
+      "addMult": 0,
+      "xMult": 1,
+      "trigger": "always",
+      "effect": "기본 윷가락."
+    },
+    {
+      "id": "marked",
+      "name": "표시 윷",
+      "family": "wood",
+      "rarity": "basic",
+      "price": 2,
+      "pFlat": 0.6,
+      "chips": 5,
+      "addMult": 0,
+      "xMult": 1,
+      "trigger": "always",
+      "marked": true,
+      "effect": "이 윷만 배가 나오면 빽도. 빽도일 때 Mult +4."
+    },
+    {
+      "id": "bamboo",
+      "name": "대나무 윷",
+      "family": "wood",
+      "rarity": "common",
+      "price": 3,
+      "pFlat": 0.6,
+      "chips": 0,
+      "addMult": 2,
+      "xMult": 1,
+      "trigger": "back",
+      "effect": "등이 나오면 Mult +2."
+    },
+    {
+      "id": "flame",
+      "name": "불꽃 윷",
+      "family": "fire",
+      "rarity": "common",
+      "price": 3,
+      "pFlat": 0.6,
+      "chips": 10,
+      "addMult": 0,
+      "xMult": 1,
+      "trigger": "always",
+      "effect": "Chips +10."
+    },
+    {
+      "id": "lead",
+      "name": "납 윷",
+      "family": "iron",
+      "rarity": "common",
+      "price": 3,
+      "pFlat": 0.3,
+      "chips": 8,
+      "addMult": 0,
+      "xMult": 1,
+      "trigger": "always",
+      "effect": "무거워서 등이 잘 나온다. 모 확률이 오른다."
+    },
+    {
+      "id": "feather",
+      "name": "깃털 윷",
+      "family": "sky",
+      "rarity": "common",
+      "price": 3,
+      "pFlat": 0.85,
+      "chips": 0,
+      "addMult": 1,
+      "xMult": 1,
+      "trigger": "always",
+      "effect": "가벼워서 배가 잘 나온다. 윷 확률이 오른다."
+    },
+    {
+      "id": "twin",
+      "name": "쌍둥이 윷",
+      "family": "wood",
+      "rarity": "rare",
+      "price": 5,
+      "pFlat": 0.6,
+      "chips": 0,
+      "addMult": 0,
+      "xMult": 1,
+      "trigger": "always",
+      "special": "sameFaceChips",
+      "specialValue": 10,
+      "effect": "같은 면이 나온 다른 윷가락 하나당 Chips +10."
+    },
+    {
+      "id": "pouch",
+      "name": "복조리 윷",
+      "family": "wood",
+      "rarity": "rare",
+      "price": 5,
+      "pFlat": 0.6,
+      "chips": 5,
+      "addMult": 0,
+      "xMult": 1,
+      "trigger": "flat",
+      "special": "coin",
+      "specialValue": 1,
+      "effect": "배가 나오면 엽전 +1 (라운드당 최대 3)."
+    },
+    {
+      "id": "anvil",
+      "name": "모루 윷",
+      "family": "iron",
+      "rarity": "rare",
+      "price": 5,
+      "pFlat": 0.4,
+      "chips": 20,
+      "addMult": 0,
+      "xMult": 1,
+      "trigger": "back",
+      "effect": "등이 나오면 Chips +20. 강화 실패 시 하락하지 않는다."
+    },
+    {
+      "id": "dragon",
+      "name": "황룡 윷",
+      "family": "fire",
+      "rarity": "rare",
+      "price": 6,
+      "pFlat": 0.6,
+      "chips": 15,
+      "addMult": 1,
+      "xMult": 1,
+      "trigger": "always",
+      "effect": "Chips +15, Mult +1."
+    },
+    {
+      "id": "galaxy",
+      "name": "은하 윷",
+      "family": "sky",
+      "rarity": "legendary",
+      "price": 8,
+      "pFlat": 0.5,
+      "chips": 0,
+      "addMult": 0,
+      "xMult": 3,
+      "trigger": "flat",
+      "effect": "배가 나오면 최종 Mult ×3."
+    }
   ],
-
   "stickUpgrade": {
     "comment": "검 강화하기식 단계 강화. 단계는 누적되며 bonus는 그 단계에서 새로 얻는 값이다. onFail: keep(유지) / down(한 단계 하락) / break(윷가락 파괴).",
     "maxLevel": 10,
     "levels": [
-      { "level": 1,  "cost": 2,  "success": 1.00, "onFail": "keep",  "bonus": { "chips": 5 } },
-      { "level": 2,  "cost": 2,  "success": 0.95, "onFail": "keep",  "bonus": { "chips": 5, "addMult": 1 } },
-      { "level": 3,  "cost": 3,  "success": 0.85, "onFail": "keep",  "bonus": { "chips": 5 } },
-      { "level": 4,  "cost": 3,  "success": 0.75, "onFail": "down",  "bonus": { "chips": 5, "addMult": 1 } },
-      { "level": 5,  "cost": 4,  "success": 0.65, "onFail": "down",  "bonus": { "chips": 10 } },
-      { "level": 6,  "cost": 4,  "success": 0.55, "onFail": "down",  "bonus": { "chips": 10, "addMult": 1 } },
-      { "level": 7,  "cost": 5,  "success": 0.45, "onFail": "break", "breakChance": 0.3, "bonus": { "xMult": 1.5 } },
-      { "level": 8,  "cost": 6,  "success": 0.35, "onFail": "break", "breakChance": 0.4, "bonus": { "chips": 15, "addMult": 1 } },
-      { "level": 9,  "cost": 7,  "success": 0.25, "onFail": "break", "breakChance": 0.5, "bonus": { "chips": 20, "addMult": 2 } },
-      { "level": 10, "cost": 8,  "success": 0.15, "onFail": "break", "breakChance": 0.6, "bonus": { "xMult": 2 } }
+      {
+        "level": 1,
+        "cost": 2,
+        "success": 1.0,
+        "onFail": "keep",
+        "bonus": {
+          "chips": 5
+        }
+      },
+      {
+        "level": 2,
+        "cost": 2,
+        "success": 0.95,
+        "onFail": "keep",
+        "bonus": {
+          "chips": 5,
+          "addMult": 1
+        }
+      },
+      {
+        "level": 3,
+        "cost": 3,
+        "success": 0.85,
+        "onFail": "keep",
+        "bonus": {
+          "chips": 5
+        }
+      },
+      {
+        "level": 4,
+        "cost": 3,
+        "success": 0.75,
+        "onFail": "down",
+        "bonus": {
+          "chips": 5,
+          "addMult": 1
+        }
+      },
+      {
+        "level": 5,
+        "cost": 4,
+        "success": 0.65,
+        "onFail": "down",
+        "bonus": {
+          "chips": 10
+        }
+      },
+      {
+        "level": 6,
+        "cost": 4,
+        "success": 0.55,
+        "onFail": "down",
+        "bonus": {
+          "chips": 10,
+          "addMult": 1
+        }
+      },
+      {
+        "level": 7,
+        "cost": 5,
+        "success": 0.45,
+        "onFail": "break",
+        "breakChance": 0.3,
+        "bonus": {
+          "xMult": 1.5
+        }
+      },
+      {
+        "level": 8,
+        "cost": 6,
+        "success": 0.35,
+        "onFail": "break",
+        "breakChance": 0.4,
+        "bonus": {
+          "chips": 15,
+          "addMult": 1
+        }
+      },
+      {
+        "level": 9,
+        "cost": 7,
+        "success": 0.25,
+        "onFail": "break",
+        "breakChance": 0.5,
+        "bonus": {
+          "chips": 20,
+          "addMult": 2
+        }
+      },
+      {
+        "level": 10,
+        "cost": 8,
+        "success": 0.15,
+        "onFail": "break",
+        "breakChance": 0.6,
+        "bonus": {
+          "xMult": 2
+        }
+      }
     ],
-    "merge": { "count": 3, "levelGain": 2, "comment": "같은 윷가락 3개를 합치면 1개가 남고 실패 없이 2단계 오른다 (TFT 별 올리기)." }
+    "merge": {
+      "count": 3,
+      "levelGain": 2,
+      "comment": "같은 윷가락 3개를 합치면 1개가 남고 실패 없이 2단계 오른다 (TFT 별 올리기)."
+    }
   },
-
   "charms": [
-    { "id": "magpie",   "name": "까치 부적",     "price": 4, "effect": "개가 나오면 Mult +3." },
-    { "id": "tortoise", "name": "거북 부적",     "price": 5, "effect": "완주 시 말 하나당 Chips +100 추가." },
-    { "id": "piggy",    "name": "업보 부적",     "price": 6, "effect": "업기 배율에 ×1 추가 (특수 룰 배수)." },
-    { "id": "tiger",    "name": "호랑이 부적",   "price": 6, "effect": "잡을 때마다 이 부적의 Mult +1 (런 동안 누적)." },
-    { "id": "goblin",   "name": "도깨비 방망이",  "price": 7, "effect": "모가 나오면 선택한 말의 이번 weight 증가량 ×2." },
-    { "id": "taegeuk",  "name": "태극 부적",     "price": 4, "effect": "중앙(방)에 멈추면 Chips +60." },
-    { "id": "lucky",    "name": "복주머니",      "price": 5, "effect": "라운드 시작 시 투척 +1." },
-    { "id": "coins",    "name": "엽전 꾸러미",   "price": 4, "effect": "이자 상한 +3냥." },
-    { "id": "knot",     "name": "매듭 부적",     "price": 4, "effect": "윷가락 강화 비용 -1냥 (최소 1)." },
-    { "id": "guard",    "name": "수호 부적",     "price": 5, "effect": "강화 실패로 윷가락이 파괴될 때 한 번 막고 사라진다." },
-    { "id": "jangseung","name": "장승 부적",     "price": 5, "effect": "라운드마다 처음 한 번은 수문장에게 잡히지 않는다." }
+    {
+      "id": "magpie",
+      "name": "까치 부적",
+      "price": 4,
+      "effect": "개가 나오면 Mult +3."
+    },
+    {
+      "id": "tortoise",
+      "name": "거북 부적",
+      "price": 5,
+      "effect": "완주 시 말 하나당 Chips +100 추가."
+    },
+    {
+      "id": "piggy",
+      "name": "업보 부적",
+      "price": 6,
+      "effect": "업기 배율에 ×1 추가 (특수 룰 배수)."
+    },
+    {
+      "id": "tiger",
+      "name": "호랑이 부적",
+      "price": 6,
+      "effect": "잡을 때마다 이 부적의 Mult +1 (런 동안 누적)."
+    },
+    {
+      "id": "goblin",
+      "name": "도깨비 방망이",
+      "price": 7,
+      "effect": "모가 나오면 선택한 말의 이번 weight 증가량 ×2."
+    },
+    {
+      "id": "taegeuk",
+      "name": "태극 부적",
+      "price": 4,
+      "effect": "중앙(방)에 멈추면 Chips +60."
+    },
+    {
+      "id": "lucky",
+      "name": "복주머니",
+      "price": 5,
+      "effect": "라운드 시작 시 투척 +1."
+    },
+    {
+      "id": "coins",
+      "name": "엽전 꾸러미",
+      "price": 4,
+      "effect": "이자 상한 +3냥."
+    },
+    {
+      "id": "knot",
+      "name": "매듭 부적",
+      "price": 4,
+      "effect": "윷가락 강화 비용 -1냥 (최소 1)."
+    },
+    {
+      "id": "guard",
+      "name": "수호 부적",
+      "price": 5,
+      "effect": "강화 실패로 윷가락이 파괴될 때 한 번 막고 사라진다."
+    },
+    {
+      "id": "jangseung",
+      "name": "장승 부적",
+      "price": 5,
+      "effect": "라운드마다 처음 한 번은 수문장에게 잡히지 않는다."
+    }
   ],
-
-  "roundTraits": [
-    { "id": "standard",    "name": "정석 한 판",   "risk": 0, "targetX": 1.00, "rewardX": 1.0, "effect": "변형 없음." },
-    { "id": "safe",        "name": "안전 운행",   "risk": 0, "targetX": 0.90, "rewardX": 0.5, "effect": "수문장이 등장하지 않는다." },
-    { "id": "shortcut",    "name": "지름길 봉쇄", "risk": 1, "targetX": 1.00, "rewardX": 1.5, "effect": "대각선 지름길을 쓸 수 없다." },
-    { "id": "piggyback",   "name": "업고 달려",   "risk": 1, "targetX": 1.10, "rewardX": 1.5, "effect": "업기 배율에 ×1 추가. 수문장 +1." },
-    { "id": "hunt",        "name": "사냥 시즌",   "risk": 1, "targetX": 1.10, "rewardX": 1.5, "effect": "전투 승리 배수 ×3. 수문장 +1로 추가 길목을 방어한다." },
-    { "id": "backdoFest",  "name": "빽도 잔치",   "risk": 1, "targetX": 1.00, "rewardX": 1.5, "effect": "빽도 Chips ×5. 빽도로 수문장을 잡을 수 있다." },
-    { "id": "rush",        "name": "질주",       "risk": 1, "targetX": 1.25, "rewardX": 1.5, "effect": "완주 Chips ×2." },
-    { "id": "fall",        "name": "낙 주의",     "risk": 2, "targetX": 1.00, "rewardX": 2.0, "effect": "투척마다 10% 확률로 낙(결과 무효, 투척 소모)." },
-    { "id": "allOrNothing","name": "모 아니면 도","risk": 2, "targetX": 1.20, "rewardX": 2.0, "effect": "개·걸의 이번 weight 증가량 0. 도·윷·모 최종 Mult ×2." },
-    { "id": "lastStand",   "name": "벼랑 끝",     "risk": 2, "targetX": 0.80, "rewardX": 2.0, "effect": "투척 -3. 교체 0." },
-    { "id": "tightHand",   "name": "손이 모자라", "risk": 2, "targetX": 1.00, "rewardX": 2.0, "effect": "손패 -2 (4장, 고르는 판단이 없다)." },
-    { "id": "feast",       "name": "잔칫날",     "risk": 2, "targetX": 1.50, "rewardX": 2.5, "effect": "모든 Mult +2. 목표 점수 ×1.5." }
-  ],
-
   "riskLevels": [
-    { "risk": 0, "label": "낮음" },
-    { "risk": 1, "label": "보통" },
-    { "risk": 2, "label": "높음" }
+    {
+      "risk": 0,
+      "label": "낮음"
+    },
+    {
+      "risk": 1,
+      "label": "보통"
+    },
+    {
+      "risk": 2,
+      "label": "높음"
+    }
   ],
-
   "augmentTiers": [
-    { "id": "silver", "name": "은" },
-    { "id": "gold",   "name": "금" },
-    { "id": "jade",   "name": "옥" }
+    {
+      "id": "silver",
+      "name": "은"
+    },
+    {
+      "id": "gold",
+      "name": "금"
+    },
+    {
+      "id": "jade",
+      "name": "옥"
+    }
   ],
   "augmentOdds": {
     "comment": "막 종료 시 한 등급을 뽑고, 그 등급에서 서로 다른 3개를 보여준다. 선택지마다 1번 다시 뽑을 수 있다.",
-    "afterAct1": { "silver": 0.60, "gold": 0.35, "jade": 0.05 },
-    "afterAct2": { "silver": 0.30, "gold": 0.50, "jade": 0.20 },
-    "endless":   { "silver": 0.20, "gold": 0.50, "jade": 0.30 },
+    "afterAct1": {
+      "silver": 0.6,
+      "gold": 0.35,
+      "jade": 0.05
+    },
+    "afterAct2": {
+      "silver": 0.3,
+      "gold": 0.5,
+      "jade": 0.2
+    },
+    "endless": {
+      "silver": 0.2,
+      "gold": 0.5,
+      "jade": 0.3
+    },
     "rerollPerOption": 1
   },
   "augments": [
-    { "id": "stickBox",   "tier": "silver", "name": "윷가락 꾸러미", "effect": "무작위 일반 윷가락 2개를 덱에 넣는다." },
-    { "id": "piggyBank",  "tier": "silver", "name": "저금통",       "effect": "즉시 8냥. 이자 상한 +2." },
-    { "id": "drill",      "tier": "silver", "name": "숙련",         "effect": "도·개 족보 레벨 +1." },
-    { "id": "temper",     "tier": "silver", "name": "담금질",       "effect": "강화 성공 확률 +10%p." },
-    { "id": "fullSet",    "tier": "gold",   "name": "한 벌",        "effect": "같은 재질 윷 4개를 던지면 최종 Mult ×2." },
-    { "id": "stackMore",  "tier": "gold",   "name": "업고 또 업고",  "effect": "업기 배율에 ×1 추가 (특수 룰 배수)." },
-    { "id": "hunter",     "tier": "gold",   "name": "사냥꾼",       "effect": "잡기 배수 +1. 잡을 때 엽전 +1." },
-    { "id": "shortcutPro","tier": "gold",   "name": "지름길 달인",   "effect": "대각선 칸에 멈출 때마다 이번 라운드 Mult +2 (누적)." },
-    { "id": "extraHand",  "tier": "jade",   "name": "손 하나 더",    "effect": "손패 +1, 교체 +1." },
-    { "id": "boardArt",   "tier": "jade",   "name": "판 꾸미기",     "effect": "윷판 칸 3곳에 문양을 그린다. 멈추면 Chips +50 (런 동안 유지)." },
-    { "id": "goblinHat",  "tier": "jade",   "name": "도깨비 감투",   "effect": "수문장이 내 말을 잡으면 대신 수문장이 사라진다 (라운드당 1회)." },
-    { "id": "goldenYut",  "tier": "jade",   "name": "황금 윷",       "effect": "덱의 모든 윷가락 강화 +1. 이후 강화 실패 시 하락하지 않는다." }
+    {
+      "id": "stickBox",
+      "tier": "silver",
+      "name": "윷가락 꾸러미",
+      "effect": "무작위 일반 윷가락 2개를 덱에 넣는다."
+    },
+    {
+      "id": "piggyBank",
+      "tier": "silver",
+      "name": "저금통",
+      "effect": "즉시 8냥. 이자 상한 +2."
+    },
+    {
+      "id": "drill",
+      "tier": "silver",
+      "name": "숙련",
+      "effect": "도·개 족보 레벨 +1."
+    },
+    {
+      "id": "temper",
+      "tier": "silver",
+      "name": "담금질",
+      "effect": "강화 성공 확률 +10%p."
+    },
+    {
+      "id": "fullSet",
+      "tier": "gold",
+      "name": "한 벌",
+      "effect": "같은 재질 윷 4개를 던지면 최종 Mult ×2."
+    },
+    {
+      "id": "stackMore",
+      "tier": "gold",
+      "name": "업고 또 업고",
+      "effect": "업기 배율에 ×1 추가 (특수 룰 배수)."
+    },
+    {
+      "id": "hunter",
+      "tier": "gold",
+      "name": "사냥꾼",
+      "effect": "잡기 배수 +1. 잡을 때 엽전 +1."
+    },
+    {
+      "id": "shortcutPro",
+      "tier": "gold",
+      "name": "지름길 달인",
+      "effect": "대각선 칸에 멈출 때마다 이번 라운드 Mult +2 (누적)."
+    },
+    {
+      "id": "extraHand",
+      "tier": "jade",
+      "name": "손 하나 더",
+      "effect": "손패 +1, 교체 +1."
+    },
+    {
+      "id": "boardArt",
+      "tier": "jade",
+      "name": "판 꾸미기",
+      "effect": "윷판 칸 3곳에 문양을 그린다. 멈추면 Chips +50 (런 동안 유지)."
+    },
+    {
+      "id": "goblinHat",
+      "tier": "jade",
+      "name": "도깨비 감투",
+      "effect": "수문장이 내 말을 잡으면 대신 수문장이 사라진다 (라운드당 1회)."
+    },
+    {
+      "id": "goldenYut",
+      "tier": "jade",
+      "name": "황금 윷",
+      "effect": "덱의 모든 윷가락 강화 +1. 이후 강화 실패 시 하락하지 않는다."
+    }
   ],
-
   "guardians": [
-    { "id": "guard",  "name": "수문장",  "kind": "normal", "start": 10, "move": [0], "direction": "none", "effect": "지정 길목에 상주하며 범위에 진입한 말과 전투한다. 공격 범위와 다음 행동을 예고한다." },
-    { "id": "goblin", "name": "도깨비",  "kind": "boss",   "start": 10, "move": [0], "direction": "none", "effect": "10번 길목에 상주. 3투척마다 주둔지 주변 빈칸에 함정을 놓는다. 범위 수치는 미확정. 함정을 밟은 말은 출발 복귀하고 미정산 weight·귀속 효과를 잃는다." },
-    { "id": "tiger",  "name": "호랑이",  "kind": "boss",   "start": 10, "move": [0], "direction": "none", "effect": "10번 길목에 상주. 공격 범위 안의 말 중 weight가 가장 높은 묶음을 우선 공격한다. 범위 밖으로 추격하지 않는다." },
-    { "id": "reaper", "name": "저승사자","kind": "boss",   "start": 0,  "move": [0],          "direction": "none",    "effect": "참먹이(0)에 상주하며 완주 직전 교전을 요구한다. 완주 Chips 절반. 전투 승리 시 이번 weight 증가 계산의 Mult ×5. 해당 말의 weight는 완주 때 정산한다." }
+    {
+      "id": "goblin",
+      "name": "도깨비",
+      "kind": "boss",
+      "start": "C",
+      "move": [
+        0
+      ],
+      "direction": "none",
+      "weight": 130,
+      "attackX": 1.0,
+      "healthX": 1.0,
+      "effect": "추가 일반 보스. 선공 피해 10 감소(최소 1).",
+      "gimmick": "chipShield"
+    },
+    {
+      "id": "tiger",
+      "name": "호랑이",
+      "kind": "boss",
+      "start": "C",
+      "move": [
+        0
+      ],
+      "direction": "none",
+      "weight": 170,
+      "attackX": 1.2,
+      "healthX": 1.0,
+      "effect": "추가 일반 보스. 강한 기본 공격 계수.",
+      "gimmick": "heavyStrike"
+    },
+    {
+      "id": "reaper",
+      "name": "저승사자",
+      "kind": "boss",
+      "start": "G",
+      "move": [
+        0
+      ],
+      "direction": "none",
+      "weight": 180,
+      "attackX": 1.0,
+      "healthX": 1.15,
+      "effect": "추가 일반 보스. HP 절반 이하에서 반격 ×1.5.",
+      "gimmick": "lastStand"
+    },
+    {
+      "id": "shortcutKeeper",
+      "name": "지름길 수문장",
+      "kind": "gatekeeper",
+      "start": "C",
+      "move": [
+        0
+      ],
+      "direction": "none",
+      "weight": 130,
+      "attackX": 1,
+      "healthX": 1,
+      "gimmick": "supportResonance",
+      "effect": "특수 수문장. 업힌 말 2개 이상으로 도착하면 아군 선공 ×1.25."
+    },
+    {
+      "id": "finishKeeper",
+      "name": "완주 수문장",
+      "kind": "gatekeeper",
+      "start": "G",
+      "move": [
+        0
+      ],
+      "direction": "none",
+      "weight": 180,
+      "attackX": 1,
+      "healthX": 1.15,
+      "gimmick": "lastStand",
+      "effect": "특수 수문장. 피격 후 HP 절반 이하면 반격 ×1.5. 처치 후 완주 정산."
+    }
   ],
-
   "run": {
     "acts": [
-      { "act": 1, "rounds": [
-        { "id": "1-1", "type": "normal", "target": 600,  "guardians": 1, "baseReward": 3 },
-        { "id": "1-2", "type": "elite",  "target": 900,  "guardians": 2, "baseReward": 4 },
-        { "id": "1-3", "type": "boss",   "target": 1300, "guardians": 1, "boss": "goblin", "baseReward": 5 }
-      ]},
-      { "act": 2, "rounds": [
-        { "id": "2-1", "type": "normal", "target": 1800, "guardians": 1, "baseReward": 3 },
-        { "id": "2-2", "type": "elite",  "target": 2400, "guardians": 2, "baseReward": 4 },
-        { "id": "2-3", "type": "boss",   "target": 3200, "guardians": 1, "boss": "tiger", "baseReward": 5 }
-      ]},
-      { "act": 3, "rounds": [
-        { "id": "3-1", "type": "normal", "target": 5000,  "guardians": 2, "baseReward": 3 },
-        { "id": "3-2", "type": "elite",  "target": 7000,  "guardians": 3, "baseReward": 4 },
-        { "id": "3-3", "type": "boss",   "target": 10000, "guardians": 2, "boss": "reaper", "baseReward": 6 }
-      ]}
+      {
+        "act": 1,
+        "rounds": [
+          {
+            "id": "1-1",
+            "type": "normal",
+            "target": 600,
+            "baseReward": 3,
+            "bosses": [
+              {
+                "role": "shortcut",
+                "id": "shortcutKeeper",
+                "post": "C"
+              },
+              {
+                "role": "gate",
+                "id": "finishKeeper",
+                "post": "G"
+              }
+            ],
+            "bossScale": 1.0,
+            "baseRisk": 0,
+            "extraBosses": 0,
+            "extraBossPosts": [
+              "5",
+              "10",
+              "15"
+            ],
+            "extraBossKinds": [
+              "goblin",
+              "tiger",
+              "reaper"
+            ]
+          },
+          {
+            "id": "1-2",
+            "type": "elite",
+            "target": 900,
+            "baseReward": 4,
+            "bosses": [
+              {
+                "role": "shortcut",
+                "id": "shortcutKeeper",
+                "post": "C"
+              },
+              {
+                "role": "gate",
+                "id": "finishKeeper",
+                "post": "G"
+              }
+            ],
+            "bossScale": 1.15,
+            "baseRisk": 0,
+            "extraBosses": 1,
+            "extraBossPosts": [
+              "5",
+              "10",
+              "15"
+            ],
+            "extraBossKinds": [
+              "goblin",
+              "tiger",
+              "reaper"
+            ]
+          },
+          {
+            "id": "1-3",
+            "type": "boss",
+            "target": 1300,
+            "baseReward": 5,
+            "bosses": [
+              {
+                "role": "shortcut",
+                "id": "shortcutKeeper",
+                "post": "C"
+              },
+              {
+                "role": "gate",
+                "id": "finishKeeper",
+                "post": "G"
+              }
+            ],
+            "bossScale": 1.3,
+            "baseRisk": 1,
+            "extraBosses": 1,
+            "extraBossPosts": [
+              "5",
+              "10",
+              "15"
+            ],
+            "extraBossKinds": [
+              "goblin",
+              "tiger",
+              "reaper"
+            ]
+          }
+        ]
+      },
+      {
+        "act": 2,
+        "rounds": [
+          {
+            "id": "2-1",
+            "type": "normal",
+            "target": 1800,
+            "baseReward": 3,
+            "bosses": [
+              {
+                "role": "shortcut",
+                "id": "shortcutKeeper",
+                "post": "C"
+              },
+              {
+                "role": "gate",
+                "id": "finishKeeper",
+                "post": "G"
+              }
+            ],
+            "bossScale": 1.65,
+            "baseRisk": 0,
+            "extraBosses": 0,
+            "extraBossPosts": [
+              "5",
+              "10",
+              "15"
+            ],
+            "extraBossKinds": [
+              "goblin",
+              "tiger",
+              "reaper"
+            ]
+          },
+          {
+            "id": "2-2",
+            "type": "elite",
+            "target": 2400,
+            "baseReward": 4,
+            "bosses": [
+              {
+                "role": "shortcut",
+                "id": "shortcutKeeper",
+                "post": "C"
+              },
+              {
+                "role": "gate",
+                "id": "finishKeeper",
+                "post": "G"
+              }
+            ],
+            "bossScale": 1.9,
+            "baseRisk": 0,
+            "extraBosses": 1,
+            "extraBossPosts": [
+              "5",
+              "10",
+              "15"
+            ],
+            "extraBossKinds": [
+              "goblin",
+              "tiger",
+              "reaper"
+            ]
+          },
+          {
+            "id": "2-3",
+            "type": "boss",
+            "target": 3200,
+            "baseReward": 5,
+            "bosses": [
+              {
+                "role": "shortcut",
+                "id": "shortcutKeeper",
+                "post": "C"
+              },
+              {
+                "role": "gate",
+                "id": "finishKeeper",
+                "post": "G"
+              }
+            ],
+            "bossScale": 2.15,
+            "baseRisk": 1,
+            "extraBosses": 1,
+            "extraBossPosts": [
+              "5",
+              "10",
+              "15"
+            ],
+            "extraBossKinds": [
+              "goblin",
+              "tiger",
+              "reaper"
+            ]
+          }
+        ]
+      },
+      {
+        "act": 3,
+        "rounds": [
+          {
+            "id": "3-1",
+            "type": "normal",
+            "target": 5000,
+            "baseReward": 3,
+            "bosses": [
+              {
+                "role": "shortcut",
+                "id": "shortcutKeeper",
+                "post": "C"
+              },
+              {
+                "role": "gate",
+                "id": "finishKeeper",
+                "post": "G"
+              }
+            ],
+            "bossScale": 2.3,
+            "baseRisk": 0,
+            "extraBosses": 0,
+            "extraBossPosts": [
+              "5",
+              "10",
+              "15"
+            ],
+            "extraBossKinds": [
+              "goblin",
+              "tiger",
+              "reaper"
+            ]
+          },
+          {
+            "id": "3-2",
+            "type": "elite",
+            "target": 7000,
+            "baseReward": 4,
+            "bosses": [
+              {
+                "role": "shortcut",
+                "id": "shortcutKeeper",
+                "post": "C"
+              },
+              {
+                "role": "gate",
+                "id": "finishKeeper",
+                "post": "G"
+              }
+            ],
+            "bossScale": 2.64,
+            "baseRisk": 0,
+            "extraBosses": 1,
+            "extraBossPosts": [
+              "5",
+              "10",
+              "15"
+            ],
+            "extraBossKinds": [
+              "goblin",
+              "tiger",
+              "reaper"
+            ]
+          },
+          {
+            "id": "3-3",
+            "type": "boss",
+            "target": 10000,
+            "baseReward": 6,
+            "bosses": [
+              {
+                "role": "shortcut",
+                "id": "shortcutKeeper",
+                "post": "C"
+              },
+              {
+                "role": "gate",
+                "id": "finishKeeper",
+                "post": "G"
+              }
+            ],
+            "bossScale": 2.99,
+            "baseRisk": 1,
+            "extraBosses": 1,
+            "extraBossPosts": [
+              "5",
+              "10",
+              "15"
+            ],
+            "extraBossKinds": [
+              "goblin",
+              "tiger",
+              "reaper"
+            ]
+          }
+        ]
+      }
     ],
-    "augmentAfterActs": [1, 2],
+    "augmentAfterActs": [
+      1,
+      2
+    ],
     "endless": {
-      "comment": "3막 클리어 후 선택. 4막부터 3막 구조를 규칙으로 생성한다: 목표 = 직전 막 같은 칸 목표 × targetGrowth, 수문장 = 직전 막 + 1 (2막마다, 최대 maxGuardians), 보스는 bossCycle 순서로 반복, 막 종료마다 증강.",
+      "comment": "무한 모드는 후속 범위. 정식 런 3막 9라운드가 우선.",
       "targetGrowth": 2.2,
       "guardianStepEveryActs": 2,
       "maxGuardians": 4,
-      "bossCycle": ["goblin", "tiger", "reaper"],
-      "baseReward": [3, 4, 6],
-      "record": ["도달 막·라운드", "런 총점", "최고 완주 정산액"]
-    }
+      "bossCycle": [
+        "goblin",
+        "tiger",
+        "reaper"
+      ],
+      "baseReward": [
+        3,
+        4,
+        6
+      ],
+      "record": [
+        "도달 막·라운드",
+        "런 총점",
+        "최고 완주 정산액"
+      ]
+    },
+    "durationTargetMinutes": 30
   },
-
   "economy": {
     "startCoins": 4,
     "perRemainingToss": 1,
@@ -952,367 +1380,629 @@ tools/
     "rerollStep": 1,
     "sellRatio": 0.5,
     "handBookPrice": 3,
-    "shopSlots": { "sticks": 2, "charms": 2, "handBooks": 1 },
+    "shopSlots": {
+      "sticks": 2,
+      "charms": 2,
+      "handBooks": 1
+    },
     "shopOdds": {
       "comment": "상점 윷가락 칸의 등급 확률 (TFT 레벨별 확률표).",
-      "1": { "common": 0.70, "rare": 0.25, "legendary": 0.05 },
-      "2": { "common": 0.50, "rare": 0.40, "legendary": 0.10 },
-      "3": { "common": 0.35, "rare": 0.45, "legendary": 0.20 },
-      "endless": { "common": 0.30, "rare": 0.45, "legendary": 0.25 }
-    }
+      "1": {
+        "common": 0.7,
+        "rare": 0.25,
+        "legendary": 0.05
+      },
+      "2": {
+        "common": 0.5,
+        "rare": 0.4,
+        "legendary": 0.1
+      },
+      "3": {
+        "common": 0.35,
+        "rare": 0.45,
+        "legendary": 0.2
+      },
+      "endless": {
+        "common": 0.3,
+        "rare": 0.45,
+        "legendary": 0.25
+      }
+    },
+    "deckCapacityCost": 5,
+    "traitSlots": 3,
+    "pieceTraitSlots": 2,
+    "shopOfferCount": 3
   },
-
   "starterDecks": [
-    { "id": "woodcutter", "name": "나무꾼 덱",  "theme": "균형", "sticks": { "wood": 9, "marked": 1 }, "coins": 4,  "modifier": "없음." },
-    { "id": "feather",    "name": "깃털 덱",    "theme": "공격", "sticks": { "wood": 7, "feather": 2, "marked": 1 }, "coins": 4, "modifier": "라운드당 투척 -1." },
-    { "id": "peddler",    "name": "장돌뱅이 덱", "theme": "경제", "sticks": { "wood": 10 }, "coins": 10, "modifier": "이자 상한 +2. 빽도가 나오지 않는다." }
+    {
+      "id": "woodcutter",
+      "name": "나무꾼 덱",
+      "theme": "균형",
+      "sticks": {
+        "wood": 7,
+        "marked": 1
+      },
+      "coins": 4,
+      "modifier": "단단한 출발 특성 카드 1장.",
+      "trait": "sturdy"
+    },
+    {
+      "id": "feather",
+      "name": "깃털 덱",
+      "theme": "공격",
+      "sticks": {
+        "wood": 5,
+        "feather": 2,
+        "marked": 1
+      },
+      "coins": 4,
+      "modifier": "한 번의 큰 판 특성 카드 1장.",
+      "trait": "featherMind"
+    },
+    {
+      "id": "peddler",
+      "name": "장돌뱅이 덱",
+      "theme": "경제",
+      "sticks": {
+        "wood": 8
+      },
+      "coins": 10,
+      "modifier": "이자를 보는 눈 특성 카드 1장. 시작 10냥.",
+      "trait": "merchant"
+    }
   ],
-
   "board": {
     "comment": "좌표는 0~5 격자. 0이 출발이자 참먹이(오른쪽 아래). 말은 반시계 방향(위쪽)으로 출발한다.",
     "nodes": [
-      { "id": "0",  "x": 5, "y": 5, "tag": "start" },
-      { "id": "1",  "x": 5, "y": 4 }, { "id": "2", "x": 5, "y": 3 }, { "id": "3", "x": 5, "y": 2 }, { "id": "4", "x": 5, "y": 1 },
-      { "id": "5",  "x": 5, "y": 0, "tag": "corner" },
-      { "id": "6",  "x": 4, "y": 0 }, { "id": "7", "x": 3, "y": 0 }, { "id": "8", "x": 2, "y": 0 }, { "id": "9", "x": 1, "y": 0 },
-      { "id": "10", "x": 0, "y": 0, "tag": "corner" },
-      { "id": "11", "x": 0, "y": 1 }, { "id": "12", "x": 0, "y": 2 }, { "id": "13", "x": 0, "y": 3 }, { "id": "14", "x": 0, "y": 4 },
-      { "id": "15", "x": 0, "y": 5, "tag": "corner" },
-      { "id": "16", "x": 1, "y": 5 }, { "id": "17", "x": 2, "y": 5 }, { "id": "18", "x": 3, "y": 5 }, { "id": "19", "x": 4, "y": 5 },
-      { "id": "a1", "x": 4.1667, "y": 0.8333 }, { "id": "a2", "x": 3.3333, "y": 1.6667 },
-      { "id": "C",  "x": 2.5, "y": 2.5, "tag": "center" },
-      { "id": "a3", "x": 1.6667, "y": 3.3333 }, { "id": "a4", "x": 0.8333, "y": 4.1667 },
-      { "id": "b1", "x": 0.8333, "y": 0.8333 }, { "id": "b2", "x": 1.6667, "y": 1.6667 },
-      { "id": "b3", "x": 3.3333, "y": 3.3333 }, { "id": "b4", "x": 4.1667, "y": 4.1667 }
+      {
+        "id": "0",
+        "x": 5,
+        "y": 5,
+        "tag": "start"
+      },
+      {
+        "id": "1",
+        "x": 5,
+        "y": 4
+      },
+      {
+        "id": "2",
+        "x": 5,
+        "y": 3
+      },
+      {
+        "id": "3",
+        "x": 5,
+        "y": 2
+      },
+      {
+        "id": "4",
+        "x": 5,
+        "y": 1
+      },
+      {
+        "id": "5",
+        "x": 5,
+        "y": 0,
+        "tag": "corner"
+      },
+      {
+        "id": "6",
+        "x": 4,
+        "y": 0
+      },
+      {
+        "id": "7",
+        "x": 3,
+        "y": 0
+      },
+      {
+        "id": "8",
+        "x": 2,
+        "y": 0
+      },
+      {
+        "id": "9",
+        "x": 1,
+        "y": 0
+      },
+      {
+        "id": "10",
+        "x": 0,
+        "y": 0,
+        "tag": "corner"
+      },
+      {
+        "id": "11",
+        "x": 0,
+        "y": 1
+      },
+      {
+        "id": "12",
+        "x": 0,
+        "y": 2
+      },
+      {
+        "id": "13",
+        "x": 0,
+        "y": 3
+      },
+      {
+        "id": "14",
+        "x": 0,
+        "y": 4
+      },
+      {
+        "id": "15",
+        "x": 0,
+        "y": 5,
+        "tag": "corner"
+      },
+      {
+        "id": "16",
+        "x": 1,
+        "y": 5
+      },
+      {
+        "id": "17",
+        "x": 2,
+        "y": 5
+      },
+      {
+        "id": "18",
+        "x": 3,
+        "y": 5
+      },
+      {
+        "id": "19",
+        "x": 4,
+        "y": 5
+      },
+      {
+        "id": "a1",
+        "x": 4.1667,
+        "y": 0.8333
+      },
+      {
+        "id": "a2",
+        "x": 3.3333,
+        "y": 1.6667
+      },
+      {
+        "id": "C",
+        "x": 2.5,
+        "y": 2.5,
+        "tag": "center"
+      },
+      {
+        "id": "a3",
+        "x": 1.6667,
+        "y": 3.3333
+      },
+      {
+        "id": "a4",
+        "x": 0.8333,
+        "y": 4.1667
+      },
+      {
+        "id": "b1",
+        "x": 0.8333,
+        "y": 0.8333
+      },
+      {
+        "id": "b2",
+        "x": 1.6667,
+        "y": 1.6667
+      },
+      {
+        "id": "b3",
+        "x": 3.3333,
+        "y": 3.3333
+      },
+      {
+        "id": "b4",
+        "x": 4.1667,
+        "y": 4.1667
+      },
+      {
+        "id": "G",
+        "x": 5,
+        "y": 5.65,
+        "tag": "gate"
+      }
     ],
     "routes": {
-      "outer": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "END"],
-      "diagA": ["5", "a1", "a2", "C", "a3", "a4", "15", "16", "17", "18", "19", "END"],
-      "diagB": ["10", "b1", "b2", "C", "b3", "b4", "END"],
-      "center": ["C", "b3", "b4", "END"]
+      "outer": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "16",
+        "17",
+        "18",
+        "19",
+        "G",
+        "END"
+      ],
+      "diagA": [
+        "5",
+        "a1",
+        "a2",
+        "C",
+        "a3",
+        "a4",
+        "15",
+        "16",
+        "17",
+        "18",
+        "19",
+        "G",
+        "END"
+      ],
+      "diagB": [
+        "10",
+        "b1",
+        "b2",
+        "C",
+        "b3",
+        "b4",
+        "G",
+        "END"
+      ],
+      "center": [
+        "C",
+        "b3",
+        "b4",
+        "G",
+        "END"
+      ]
     },
-    "branchOnStop": { "5": "diagA", "10": "diagB", "C": "center" },
-    "finishRule": "경로의 END(참먹이 0을 지나는 지점)에 닿거나 넘으면 완주."
+    "branchOnStop": {
+      "5": "diagA",
+      "10": "diagB",
+      "C": "center"
+    },
+    "finishRule": "전통 29칸 + 공유 완주 관문 G. 관문에서 이동을 멈추고 생존 보스와 교전한다. 보스를 처치했거나 이미 처치돼 있으면 END로 완주 정산한다."
+  },
+  "deckTraits": [
+    {
+      "id": "sturdy",
+      "name": "단단한 출발",
+      "price": 4,
+      "effect": "말의 라운드 시작 weight +40/레벨.",
+      "initialWeight": 40
+    },
+    {
+      "id": "featherMind",
+      "name": "한 번의 큰 판",
+      "price": 4,
+      "effect": "weight ×(1+0.2×레벨). 디메리트는 재화·슬롯의 기회비용.",
+      "growthPerLevel": 0.2
+    },
+    {
+      "id": "merchant",
+      "name": "이자를 보는 눈",
+      "price": 4,
+      "effect": "이자 상한 +2/레벨, 상점 가격 -1/레벨(최소 1).",
+      "interestCapPerLevel": 2,
+      "discountPerLevel": 1
+    },
+    {
+      "id": "stackArt",
+      "name": "작은 말의 지원",
+      "price": 5,
+      "effect": "업기 지원 계수 +0.15/레벨.",
+      "supportPerLevel": 0.15
+    },
+    {
+      "id": "hotHand",
+      "name": "윷·모 연쇄",
+      "price": 5,
+      "effect": "윷·모의 weight ×(1+0.5×레벨).",
+      "bigHandXPerLevel": 0.5
+    },
+    {
+      "id": "spark",
+      "name": "곱하기 전에",
+      "price": 4,
+      "effect": "족보 +Mult 2/레벨.",
+      "addMultPerLevel": 2
+    }
+  ],
+  "pieceTraits": [
+    {
+      "id": "vital",
+      "name": "큰 그릇",
+      "price": 4,
+      "effect": "이 말의 최대 HP ×1.25.",
+      "healthX": 1.25
+    },
+    {
+      "id": "fury",
+      "name": "강한 한 수",
+      "price": 4,
+      "effect": "이 말의 공격 ×1.25.",
+      "attackX": 1.25
+    },
+    {
+      "id": "echo",
+      "name": "증폭 체질",
+      "price": 4,
+      "effect": "이 말에 귀속되는 weight 증가 ×1.25.",
+      "growthX": 1.25
+    }
+  ],
+  "shopPool": {
+    "sticks": [
+      "wood",
+      "marked",
+      "lead",
+      "feather",
+      "flame",
+      "bamboo",
+      "dragon",
+      "galaxy"
+    ],
+    "deckTraits": [
+      "sturdy",
+      "featherMind",
+      "merchant",
+      "stackArt",
+      "hotHand",
+      "spark"
+    ],
+    "pieceTraits": [
+      "vital",
+      "fury",
+      "echo"
+    ],
+    "charms": [
+      "magpie",
+      "tortoise",
+      "lucky"
+    ]
+  },
+  "engagement333": {
+    "nameSeconds": 3,
+    "sessionMinutes": 30,
+    "recallHours": 3,
+    "nameCue": "윷토체스: 업고, 곱하고, 돌파한다.",
+    "session": "3막 9라운드의 빌드 성장·위험 선택·보스 2체·상점 편집. 라운드 3~4분 목표.",
+    "recall": "런 결과에 최대 N×M·최대 업기 증폭·최대 전투 피해·빌드 카드 3장과 같은 시드 재도전 제공.",
+    "verification": "디자인 가설이다. 3초 이름 회상, 실제 세션 길이, 종료 3시간 내 비유도 회상을 사용자가 확인한다."
+  },
+  "riskChoices": [
+    {
+      "id": "standard",
+      "name": "정석 한 판",
+      "risk": 0,
+      "targetX": 1.0,
+      "rewardX": 1.0,
+      "effect": "변형 없음. 보스 추가 0체.",
+      "extraBosses": 0,
+      "bossGimmick": "none"
+    },
+    {
+      "id": "safe",
+      "name": "안전 운행",
+      "risk": 0,
+      "targetX": 0.9,
+      "rewardX": 0.5,
+      "effect": "보스 위험도 증가 없음. 목표 ×0.9, 보상 ×0.5. 보스 추가 0체.",
+      "extraBosses": 0,
+      "bossGimmick": "calm"
+    },
+    {
+      "id": "shortcut",
+      "name": "지름길 봉쇄",
+      "risk": 1,
+      "targetX": 1.0,
+      "rewardX": 1.5,
+      "effect": "대각선 지름길을 쓸 수 없다. 보스 2체 배치는 유지. 보스 추가 1체.",
+      "extraBosses": 1,
+      "bossGimmick": "none"
+    },
+    {
+      "id": "piggyback",
+      "name": "업고 달려",
+      "risk": 1,
+      "targetX": 1.1,
+      "rewardX": 1.5,
+      "effect": "업기 지원 계수 +0.25. 보스 위험도 1. 보스 추가 1체.",
+      "extraBosses": 1,
+      "bossGimmick": "loneHunter"
+    },
+    {
+      "id": "hunt",
+      "name": "사냥 시즌",
+      "risk": 1,
+      "targetX": 1.1,
+      "rewardX": 1.5,
+      "effect": "보스 처치 시 weight 배율 +0.5. 보스 weight·공격 계수는 위험도에 따라 증가. 보스 추가 1체.",
+      "extraBosses": 1,
+      "bossGimmick": "lastStand"
+    },
+    {
+      "id": "backdoFest",
+      "name": "빽도 잔치",
+      "risk": 1,
+      "targetX": 1.0,
+      "rewardX": 1.5,
+      "effect": "빽도 N ×5. 빽도로 보스 칸에 도착해도 전투 가능. 보스 추가 1체.",
+      "extraBosses": 1,
+      "bossGimmick": "none"
+    },
+    {
+      "id": "rush",
+      "name": "질주",
+      "risk": 1,
+      "targetX": 1.25,
+      "rewardX": 1.5,
+      "effect": "완주 Chips ×2. 보스 추가 1체.",
+      "extraBosses": 1,
+      "bossGimmick": "none"
+    },
+    {
+      "id": "fall",
+      "name": "낙 주의",
+      "risk": 2,
+      "targetX": 1.0,
+      "rewardX": 2.0,
+      "effect": "투척마다 10% 확률로 낙(결과 무효, 투척 소모). 보스 추가 1체.",
+      "extraBosses": 1,
+      "bossGimmick": "loneHunter"
+    },
+    {
+      "id": "allOrNothing",
+      "name": "모 아니면 도",
+      "risk": 2,
+      "targetX": 1.2,
+      "rewardX": 2.0,
+      "effect": "개·걸의 weight 증가량 0. 도·윷·모 weight ×2. 보스 추가 2체.",
+      "extraBosses": 2,
+      "bossGimmick": "lastStand"
+    },
+    {
+      "id": "lastStand",
+      "name": "벼랑 끝",
+      "risk": 2,
+      "targetX": 0.8,
+      "rewardX": 2.0,
+      "effect": "투척 -3. 교체 0. 보스 추가 2체.",
+      "extraBosses": 2,
+      "bossGimmick": "none"
+    },
+    {
+      "id": "tightHand",
+      "name": "손이 모자라",
+      "risk": 2,
+      "targetX": 1.0,
+      "rewardX": 2.0,
+      "effect": "손패 4개. 고를 윷의 선택 폭이 줄어든다. 보스 추가 1체.",
+      "extraBosses": 1,
+      "bossGimmick": "none"
+    },
+    {
+      "id": "feast",
+      "name": "잔칫날",
+      "risk": 2,
+      "targetX": 1.5,
+      "rewardX": 2.5,
+      "effect": "모든 +Mult +2. 목표 ×1.5. 보스 추가 2체.",
+      "extraBosses": 2,
+      "bossGimmick": "lastStand"
+    }
+  ],
+  "roundTraits": [
+    {
+      "id": "calm",
+      "name": "고요한 판",
+      "weightDrain": 0,
+      "speedBonus": 0,
+      "attackX": 1,
+      "effect": "판 전체 변형 없음."
+    },
+    {
+      "id": "bloodMarch",
+      "name": "핏값의 행군",
+      "weightDrain": 12,
+      "speedBonus": 1,
+      "attackX": 1.15,
+      "effect": "매 턴 생존 말·보스 weight -12. 말 이동 +1, 모든 공격 ×1.15."
+    },
+    {
+      "id": "leanWind",
+      "name": "가벼운 바람",
+      "weightDrain": 6,
+      "speedBonus": 1,
+      "attackX": 1.05,
+      "effect": "매 턴 생존 말·보스 weight -6. 말 이동 +1, 모든 공격 ×1.05."
+    },
+    {
+      "id": "hotBoard",
+      "name": "열오른 판",
+      "weightDrain": 8,
+      "speedBonus": 0,
+      "attackX": 1.2,
+      "effect": "매 턴 생존 말·보스 weight -8. 모든 공격 ×1.2."
+    }
+  ],
+  "specialTiles": [
+    {
+      "id": "fortune",
+      "name": "축복",
+      "symbol": "+W",
+      "weight": 80,
+      "effect": "도착한 주말 weight +80."
+    },
+    {
+      "id": "tax",
+      "name": "통행세",
+      "symbol": "-W",
+      "weight": -40,
+      "effect": "도착한 주말 weight -40."
+    },
+    {
+      "id": "well",
+      "name": "샘",
+      "symbol": "+HP",
+      "heal": 25,
+      "effect": "도착한 주말 HP +25 (최대 HP 이내)."
+    },
+    {
+      "id": "haste",
+      "name": "질주 계약",
+      "symbol": "+속",
+      "weight": -10,
+      "speed": 1,
+      "effect": "주말 weight -10, 라운드 이동 보너스 +1."
+    },
+    {
+      "id": "thorns",
+      "name": "가시 보물",
+      "symbol": "HP↓",
+      "weight": 50,
+      "damage": 20,
+      "effect": "주말 weight +50, HP -20."
+    }
+  ],
+  "gameMaster": {
+    "cycleTurns": 3,
+    "planCount": 12,
+    "minTiles": 2,
+    "maxTiles": 4,
+    "comment": "시작 시 시드로 갱신 계획을 만든다. 특수칸 도착 효과와 턴말 전역 효과는 예측과 실제에 공통 적용한다. 3턴마다 위치·개수·종류·판 전체 특성을 갱신하며 다음 계획을 미리 공개한다. 초기 선택보다 규모는 작고 덱 카드보다 디메리트가 크다."
+  },
+  "onboarding": {
+    "firstMoveDemo": "선택형 첫 수 체험은 도 확정을 명시하고 별도 새 장면에서 업기 증폭을 보여준다. 실제 런과 분리한다.",
+    "firstRound": "정석·안전·질주 3택 1. 특수칸 2개는 weight 보너스·회복이며 판 전체 특성은 고요한 판.",
+    "secondRound": "3턴 갱신 뒤 가벼운 바람으로 작은 턴말 손실·이동/공격 보상을 소개한다.",
+    "later": "손실 특수칸·다른 판 전체 특성·추가 보스 기믹, 상세 성장과 편집을 펼쳐서 학습한다.",
+    "disclosure": "가격·현재 불이익·교전 피해는 숨기지 않는다. 세부 수식·기록·편집기·미래 배치 목록은 접는다."
+  },
+  "modifierHierarchy": {
+    "riskChoices": "플레이어의 초기 리스크 픽. 가장 큰 메리트/디메리트, 목표·보스 능력치·기믹·수·보상 변화.",
+    "roundTraits": "마스터의 판 전체 특성. 초기 픽보다 변화 폭은 작고 구매 카드보다 직접 디메리트는 큼.",
+    "deckTraits": "플레이어 구매·편집 카드. 이익 중심이며 재화·슬롯 기회비용으로 제한.",
+    "note": "상대 스케일은 설계 기준이며 수치 균형은 사용자 플레이로 확인한다. 첫 라운드 고요한 판은 학습 예외."
   }
 }
 
 </script>
+<script src="boxing-core.js"></script>
 <script src="boxing-game.js"></script>
-<script>
-(() => {
-  const $ = (s) => document.querySelector(s);
-  const esc = (v) => String(v).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  const fmt = (n) => Math.round(n).toLocaleString("ko-KR");
-  const pct = (p) => (p * 100).toFixed(1) + "%";
-  const get = (o, path) => path.split(".").reduce((a, k) => (a == null ? a : a[k]), o);
-
-  $("#themeBtn").addEventListener("click", () => {
-    const root = document.documentElement;
-    const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
-    root.dataset.theme = dark ? "light" : "dark";
-  });
-
-  function table(el, head, rows) {
-    el.innerHTML = "<tr>" + head.map((h) => `<th${h.num ? ' class="num"' : ""}>${esc(h.t ?? h)}</th>`).join("") + "</tr>" +
-      rows.map((r) => "<tr>" + r.map((c, i) => `<td${head[i].num ? ' class="num"' : ""}>${c}</td>`).join("") + "</tr>").join("");
-  }
-
-  // 강화 단계 누적 보너스
-  function upgradeBonus(D, level) {
-    const b = { chips: 0, addMult: 0, xMult: 1 };
-    D.stickUpgrade.levels.filter((l) => l.level <= level).forEach((l) => {
-      b.chips += l.bonus.chips || 0;
-      b.addMult += l.bonus.addMult || 0;
-      b.xMult *= l.bonus.xMult || 1;
-    });
-    return b;
-  }
-  // 재질 시너지: 재질마다 열린 가장 높은 단계 하나
-  function synergy(D, picks) {
-    const b = { chips: 0, addMult: 0, xMult: 1, active: [] };
-    for (const f of D.families) {
-      const n = picks.filter((s) => s.family === f.id).length;
-      const t = Object.keys(f.bonus).map(Number).filter((k) => k <= n).sort((x, y) => y - x)[0];
-      if (!t) continue;
-      const g = f.bonus[t];
-      b.chips += g.chips || 0; b.addMult += g.addMult || 0; b.xMult *= g.xMult || 1;
-      b.active.push(`${f.name} ${t}개`);
-    }
-    return b;
-  }
-
-  // 투척 확률: 16가지 조합을 모두 따진다
-  function tossOutcomes(D, picks) {
-    const syn = synergy(D, picks);
-    const handById = Object.fromEntries(D.hands.map((h) => [h.id, h]));
-    const res = {};
-    for (let mask = 0; mask < 16; mask++) {
-      let p = 1, flats = 0;
-      const faces = picks.map((s, i) => {
-        const flat = (mask >> i) & 1;
-        p *= flat ? s.pFlat : 1 - s.pFlat;
-        flats += flat;
-        return flat ? "flat" : "back";
-      });
-      let id;
-      if (flats === 1 && picks[faces.indexOf("flat")].marked) id = "backdo";
-      else id = D.hands.find((h) => h.flats === flats && !h.markedOnly).id;
-      const h = handById[id];
-      let chips = h.chips + syn.chips, add = h.mult + syn.addMult, x = syn.xMult;
-      picks.forEach((s, i) => {
-        const up = upgradeBonus(D, s.level || 0);
-        chips += up.chips; add += up.addMult; x *= up.xMult;
-        if (s.trigger !== "always" && s.trigger !== faces[i]) return;
-        chips += s.chips; add += s.addMult; x *= s.xMult;
-        if (s.special === "sameFaceChips") chips += s.specialValue * faces.filter((f, j) => j !== i && f === faces[i]).length;
-      });
-      if (id === "backdo") add += 4;
-      const score = Math.floor(chips * add * x);
-      res[id] = res[id] || { p: 0, ev: 0 };
-      res[id].p += p;
-      res[id].ev += p * score;
-    }
-    return res;
-  }
-  function expected(D, picks) {
-    const r = tossOutcomes(D, picks);
-    const ev = Object.values(r).reduce((a, b) => a + b.ev, 0);
-    const extra = (r.yut?.p || 0) + (r.mo?.p || 0);
-    return { r, ev, extra, round: (ev * D.rules.tossesPerRound) / (1 - extra), syn: synergy(D, picks) };
-  }
-
-  function render(D) {
-    window.YutoBoxing.mount(D);
-    document.querySelectorAll("[data-k]").forEach((el) => (el.textContent = get(D, el.dataset.k)));
-    const R = D.rules;
-    const stickById = Object.fromEntries(D.sticks.map((s) => [s.id, s]));
-    const rarity = { basic: "기본", common: "일반", rare: "희귀", legendary: "전설" };
-    const trig = { always: "항상", flat: "배일 때", back: "등일 때" };
-
-    table($("#tblRules"), ["자원", { t: "값", num: true }, "설명"], [
-      ["내 말", R.piecesPerPlayer, "라운드마다 출발 전 상태로 초기화"],
-      ["덱 크기(시작)", R.deckSize, "런 동안 유지. 상점에서 늘리고 줄인다"],
-      ["손패", R.handSize, "라운드 시작과 투척 뒤마다 이 수까지 채운다"],
-      ["한 번에 던지는 윷", R.sticksPerToss, "손패에서 정확히 이만큼 고른다"],
-      ["투척", R.tossesPerRound, "던질 때 1 소모. 윷·모·잡기로 돌려받는다"],
-      ["교체", R.swapsPerRound, `한 번에 최대 ${R.maxSwapCards}개 버리고 새로 뽑는다`],
-    ].map((r) => r.map((c, i) => (i === 1 ? c : esc(c)))));
-
-    const totalP = expected(D, Array(4).fill(0).map((_, i) => (i === 0 ? stickById.marked : stickById.wood))).r;
-    table($("#tblHands"), ["결과", "배 개수", { t: "이동", num: true }, { t: "Chips", num: true }, { t: "Mult", num: true }, "레벨당", { t: "확률(나무 3 + 표시 1)", num: true }],
-      D.hands.map((h) => [
-        `<b>${esc(h.name)}</b>`, h.markedOnly ? "1 (표시 윷)" : h.flats, h.move > 0 ? "+" + h.move : h.move,
-        `<span class="chips">${h.chips}</span>`, `<span class="mult">${h.mult}</span>`,
-        `+${h.perLevel.chips} / +${h.perLevel.mult}`, pct(totalP[h.id]?.p || 0),
-      ]));
-
-    // 윷판
-    const N = Object.fromEntries(D.board.nodes.map((n) => [n.id, n]));
-    const S = 64, P = 36, W = S * 5 + P * 2;
-    const xy = (id) => [P + N[id].x * S, P + N[id].y * S];
-    const routeColor = { outer: "var(--line)", diagA: "var(--blue)", diagB: "var(--red)", center: "var(--red)" };
-    let svg = `<svg viewBox="0 0 ${W} ${W}" role="img" aria-label="29칸 윷판과 칸 번호">`;
-    for (const [name, route] of Object.entries(D.board.routes)) {
-      // 대각선 경로는 다음 모서리(또는 참먹이)까지만 그린다. 그 뒤는 바깥길과 겹친다.
-      let ids = route.map((id) => (id === "END" ? "0" : id));
-      if (name !== "outer") {
-        const end = ids.findIndex((id, i) => i > 0 && ["corner", "start"].includes(N[id].tag));
-        ids = ids.slice(0, end + 1);
-      }
-      const pts = ids.map(xy);
-      svg += `<polyline points="${pts.map((p) => p.join(",")).join(" ")}" fill="none" stroke="${routeColor[name]}" stroke-width="${name === "outer" ? 3 : 2.5}" ${name === "center" ? 'stroke-dasharray="6 5"' : ""}/>`;
-    }
-    for (const n of D.board.nodes) {
-      const [x, y] = xy(n.id);
-      const big = n.tag === "corner" || n.tag === "start" || n.tag === "center";
-      svg += `<circle cx="${x}" cy="${y}" r="${big ? 17 : 12}" fill="${n.tag === "start" ? "var(--gold)" : "var(--surface)"}" stroke="var(--ink-2)" stroke-width="${big ? 2.5 : 1.5}"/>` +
-        `<text x="${x}" y="${y + 4}" text-anchor="middle" font-size="${big ? 12 : 10}" font-weight="700" fill="var(--ink)">${esc(n.id)}</text>`;
-    }
-    svg += `<text x="${P + 5 * S}" y="${W - 4}" text-anchor="middle" font-size="12" fill="var(--ink-2)">출발 · 참먹이</text>`;
-    svg += `</svg><p style="margin:6px 4px 0;font-size:13px;color:var(--ink-2)"><span style="color:var(--blue)">파랑</span>: 5 → C → 15 · <span style="color:var(--red)">빨강</span>: 10 → C → 참먹이 · 점선: C에서 다시 출발</p>`;
-    $("#boardSvg").innerHTML = svg;
-
-    // 경로 예시는 board 데이터로 직접 계산한다
-    function move(route, idx, steps) {
-      const r = D.board.routes[route];
-      const to = idx + steps;
-      return to >= r.length - 1 ? "완주" : r[to];
-    }
-    function moveFrom(nodeId, steps, routeHint) {
-      const branch = D.board.branchOnStop[nodeId];
-      const route = branch || routeHint || "outer";
-      return move(route, D.board.routes[route].indexOf(nodeId), steps);
-    }
-    const cases = [
-      ["대기", "모", () => move("outer", 0, 5)],
-      ["대기", "걸", () => move("outer", 0, 3)],
-      ["5", "도", () => moveFrom("5", 1)],
-      ["5", "걸", () => moveFrom("5", 3)],
-      ["a2 (5에서 진입)", "개", () => moveFrom("a2", 2, "diagA")],
-      ["10", "걸", () => moveFrom("10", 3)],
-      ["C", "걸", () => moveFrom("C", 3)],
-      ["C", "도", () => moveFrom("C", 1)],
-      ["4", "개", () => moveFrom("4", 2)],
-      ["17", "모", () => moveFrom("17", 5)],
-      ["19", "도", () => moveFrom("19", 1)],
-      ["a1", "빽도", () => "5 (지나온 칸)"],
-      ["1", "빽도", () => "대기 (출발 전)"],
-    ];
-    table($("#tblPathCases"), ["시작 칸", "결과", "도착"], cases.map(([a, b, f]) => [esc(a), esc(b), `<b>${esc(f())}</b>`]));
-
-    table($("#tblEvents"), ["이벤트", "조건", "효과"], [
-      ["업기", "내 말이 내 말 칸에 멈춤", "이번 weight 증가량에만 말 수를 곱하고 말별 배분. 기존 weight 합계는 보존. 잡히면 묶음 전체 출발 복귀 및 초기화"],
-      ["전투 승리", "길목 수문장과 교전하여 승리", `투척 +${R.captureExtraToss}, 이번 weight 증가량 ×${R.captureMult}`],
-      ["전투 패배", "주둔 수문장과의 전투에서 잡힘", "묶음이 출발 대기로. 미정산 weight·귀속 효과·업기 배율 초기화"],
-      ["완주", "참먹이에 닿거나 넘음", `말 하나당 이번 계산에 Chips +${R.finishChipsPerPiece}. 완주한 말의 weight만 한 번 점수로 정산하고 이후 사용 종료`],
-    ].map((r) => r.map(esc)));
-
-    // 계산 예시: 콘셉트 화면의 4개 윷(나무·불꽃·황룡·은하)으로 걸, 2개 업은 묶음이 수문장 전투에서 승리
-    {
-      const h = D.hands.find((x) => x.id === "geol");
-      const picks = [["wood", "flat"], ["flame", "flat"], ["dragon", "flat"], ["galaxy", "back"]].map(([id, f]) => [stickById[id], f]);
-      let chips = h.chips, add = h.mult, x = 1;
-      const lines = [`걸 Lv.1 → <span class="chips">${h.chips}</span> × <span class="mult">${h.mult}</span>`];
-      for (const [s, f] of picks) {
-        const on = s.trigger === "always" || s.trigger === f;
-        if (on) { chips += s.chips; add += s.addMult; x *= s.xMult; }
-        lines.push(`${esc(s.name)} (${f === "flat" ? "배" : "등"}) → ${on ? `Chips +${s.chips}${s.addMult ? `, Mult +${s.addMult}` : ""}${s.xMult !== 1 ? `, ×${s.xMult}` : ""}` : "발동 안 함(배일 때만)"}`);
-      }
-      const syn = synergy(D, picks.map(([s]) => s));
-      chips += syn.chips; add += syn.addMult; x *= syn.xMult;
-      if (syn.active.length) lines.push(`재질 시너지: ${syn.active.join(", ")} → ${[syn.chips && `Chips +${syn.chips}`, syn.addMult && `Mult +${syn.addMult}`, syn.xMult !== 1 && `×${syn.xMult}`].filter(Boolean).join(", ")}`);
-      const base = chips * add * x;
-      const stack = 2 * R.stackMultPerPiece, cap = R.captureMult;
-      lines.push(`합계 <span class="chips">${chips}</span> × <span class="mult">${add}</span>${x !== 1 ? ` × ${x}` : ""} = ${fmt(base)}`);
-      lines.push(`업기(말 2개) ×${stack}, 수문장 전투 승리 ×${cap} → <b>묶음 weight +${fmt(base * stack * cap)}</b>, 투척 +${R.captureExtraToss}`);
-      $("#scoreExample").innerHTML = "<ol style='margin:0'>" + lines.map((l) => `<li>${l}</li>`).join("") + "</ol>" +
-        `<p style="font-size:13px;color:var(--ink-2)">묶음 증가량을 말별로 나누어 누적한다. 혼자 빈칸에 가면 weight +${fmt(base)}다. 두 경우 모두 미완주 상태의 라운드 점수 증가는 0이다. 예를 들어 기존 weight가 A=100, B=200이고 묶음 증가량이 240이면 A=220, B=320이다. 이후 두 말이 추가 증가 없이 완주하면 합계 540점만 한 번 정산한다(완주 보너스 제외).</p>`;
-    }
-
-    // 계산기
-    const slots = $("#calcSlots");
-    const init = ["marked", "wood", "wood", "wood"];
-    slots.innerHTML = init.map((id, i) => `<div class="slot"><span>${i + 1}</span><select data-i="${i}">${D.sticks.map((s) => `<option value="${s.id}"${s.id === id ? " selected" : ""}>${esc(s.name)} (배 ${Math.round(s.pFlat * 100)}%)</option>`).join("")}</select><input type="number" min="0" max="${D.stickUpgrade.maxLevel}" value="0" data-l="${i}" aria-label="강화 레벨"></div>`).join("");
-    function recalc() {
-      const picks = [...slots.querySelectorAll("select")].map((sel, i) => ({ ...stickById[sel.value], level: Math.max(0, Math.min(D.stickUpgrade.maxLevel, +slots.querySelector(`[data-l="${i}"]`).value || 0)) }));
-      const e = expected(D, picks);
-      $("#calcEv").textContent = fmt(e.ev);
-      $("#calcExtra").textContent = pct(e.extra);
-      $("#calcRound").textContent = fmt(e.round);
-      $("#calcSynergy").textContent = e.syn.active.length ? "열린 시너지: " + e.syn.active.join(", ") : "열린 시너지 없음";
-      table($("#calcTable"), ["결과", { t: "확률", num: true }, "", { t: "나왔을 때 weight 증가량", num: true }],
-        D.hands.map((h) => {
-          const o = e.r[h.id] || { p: 0, ev: 0 };
-          return [esc(h.name), pct(o.p), `<div class="bar"><i style="width:${(o.p * 100).toFixed(1)}%"></i></div>`, o.p ? fmt(o.ev / o.p) : "-"];
-        }));
-    }
-    slots.addEventListener("input", recalc);
-    recalc();
-
-    const famName = Object.fromEntries(D.families.map((f) => [f.id, f.name]));
-    table($("#tblSticks"), ["윷가락", "재질", "등급", { t: "가격", num: true }, { t: "배 확률", num: true }, "발동", { t: "Chips", num: true }, { t: "+Mult", num: true }, { t: "×Mult", num: true }, "효과"],
-      D.sticks.map((s) => [
-        ["wood", "marked", "flame"].includes(s.id) ? `<b>${esc(s.name)}</b>` : esc(s.name), famName[s.family], rarity[s.rarity], s.price, Math.round(s.pFlat * 100) + "%", trig[s.trigger],
-        s.chips ? `<span class="chips">+${s.chips}</span>` : "-", s.addMult ? `<span class="mult">+${s.addMult}</span>` : "-", s.xMult !== 1 ? `<span class="mult">×${s.xMult}</span>` : "-", esc(s.effect),
-      ]));
-    table($("#tblCharms"), ["부적", { t: "가격", num: true }, "효과"],
-      D.charms.map((c, i) => [i < 3 ? `<b>${esc(c.name)}</b>` : esc(c.name), c.price, esc(c.effect)]));
-    const riskLabel = Object.fromEntries(D.riskLevels.map((r) => [r.risk, r.label]));
-    table($("#tblTraits"), ["라운드 특성", "위험도", { t: "목표 배율", num: true }, { t: "보상 배수", num: true }, "효과"],
-      D.roundTraits.map((a, i) => [i < 4 ? `<b>${esc(a.name)}</b>` : esc(a.name), riskLabel[a.risk], "×" + a.targetX.toFixed(2), "×" + a.rewardX, esc(a.effect)]));
-    table($("#tblFamilies"), ["재질", "윷가락", "보너스"],
-      D.families.map((f) => [esc(f.name), D.sticks.filter((s) => s.family === f.id).map((s) => esc(s.name)).join(", "), esc(f.summary)]));
-    const tierName = Object.fromEntries(D.augmentTiers.map((t) => [t.id, t.name]));
-    const O = D.augmentOdds;
-    table($("#tblAugOdds"), ["시점", ...D.augmentTiers.map((t) => ({ t: t.name, num: true }))],
-      [["1막 보스 후", O.afterAct1], ["2막 보스 후", O.afterAct2], ["무한 모드 막마다", O.endless]].map(([k, o]) => [k, ...D.augmentTiers.map((t) => pct(o[t.id]))]));
-    table($("#tblAugments"), ["막 증강", "등급", "효과"],
-      D.augments.map((a) => [esc(a.name), tierName[a.tier], esc(a.effect)]));
-    const failText = { keep: "유지", down: "1단계 하락", break: "하락, 일부 파괴" };
-    table($("#tblUpgrade"), ["도전 단계", { t: "비용", num: true }, { t: "성공", num: true }, "실패 시", "성공 보너스", "누적 보너스"],
-      D.stickUpgrade.levels.map((l) => {
-        const b = l.bonus, cum = upgradeBonus(D, l.level);
-        const show = (o) => [o.chips && `Chips +${o.chips}`, o.addMult && `Mult +${o.addMult}`, o.xMult && o.xMult !== 1 && `×${+o.xMult.toFixed(2)}`].filter(Boolean).join(", ");
-        return ["+" + l.level, l.cost + "냥", pct(l.success).replace(".0", ""), l.onFail === "break" ? `하락 (${Math.round(l.breakChance * 100)}%는 파괴)` : failText[l.onFail], show(b), show(cum)];
-      }));
-    const dir = { none: "길목 상주" };
-    table($("#tblGuardians"), ["이름", "종류", "주둔 칸", "배치", "전투·기믹 (초안)"],
-      D.guardians.map((g) => [g.kind === "normal" ? `<b>${esc(g.name)}</b>` : esc(g.name), g.kind === "boss" ? "보스" : "일반", g.start, dir[g.direction], esc(g.effect)]));
-    table($("#tblDecks"), ["시작 덱", "성향", "구성", { t: "시작 엽전", num: true }, "특성"],
-      D.starterDecks.map((d, i) => [i === 0 ? `<b>${esc(d.name)}</b>` : esc(d.name), esc(d.theme), Object.entries(d.sticks).map(([id, n]) => `${esc(stickById[id].name)} ${n}`).join(", "), d.coins, esc(d.modifier)]));
-
-    const rounds = D.run.acts.flatMap((a) => a.rounds);
-    const type = { normal: "일반", elite: "엘리트", boss: "보스" };
-    const gName = Object.fromEntries(D.guardians.map((g) => [g.id, g.name]));
-    table($("#tblRounds"), ["라운드", "종류", { t: "목표 점수", num: true }, "상대", { t: "기본 보상", num: true }],
-      rounds.map((r) => [r.id, type[r.type], fmt(r.target), r.boss ? `보스: ${esc(gName[r.boss])}` : `수문장 ${r.guardians}`, r.baseReward + "냥"]));
-
-    // 목표 점수 곡선 (로그 축)
-    {
-      const w = 860, h = 260, l = 56, b = 34, t = 14;
-      const max = Math.log10(Math.max(...rounds.map((r) => r.target)) * 1.2), min = Math.log10(300);
-      const yv = (v) => t + (h - t - b) * (1 - (Math.log10(v) - min) / (max - min));
-      const bw = (w - l - 20) / rounds.length;
-      let s = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="라운드별 목표 점수 막대 그래프">`;
-      [500, 1000, 2000, 5000, 10000].forEach((v) => { s += `<line x1="${l}" x2="${w - 10}" y1="${yv(v)}" y2="${yv(v)}" stroke="var(--line)"/><text x="${l - 6}" y="${yv(v) + 4}" text-anchor="end" font-size="11" fill="var(--ink-2)">${fmt(v)}</text>`; });
-      const col = { normal: "var(--blue)", elite: "var(--gold)", boss: "var(--red)" };
-      rounds.forEach((r, i) => {
-        const x = l + 10 + i * bw, y = yv(r.target);
-        s += `<rect x="${x}" y="${y}" width="${bw - 18}" height="${h - b - y}" rx="4" fill="${col[r.type]}"/><text x="${x + (bw - 18) / 2}" y="${h - b + 16}" text-anchor="middle" font-size="12" fill="var(--ink)">${r.id}</text><text x="${x + (bw - 18) / 2}" y="${y - 4}" text-anchor="middle" font-size="11" fill="var(--ink-2)">${fmt(r.target)}</text>`;
-      });
-      s += "</svg>";
-      $("#targetChart").innerHTML = s;
-    }
-
-    const E = D.economy;
-    table($("#tblEconomy"), ["항목", "값"], [
-      ["진열", `윷가락 ${E.shopSlots.sticks}칸, 부적 ${E.shopSlots.charms}칸, 족보 비급 ${E.shopSlots.handBooks}칸`],
-      ["시작 엽전", `${E.startCoins}냥 (시작 덱에 따라 다름)`],
-      ["리롤", `${E.rerollBase}냥, 한 상점에서 누를 때마다 +${E.rerollStep}`],
-      ["윷가락 제거", `${E.removeStickCost}냥`],
-      ["족보 비급", `${E.handBookPrice}냥`],
-      ["판매", `산 값의 ${E.sellRatio * 100}%`],
-    ].map((r) => r.map(esc)));
-    const SO = E.shopOdds;
-    table($("#tblShopOdds"), ["상점 윷가락 등급 확률", { t: "일반", num: true }, { t: "희귀", num: true }, { t: "전설", num: true }],
-      [["1막", SO["1"]], ["2막", SO["2"]], ["3막", SO["3"]], ["무한 모드", SO.endless]].map(([k, o]) => [k, pct(o.common), pct(o.rare), pct(o.legendary)]));
-
-    // 무한 모드: 3막을 기준으로 규칙 생성
-    {
-      const X = D.run.endless;
-      $("#endlessRules").innerHTML = [
-        `목표 점수 = 직전 막의 같은 칸(일반 · 엘리트 · 보스) 목표 × ${X.targetGrowth}`,
-        `수문장 수 = ${X.guardianStepEveryActs}막마다 +1 (최대 ${X.maxGuardians})`,
-        `보스 = ${X.bossCycle.map((id) => esc(gName[id])).join(" → ")} 순서로 반복`,
-        `기본 보상 = ${X.baseReward.join(" / ")}냥, 막이 끝날 때마다 막 증강`,
-        `기록: ${X.record.join(", ")}`,
-      ].map((t) => `<li>${t}</li>`).join("");
-      let prev = D.run.acts[D.run.acts.length - 1].rounds;
-      const gen = [];
-      for (let act = 4; act <= 6; act++) {
-        const step = Math.floor((act - 3) / X.guardianStepEveryActs);
-        prev = prev.map((r, i) => ({
-          id: `${act}-${i + 1}`, type: r.type, target: Math.round((r.target * X.targetGrowth) / 100) * 100,
-          guardians: Math.min(X.maxGuardians, D.run.acts[2].rounds[i].guardians + step),
-          boss: r.type === "boss" ? X.bossCycle[(act - 4) % X.bossCycle.length] : null,
-        }));
-        gen.push(...prev);
-      }
-      table($("#tblEndless"), ["라운드(예시)", "종류", { t: "목표 점수", num: true }, "상대"],
-        gen.map((r) => [r.id, type[r.type], fmt(r.target), r.boss ? `보스: ${esc(gName[r.boss])} + 수문장 ${r.guardians}` : `수문장 ${r.guardians}`]));
-    }
-  }
-
-  function fail() { $("#loader").classList.add("show"); }
-  $("#jsonFile").addEventListener("change", async (e) => {
-    const f = e.target.files[0];
-    if (!f) return;
-    try { render(JSON.parse(await f.text())); $("#loader").classList.remove("show"); } catch (err) { alert("JSON을 읽지 못했습니다: " + err.message); }
-  });
-  fetch("game-data.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : Promise.reject())).then(render).catch(() => {
-    try { render(JSON.parse($("#embeddedGameData").textContent)); } catch (err) { fail(); }
-  });
-})();
-</script>
+<script src="design-view.js"></script>
 </body>
 </html>

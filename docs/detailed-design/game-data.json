@@ -1,211 +1,1077 @@
 ﻿{
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "yutochess-game-data",
-  "version": "1.3.0-draft",
+  "version": "1.4.0-draft",
   "source": {
     "design": "docs/2dgp_1차기획서-제출용.pptx (변준영, 2026-11)",
     "reference": "Notion '윷토체스 | 상세 기획명세 v0.2 제안' (AI 작성, 참고만)",
-    "note": "2026-11-09 수정: 길목 상주 전투와 말별 weight의 완주 정산을 적용한다. rules·board·run 구조는 설계 기준이다. HTML 박싱은 1막 코어 루프를 구현하며 Python/pico2d 구현은 별도다. sticks·families·charms·roundTraits·augments·guardians와 모든 수치는 플레이테스트 전 미확정 초깃값이다. 게임 코드는 이 파일을 그대로 읽는 것을 전제로 한다."
+    "note": "2026-11-09 개정. 점수 weight와 전투 HP/공격력을 분리하되 기본 능력치·weight 계수·윷 배율로 연동한다. 3막 9라운드 박싱과 편집기를 위한 초깃값이며 실제 균형·3·3·3 달성은 미검증이다. 리스크 선택·덱 카드·마스터 판 전체 특성은 별도 데이터 부류다. 기본 이동속도, 특수 수문장과 추가 보스, 특수칸·마스터 주기 갱신을 포함한다."
   },
-
   "rules": {
     "piecesPerPlayer": 4,
-    "deckSize": 10,
+    "deckSize": 8,
     "handSize": 6,
     "sticksPerToss": 4,
-    "tossesPerRound": 7,
+    "tossesPerRound": 8,
     "swapsPerRound": 3,
     "maxSwapCards": 4,
-    "extraTossOn": ["yut", "mo"],
-    "stackMultPerPiece": 1,
-    "captureMult": 2,
+    "extraTossOn": [
+      "yut",
+      "mo"
+    ],
     "captureExtraToss": 1,
     "finishChipsPerPiece": 150,
     "charmSlots": 5,
-    "guardianRespawnTosses": 2,
     "endRoundOnTarget": true,
     "scoring": {
       "mode": "finish_weight_only",
-      "initialPieceWeight": 0,
-      "effectOwner": "selected_piece_or_stack",
-      "stackWeightAllocation": "equal_then_piece_id_remainder",
-      "resetUnsettledWeightOnCapture": true,
+      "initialPieceWeight": 100,
+      "growth": "(N + addN) * (M + addM) * product(xMult)",
+      "stackSupportBonus": 0.5,
+      "mergeBurst": "highest_weight_carrier * stackSupportBonus * newly_added_supports",
+      "gainOwner": "carrier",
       "settleEachPieceOnce": true,
       "preserveOverflowScoreAndBonus": true,
-      "comment": "투척 효과는 선택한 말의 weight에 귀속하고 완주한 말의 weight만 라운드 점수에 가산한다. 완주 개수는 독립 승리 조건이 아니다. 초과 달성 보너스 환산식은 미확정."
+      "death": "HP 0 or weight 0: dead for this round; unsettled weight becomes 0",
+      "comment": "업기는 합류한 지원 말마다 주말의 현재 weight를 증폭한다. 분리할 수 없어 같은 합류의 반복 증폭은 없다. 미정산 weight는 HP와 별도이며 HP/공격력 계수에 연결된다."
     },
     "guardianCombat": {
-      "mode": "stationary_gate",
-      "posts": ["5", "10", "C", "15"],
-      "resolveBeforeFinish": true,
-      "comment": "수문장은 지정 길목에 상주한다. 주둔 칸·공격 범위·다음 행동을 공개하고 전투로 길목 통과를 판정한다. 정식 HP·공격력·방어력·사거리 수치와 피해식은 미확정. HTML 박싱은 boxing의 임시 수치를 사용한다."
-    }
+      "mode": "stationary_landing_only",
+      "shortcutPost": "C",
+      "gatePost": "G",
+      "gateStopsBeforeFinish": true,
+      "respawn": false,
+      "comment": "C·G 수문장 2체 유지. 플레이어 리스크 픽이 추가 일반 보스 수·능력치·기믹을 바꾼다. 최종 도착 칸에서만 교전하며 관문 G는 정지 후 돌파한다.",
+      "gatekeepersPerRound": 2
+    },
+    "startingDeckMax": 8,
+    "minDeckSize": 4,
+    "deckTraitSlots": 3,
+    "pieceTraitSlots": 2,
+    "deckReturn": "used_return_shuffle_each_turn",
+    "movementFormula": "forward=max(1, 윷 이동 + 주말 기본 이동속도 - 1 + 말 이동보너스 + 판 전체 이동보너스). 빽도는 -1 고정."
   },
-
   "boxing": {
     "defaultSeed": 20261109,
-    "pieceHealth": 6,
-    "pieceAttack": 4,
-    "guardianHealth": 6,
-    "guardianAttack": 2,
-    "guardianRange": 0,
-    "bossHealth": 10,
-    "bossRange": 1,
-    "defenseBonus": 2,
-    "weightAttackDivisor": 100,
-    "weightAttackCap": 4,
+    "pieceBaseWeight": 100,
+    "pieceBaseHealth": 40,
+    "pieceBaseAttack": 8,
+    "pieceHealthWeightCoeff": 0.25,
+    "pieceAttackWeightCoeff": 0.18,
+    "bossBaseHealth": 35,
+    "bossBaseAttack": 6,
+    "bossHealthWeightCoeff": 0.35,
+    "bossAttackWeightCoeff": 0.15,
+    "riskHealthStep": 0.35,
+    "riskAttackStep": 0.25,
+    "bossVictoryX": 1.5,
+    "bossVictoryRiskStep": 0.25,
+    "pieceUpgradeCost": 3,
+    "pieceUpgradeWeight": 40,
+    "pieceUpgradeHealth": 8,
+    "pieceUpgradeAttack": 2,
+    "pieceTraitCost": 4,
+    "deckCapacityCost": 5,
+    "deckCapacityMax": 16,
+    "traitUpgradeCost": 3,
     "overflowStep": 600,
     "overflowCoins": 1,
-    "comment": "HTML 박싱 전용 조정값. 정식 전투·보너스 균형 확정이 아니다. 공격=말 수×pieceAttack+min(weightAttackCap, 이번 기본 weight/weightAttackDivisor 내림). 피해=공격-방어(최소 1). 적 생존 시 반격하고 길목 진입 중단. 묶음 각 말이 반격 피해를 받고 한 말이라도 HP 0이면 묶음 전체 출발 복귀. 초과 overflowStep점마다 overflowCoins냥."
+    "animationStepMs": 550,
+    "maxWeight": 1000000000000,
+    "comment": "HPmax=floor((baseHP + weight*hpCoeff)*윷HP배율*말특성). 공격=floor((baseATK + weight*atkCoeff)*윷공격배율*말특성*판전체공격배율). 최대 HP 증가분만 현재 HP에 보충해 이전 피해를 보존한다. 이동은 윷 이동+기본속도-1+말/판 전체 보너스. 전투는 도착 칸 선공→생존 보스 반격. 특수칸·마스터 턴말 효과도 예측과 확정에 공통 적용.",
+    "pieceMoveSpeed": 1
   },
-
   "hands": [
-    { "id": "backdo", "name": "빽도", "flats": 1, "markedOnly": true, "move": -1, "chips": 5,   "mult": 1, "perLevel": { "chips": 5,  "mult": 1 } },
-    { "id": "do",     "name": "도",   "flats": 1, "move": 1, "chips": 10,  "mult": 1, "perLevel": { "chips": 10, "mult": 1 } },
-    { "id": "gae",    "name": "개",   "flats": 2, "move": 2, "chips": 20,  "mult": 1, "perLevel": { "chips": 15, "mult": 1 } },
-    { "id": "geol",   "name": "걸",   "flats": 3, "move": 3, "chips": 30,  "mult": 2, "perLevel": { "chips": 20, "mult": 1 } },
-    { "id": "yut",    "name": "윷",   "flats": 4, "move": 4, "chips": 60,  "mult": 3, "perLevel": { "chips": 30, "mult": 2 } },
-    { "id": "mo",     "name": "모",   "flats": 0, "move": 5, "chips": 100, "mult": 4, "perLevel": { "chips": 40, "mult": 2 } }
+    {
+      "id": "backdo",
+      "name": "빽도",
+      "flats": 1,
+      "markedOnly": true,
+      "move": -1,
+      "chips": 5,
+      "mult": 1,
+      "perLevel": {
+        "chips": 5,
+        "mult": 1
+      },
+      "attackX": 0.9,
+      "healthX": 1.0
+    },
+    {
+      "id": "do",
+      "name": "도",
+      "flats": 1,
+      "move": 1,
+      "chips": 10,
+      "mult": 1,
+      "perLevel": {
+        "chips": 10,
+        "mult": 1
+      },
+      "attackX": 1.0,
+      "healthX": 1.0
+    },
+    {
+      "id": "gae",
+      "name": "개",
+      "flats": 2,
+      "move": 2,
+      "chips": 20,
+      "mult": 1,
+      "perLevel": {
+        "chips": 15,
+        "mult": 1
+      },
+      "attackX": 1.05,
+      "healthX": 1.0
+    },
+    {
+      "id": "geol",
+      "name": "걸",
+      "flats": 3,
+      "move": 3,
+      "chips": 30,
+      "mult": 2,
+      "perLevel": {
+        "chips": 20,
+        "mult": 1
+      },
+      "attackX": 1.15,
+      "healthX": 1.1
+    },
+    {
+      "id": "yut",
+      "name": "윷",
+      "flats": 4,
+      "move": 4,
+      "chips": 60,
+      "mult": 3,
+      "perLevel": {
+        "chips": 30,
+        "mult": 2
+      },
+      "attackX": 1.4,
+      "healthX": 1.25
+    },
+    {
+      "id": "mo",
+      "name": "모",
+      "flats": 0,
+      "move": 5,
+      "chips": 100,
+      "mult": 4,
+      "perLevel": {
+        "chips": 40,
+        "mult": 2
+      },
+      "attackX": 1.6,
+      "healthX": 1.4
+    }
   ],
-
   "families": [
-    { "id": "wood", "name": "나무", "bonus": { "2": { "chips": 5 }, "4": { "chips": 15 } },           "summary": "2개: Chips +5 · 4개: Chips +15 (기본 재질이라 약하다)" },
-    { "id": "fire", "name": "불",   "bonus": { "2": { "addMult": 3 }, "4": { "addMult": 10 } },       "summary": "2개: Mult +3 · 4개: Mult +10" },
-    { "id": "iron", "name": "쇠",   "bonus": { "2": { "chips": 30 }, "4": { "xMult": 1.5 } },         "summary": "2개: Chips +30 · 4개: 최종 Mult ×1.5" },
-    { "id": "sky",  "name": "하늘", "bonus": { "2": { "addMult": 2 }, "4": { "xMult": 2 } },          "summary": "2개: Mult +2 · 4개: 최종 Mult ×2" }
+    {
+      "id": "wood",
+      "name": "나무",
+      "bonus": {
+        "2": {
+          "chips": 5
+        },
+        "4": {
+          "chips": 15
+        }
+      },
+      "summary": "2개: Chips +5 · 4개: Chips +15 (기본 재질이라 약하다)"
+    },
+    {
+      "id": "fire",
+      "name": "불",
+      "bonus": {
+        "2": {
+          "addMult": 3
+        },
+        "4": {
+          "addMult": 10
+        }
+      },
+      "summary": "2개: Mult +3 · 4개: Mult +10"
+    },
+    {
+      "id": "iron",
+      "name": "쇠",
+      "bonus": {
+        "2": {
+          "chips": 30
+        },
+        "4": {
+          "xMult": 1.5
+        }
+      },
+      "summary": "2개: Chips +30 · 4개: 최종 Mult ×1.5"
+    },
+    {
+      "id": "sky",
+      "name": "하늘",
+      "bonus": {
+        "2": {
+          "addMult": 2
+        },
+        "4": {
+          "xMult": 2
+        }
+      },
+      "summary": "2개: Mult +2 · 4개: 최종 Mult ×2"
+    }
   ],
-
   "sticks": [
-    { "id": "wood",    "name": "나무 윷",   "family": "wood", "rarity": "basic",     "price": 2, "pFlat": 0.60, "chips": 5,  "addMult": 0, "xMult": 1, "trigger": "always", "effect": "기본 윷가락." },
-    { "id": "marked",  "name": "표시 윷",   "family": "wood", "rarity": "basic",     "price": 2, "pFlat": 0.60, "chips": 5,  "addMult": 0, "xMult": 1, "trigger": "always", "marked": true, "effect": "이 윷만 배가 나오면 빽도. 빽도일 때 Mult +4." },
-    { "id": "bamboo",  "name": "대나무 윷", "family": "wood", "rarity": "common",    "price": 3, "pFlat": 0.60, "chips": 0,  "addMult": 2, "xMult": 1, "trigger": "back",   "effect": "등이 나오면 Mult +2." },
-    { "id": "flame",   "name": "불꽃 윷",   "family": "fire", "rarity": "common",    "price": 3, "pFlat": 0.60, "chips": 10, "addMult": 0, "xMult": 1, "trigger": "always", "effect": "Chips +10." },
-    { "id": "lead",    "name": "납 윷",     "family": "iron", "rarity": "common",    "price": 3, "pFlat": 0.30, "chips": 8,  "addMult": 0, "xMult": 1, "trigger": "always", "effect": "무거워서 등이 잘 나온다. 모 확률이 오른다." },
-    { "id": "feather", "name": "깃털 윷",   "family": "sky",  "rarity": "common",    "price": 3, "pFlat": 0.85, "chips": 0,  "addMult": 1, "xMult": 1, "trigger": "always", "effect": "가벼워서 배가 잘 나온다. 윷 확률이 오른다." },
-    { "id": "twin",    "name": "쌍둥이 윷", "family": "wood", "rarity": "rare",      "price": 5, "pFlat": 0.60, "chips": 0,  "addMult": 0, "xMult": 1, "trigger": "always", "special": "sameFaceChips", "specialValue": 10, "effect": "같은 면이 나온 다른 윷가락 하나당 Chips +10." },
-    { "id": "pouch",   "name": "복조리 윷", "family": "wood", "rarity": "rare",      "price": 5, "pFlat": 0.60, "chips": 5,  "addMult": 0, "xMult": 1, "trigger": "flat",   "special": "coin", "specialValue": 1, "effect": "배가 나오면 엽전 +1 (라운드당 최대 3)." },
-    { "id": "anvil",   "name": "모루 윷",   "family": "iron", "rarity": "rare",      "price": 5, "pFlat": 0.40, "chips": 20, "addMult": 0, "xMult": 1, "trigger": "back",   "effect": "등이 나오면 Chips +20. 강화 실패 시 하락하지 않는다." },
-    { "id": "dragon",  "name": "황룡 윷",   "family": "fire", "rarity": "rare",      "price": 6, "pFlat": 0.60, "chips": 15, "addMult": 1, "xMult": 1, "trigger": "always", "effect": "Chips +15, Mult +1." },
-    { "id": "galaxy",  "name": "은하 윷",   "family": "sky",  "rarity": "legendary", "price": 8, "pFlat": 0.50, "chips": 0,  "addMult": 0, "xMult": 3, "trigger": "flat",   "effect": "배가 나오면 최종 Mult ×3." }
+    {
+      "id": "wood",
+      "name": "나무 윷",
+      "family": "wood",
+      "rarity": "basic",
+      "price": 2,
+      "pFlat": 0.6,
+      "chips": 5,
+      "addMult": 0,
+      "xMult": 1,
+      "trigger": "always",
+      "effect": "기본 윷가락."
+    },
+    {
+      "id": "marked",
+      "name": "표시 윷",
+      "family": "wood",
+      "rarity": "basic",
+      "price": 2,
+      "pFlat": 0.6,
+      "chips": 5,
+      "addMult": 0,
+      "xMult": 1,
+      "trigger": "always",
+      "marked": true,
+      "effect": "이 윷만 배가 나오면 빽도. 빽도일 때 Mult +4."
+    },
+    {
+      "id": "bamboo",
+      "name": "대나무 윷",
+      "family": "wood",
+      "rarity": "common",
+      "price": 3,
+      "pFlat": 0.6,
+      "chips": 0,
+      "addMult": 2,
+      "xMult": 1,
+      "trigger": "back",
+      "effect": "등이 나오면 Mult +2."
+    },
+    {
+      "id": "flame",
+      "name": "불꽃 윷",
+      "family": "fire",
+      "rarity": "common",
+      "price": 3,
+      "pFlat": 0.6,
+      "chips": 10,
+      "addMult": 0,
+      "xMult": 1,
+      "trigger": "always",
+      "effect": "Chips +10."
+    },
+    {
+      "id": "lead",
+      "name": "납 윷",
+      "family": "iron",
+      "rarity": "common",
+      "price": 3,
+      "pFlat": 0.3,
+      "chips": 8,
+      "addMult": 0,
+      "xMult": 1,
+      "trigger": "always",
+      "effect": "무거워서 등이 잘 나온다. 모 확률이 오른다."
+    },
+    {
+      "id": "feather",
+      "name": "깃털 윷",
+      "family": "sky",
+      "rarity": "common",
+      "price": 3,
+      "pFlat": 0.85,
+      "chips": 0,
+      "addMult": 1,
+      "xMult": 1,
+      "trigger": "always",
+      "effect": "가벼워서 배가 잘 나온다. 윷 확률이 오른다."
+    },
+    {
+      "id": "twin",
+      "name": "쌍둥이 윷",
+      "family": "wood",
+      "rarity": "rare",
+      "price": 5,
+      "pFlat": 0.6,
+      "chips": 0,
+      "addMult": 0,
+      "xMult": 1,
+      "trigger": "always",
+      "special": "sameFaceChips",
+      "specialValue": 10,
+      "effect": "같은 면이 나온 다른 윷가락 하나당 Chips +10."
+    },
+    {
+      "id": "pouch",
+      "name": "복조리 윷",
+      "family": "wood",
+      "rarity": "rare",
+      "price": 5,
+      "pFlat": 0.6,
+      "chips": 5,
+      "addMult": 0,
+      "xMult": 1,
+      "trigger": "flat",
+      "special": "coin",
+      "specialValue": 1,
+      "effect": "배가 나오면 엽전 +1 (라운드당 최대 3)."
+    },
+    {
+      "id": "anvil",
+      "name": "모루 윷",
+      "family": "iron",
+      "rarity": "rare",
+      "price": 5,
+      "pFlat": 0.4,
+      "chips": 20,
+      "addMult": 0,
+      "xMult": 1,
+      "trigger": "back",
+      "effect": "등이 나오면 Chips +20. 강화 실패 시 하락하지 않는다."
+    },
+    {
+      "id": "dragon",
+      "name": "황룡 윷",
+      "family": "fire",
+      "rarity": "rare",
+      "price": 6,
+      "pFlat": 0.6,
+      "chips": 15,
+      "addMult": 1,
+      "xMult": 1,
+      "trigger": "always",
+      "effect": "Chips +15, Mult +1."
+    },
+    {
+      "id": "galaxy",
+      "name": "은하 윷",
+      "family": "sky",
+      "rarity": "legendary",
+      "price": 8,
+      "pFlat": 0.5,
+      "chips": 0,
+      "addMult": 0,
+      "xMult": 3,
+      "trigger": "flat",
+      "effect": "배가 나오면 최종 Mult ×3."
+    }
   ],
-
   "stickUpgrade": {
     "comment": "검 강화하기식 단계 강화. 단계는 누적되며 bonus는 그 단계에서 새로 얻는 값이다. onFail: keep(유지) / down(한 단계 하락) / break(윷가락 파괴).",
     "maxLevel": 10,
     "levels": [
-      { "level": 1,  "cost": 2,  "success": 1.00, "onFail": "keep",  "bonus": { "chips": 5 } },
-      { "level": 2,  "cost": 2,  "success": 0.95, "onFail": "keep",  "bonus": { "chips": 5, "addMult": 1 } },
-      { "level": 3,  "cost": 3,  "success": 0.85, "onFail": "keep",  "bonus": { "chips": 5 } },
-      { "level": 4,  "cost": 3,  "success": 0.75, "onFail": "down",  "bonus": { "chips": 5, "addMult": 1 } },
-      { "level": 5,  "cost": 4,  "success": 0.65, "onFail": "down",  "bonus": { "chips": 10 } },
-      { "level": 6,  "cost": 4,  "success": 0.55, "onFail": "down",  "bonus": { "chips": 10, "addMult": 1 } },
-      { "level": 7,  "cost": 5,  "success": 0.45, "onFail": "break", "breakChance": 0.3, "bonus": { "xMult": 1.5 } },
-      { "level": 8,  "cost": 6,  "success": 0.35, "onFail": "break", "breakChance": 0.4, "bonus": { "chips": 15, "addMult": 1 } },
-      { "level": 9,  "cost": 7,  "success": 0.25, "onFail": "break", "breakChance": 0.5, "bonus": { "chips": 20, "addMult": 2 } },
-      { "level": 10, "cost": 8,  "success": 0.15, "onFail": "break", "breakChance": 0.6, "bonus": { "xMult": 2 } }
+      {
+        "level": 1,
+        "cost": 2,
+        "success": 1.0,
+        "onFail": "keep",
+        "bonus": {
+          "chips": 5
+        }
+      },
+      {
+        "level": 2,
+        "cost": 2,
+        "success": 0.95,
+        "onFail": "keep",
+        "bonus": {
+          "chips": 5,
+          "addMult": 1
+        }
+      },
+      {
+        "level": 3,
+        "cost": 3,
+        "success": 0.85,
+        "onFail": "keep",
+        "bonus": {
+          "chips": 5
+        }
+      },
+      {
+        "level": 4,
+        "cost": 3,
+        "success": 0.75,
+        "onFail": "down",
+        "bonus": {
+          "chips": 5,
+          "addMult": 1
+        }
+      },
+      {
+        "level": 5,
+        "cost": 4,
+        "success": 0.65,
+        "onFail": "down",
+        "bonus": {
+          "chips": 10
+        }
+      },
+      {
+        "level": 6,
+        "cost": 4,
+        "success": 0.55,
+        "onFail": "down",
+        "bonus": {
+          "chips": 10,
+          "addMult": 1
+        }
+      },
+      {
+        "level": 7,
+        "cost": 5,
+        "success": 0.45,
+        "onFail": "break",
+        "breakChance": 0.3,
+        "bonus": {
+          "xMult": 1.5
+        }
+      },
+      {
+        "level": 8,
+        "cost": 6,
+        "success": 0.35,
+        "onFail": "break",
+        "breakChance": 0.4,
+        "bonus": {
+          "chips": 15,
+          "addMult": 1
+        }
+      },
+      {
+        "level": 9,
+        "cost": 7,
+        "success": 0.25,
+        "onFail": "break",
+        "breakChance": 0.5,
+        "bonus": {
+          "chips": 20,
+          "addMult": 2
+        }
+      },
+      {
+        "level": 10,
+        "cost": 8,
+        "success": 0.15,
+        "onFail": "break",
+        "breakChance": 0.6,
+        "bonus": {
+          "xMult": 2
+        }
+      }
     ],
-    "merge": { "count": 3, "levelGain": 2, "comment": "같은 윷가락 3개를 합치면 1개가 남고 실패 없이 2단계 오른다 (TFT 별 올리기)." }
+    "merge": {
+      "count": 3,
+      "levelGain": 2,
+      "comment": "같은 윷가락 3개를 합치면 1개가 남고 실패 없이 2단계 오른다 (TFT 별 올리기)."
+    }
   },
-
   "charms": [
-    { "id": "magpie",   "name": "까치 부적",     "price": 4, "effect": "개가 나오면 Mult +3." },
-    { "id": "tortoise", "name": "거북 부적",     "price": 5, "effect": "완주 시 말 하나당 Chips +100 추가." },
-    { "id": "piggy",    "name": "업보 부적",     "price": 6, "effect": "업기 배율에 ×1 추가 (특수 룰 배수)." },
-    { "id": "tiger",    "name": "호랑이 부적",   "price": 6, "effect": "잡을 때마다 이 부적의 Mult +1 (런 동안 누적)." },
-    { "id": "goblin",   "name": "도깨비 방망이",  "price": 7, "effect": "모가 나오면 선택한 말의 이번 weight 증가량 ×2." },
-    { "id": "taegeuk",  "name": "태극 부적",     "price": 4, "effect": "중앙(방)에 멈추면 Chips +60." },
-    { "id": "lucky",    "name": "복주머니",      "price": 5, "effect": "라운드 시작 시 투척 +1." },
-    { "id": "coins",    "name": "엽전 꾸러미",   "price": 4, "effect": "이자 상한 +3냥." },
-    { "id": "knot",     "name": "매듭 부적",     "price": 4, "effect": "윷가락 강화 비용 -1냥 (최소 1)." },
-    { "id": "guard",    "name": "수호 부적",     "price": 5, "effect": "강화 실패로 윷가락이 파괴될 때 한 번 막고 사라진다." },
-    { "id": "jangseung","name": "장승 부적",     "price": 5, "effect": "라운드마다 처음 한 번은 수문장에게 잡히지 않는다." }
+    {
+      "id": "magpie",
+      "name": "까치 부적",
+      "price": 4,
+      "effect": "개가 나오면 Mult +3."
+    },
+    {
+      "id": "tortoise",
+      "name": "거북 부적",
+      "price": 5,
+      "effect": "완주 시 말 하나당 Chips +100 추가."
+    },
+    {
+      "id": "piggy",
+      "name": "업보 부적",
+      "price": 6,
+      "effect": "업기 배율에 ×1 추가 (특수 룰 배수)."
+    },
+    {
+      "id": "tiger",
+      "name": "호랑이 부적",
+      "price": 6,
+      "effect": "잡을 때마다 이 부적의 Mult +1 (런 동안 누적)."
+    },
+    {
+      "id": "goblin",
+      "name": "도깨비 방망이",
+      "price": 7,
+      "effect": "모가 나오면 선택한 말의 이번 weight 증가량 ×2."
+    },
+    {
+      "id": "taegeuk",
+      "name": "태극 부적",
+      "price": 4,
+      "effect": "중앙(방)에 멈추면 Chips +60."
+    },
+    {
+      "id": "lucky",
+      "name": "복주머니",
+      "price": 5,
+      "effect": "라운드 시작 시 투척 +1."
+    },
+    {
+      "id": "coins",
+      "name": "엽전 꾸러미",
+      "price": 4,
+      "effect": "이자 상한 +3냥."
+    },
+    {
+      "id": "knot",
+      "name": "매듭 부적",
+      "price": 4,
+      "effect": "윷가락 강화 비용 -1냥 (최소 1)."
+    },
+    {
+      "id": "guard",
+      "name": "수호 부적",
+      "price": 5,
+      "effect": "강화 실패로 윷가락이 파괴될 때 한 번 막고 사라진다."
+    },
+    {
+      "id": "jangseung",
+      "name": "장승 부적",
+      "price": 5,
+      "effect": "라운드마다 처음 한 번은 수문장에게 잡히지 않는다."
+    }
   ],
-
-  "roundTraits": [
-    { "id": "standard",    "name": "정석 한 판",   "risk": 0, "targetX": 1.00, "rewardX": 1.0, "effect": "변형 없음." },
-    { "id": "safe",        "name": "안전 운행",   "risk": 0, "targetX": 0.90, "rewardX": 0.5, "effect": "수문장이 등장하지 않는다." },
-    { "id": "shortcut",    "name": "지름길 봉쇄", "risk": 1, "targetX": 1.00, "rewardX": 1.5, "effect": "대각선 지름길을 쓸 수 없다." },
-    { "id": "piggyback",   "name": "업고 달려",   "risk": 1, "targetX": 1.10, "rewardX": 1.5, "effect": "업기 배율에 ×1 추가. 수문장 +1." },
-    { "id": "hunt",        "name": "사냥 시즌",   "risk": 1, "targetX": 1.10, "rewardX": 1.5, "effect": "전투 승리 배수 ×3. 수문장 +1로 추가 길목을 방어한다." },
-    { "id": "backdoFest",  "name": "빽도 잔치",   "risk": 1, "targetX": 1.00, "rewardX": 1.5, "effect": "빽도 Chips ×5. 빽도로 수문장을 잡을 수 있다." },
-    { "id": "rush",        "name": "질주",       "risk": 1, "targetX": 1.25, "rewardX": 1.5, "effect": "완주 Chips ×2." },
-    { "id": "fall",        "name": "낙 주의",     "risk": 2, "targetX": 1.00, "rewardX": 2.0, "effect": "투척마다 10% 확률로 낙(결과 무효, 투척 소모)." },
-    { "id": "allOrNothing","name": "모 아니면 도","risk": 2, "targetX": 1.20, "rewardX": 2.0, "effect": "개·걸의 이번 weight 증가량 0. 도·윷·모 최종 Mult ×2." },
-    { "id": "lastStand",   "name": "벼랑 끝",     "risk": 2, "targetX": 0.80, "rewardX": 2.0, "effect": "투척 -3. 교체 0." },
-    { "id": "tightHand",   "name": "손이 모자라", "risk": 2, "targetX": 1.00, "rewardX": 2.0, "effect": "손패 -2 (4장, 고르는 판단이 없다)." },
-    { "id": "feast",       "name": "잔칫날",     "risk": 2, "targetX": 1.50, "rewardX": 2.5, "effect": "모든 Mult +2. 목표 점수 ×1.5." }
-  ],
-
   "riskLevels": [
-    { "risk": 0, "label": "낮음" },
-    { "risk": 1, "label": "보통" },
-    { "risk": 2, "label": "높음" }
+    {
+      "risk": 0,
+      "label": "낮음"
+    },
+    {
+      "risk": 1,
+      "label": "보통"
+    },
+    {
+      "risk": 2,
+      "label": "높음"
+    }
   ],
-
   "augmentTiers": [
-    { "id": "silver", "name": "은" },
-    { "id": "gold",   "name": "금" },
-    { "id": "jade",   "name": "옥" }
+    {
+      "id": "silver",
+      "name": "은"
+    },
+    {
+      "id": "gold",
+      "name": "금"
+    },
+    {
+      "id": "jade",
+      "name": "옥"
+    }
   ],
   "augmentOdds": {
     "comment": "막 종료 시 한 등급을 뽑고, 그 등급에서 서로 다른 3개를 보여준다. 선택지마다 1번 다시 뽑을 수 있다.",
-    "afterAct1": { "silver": 0.60, "gold": 0.35, "jade": 0.05 },
-    "afterAct2": { "silver": 0.30, "gold": 0.50, "jade": 0.20 },
-    "endless":   { "silver": 0.20, "gold": 0.50, "jade": 0.30 },
+    "afterAct1": {
+      "silver": 0.6,
+      "gold": 0.35,
+      "jade": 0.05
+    },
+    "afterAct2": {
+      "silver": 0.3,
+      "gold": 0.5,
+      "jade": 0.2
+    },
+    "endless": {
+      "silver": 0.2,
+      "gold": 0.5,
+      "jade": 0.3
+    },
     "rerollPerOption": 1
   },
   "augments": [
-    { "id": "stickBox",   "tier": "silver", "name": "윷가락 꾸러미", "effect": "무작위 일반 윷가락 2개를 덱에 넣는다." },
-    { "id": "piggyBank",  "tier": "silver", "name": "저금통",       "effect": "즉시 8냥. 이자 상한 +2." },
-    { "id": "drill",      "tier": "silver", "name": "숙련",         "effect": "도·개 족보 레벨 +1." },
-    { "id": "temper",     "tier": "silver", "name": "담금질",       "effect": "강화 성공 확률 +10%p." },
-    { "id": "fullSet",    "tier": "gold",   "name": "한 벌",        "effect": "같은 재질 윷 4개를 던지면 최종 Mult ×2." },
-    { "id": "stackMore",  "tier": "gold",   "name": "업고 또 업고",  "effect": "업기 배율에 ×1 추가 (특수 룰 배수)." },
-    { "id": "hunter",     "tier": "gold",   "name": "사냥꾼",       "effect": "잡기 배수 +1. 잡을 때 엽전 +1." },
-    { "id": "shortcutPro","tier": "gold",   "name": "지름길 달인",   "effect": "대각선 칸에 멈출 때마다 이번 라운드 Mult +2 (누적)." },
-    { "id": "extraHand",  "tier": "jade",   "name": "손 하나 더",    "effect": "손패 +1, 교체 +1." },
-    { "id": "boardArt",   "tier": "jade",   "name": "판 꾸미기",     "effect": "윷판 칸 3곳에 문양을 그린다. 멈추면 Chips +50 (런 동안 유지)." },
-    { "id": "goblinHat",  "tier": "jade",   "name": "도깨비 감투",   "effect": "수문장이 내 말을 잡으면 대신 수문장이 사라진다 (라운드당 1회)." },
-    { "id": "goldenYut",  "tier": "jade",   "name": "황금 윷",       "effect": "덱의 모든 윷가락 강화 +1. 이후 강화 실패 시 하락하지 않는다." }
+    {
+      "id": "stickBox",
+      "tier": "silver",
+      "name": "윷가락 꾸러미",
+      "effect": "무작위 일반 윷가락 2개를 덱에 넣는다."
+    },
+    {
+      "id": "piggyBank",
+      "tier": "silver",
+      "name": "저금통",
+      "effect": "즉시 8냥. 이자 상한 +2."
+    },
+    {
+      "id": "drill",
+      "tier": "silver",
+      "name": "숙련",
+      "effect": "도·개 족보 레벨 +1."
+    },
+    {
+      "id": "temper",
+      "tier": "silver",
+      "name": "담금질",
+      "effect": "강화 성공 확률 +10%p."
+    },
+    {
+      "id": "fullSet",
+      "tier": "gold",
+      "name": "한 벌",
+      "effect": "같은 재질 윷 4개를 던지면 최종 Mult ×2."
+    },
+    {
+      "id": "stackMore",
+      "tier": "gold",
+      "name": "업고 또 업고",
+      "effect": "업기 배율에 ×1 추가 (특수 룰 배수)."
+    },
+    {
+      "id": "hunter",
+      "tier": "gold",
+      "name": "사냥꾼",
+      "effect": "잡기 배수 +1. 잡을 때 엽전 +1."
+    },
+    {
+      "id": "shortcutPro",
+      "tier": "gold",
+      "name": "지름길 달인",
+      "effect": "대각선 칸에 멈출 때마다 이번 라운드 Mult +2 (누적)."
+    },
+    {
+      "id": "extraHand",
+      "tier": "jade",
+      "name": "손 하나 더",
+      "effect": "손패 +1, 교체 +1."
+    },
+    {
+      "id": "boardArt",
+      "tier": "jade",
+      "name": "판 꾸미기",
+      "effect": "윷판 칸 3곳에 문양을 그린다. 멈추면 Chips +50 (런 동안 유지)."
+    },
+    {
+      "id": "goblinHat",
+      "tier": "jade",
+      "name": "도깨비 감투",
+      "effect": "수문장이 내 말을 잡으면 대신 수문장이 사라진다 (라운드당 1회)."
+    },
+    {
+      "id": "goldenYut",
+      "tier": "jade",
+      "name": "황금 윷",
+      "effect": "덱의 모든 윷가락 강화 +1. 이후 강화 실패 시 하락하지 않는다."
+    }
   ],
-
   "guardians": [
-    { "id": "guard",  "name": "수문장",  "kind": "normal", "start": 10, "move": [0], "direction": "none", "effect": "지정 길목에 상주하며 범위에 진입한 말과 전투한다. 공격 범위와 다음 행동을 예고한다." },
-    { "id": "goblin", "name": "도깨비",  "kind": "boss",   "start": 10, "move": [0], "direction": "none", "effect": "10번 길목에 상주. 3투척마다 주둔지 주변 빈칸에 함정을 놓는다. 범위 수치는 미확정. 함정을 밟은 말은 출발 복귀하고 미정산 weight·귀속 효과를 잃는다." },
-    { "id": "tiger",  "name": "호랑이",  "kind": "boss",   "start": 10, "move": [0], "direction": "none", "effect": "10번 길목에 상주. 공격 범위 안의 말 중 weight가 가장 높은 묶음을 우선 공격한다. 범위 밖으로 추격하지 않는다." },
-    { "id": "reaper", "name": "저승사자","kind": "boss",   "start": 0,  "move": [0],          "direction": "none",    "effect": "참먹이(0)에 상주하며 완주 직전 교전을 요구한다. 완주 Chips 절반. 전투 승리 시 이번 weight 증가 계산의 Mult ×5. 해당 말의 weight는 완주 때 정산한다." }
+    {
+      "id": "goblin",
+      "name": "도깨비",
+      "kind": "boss",
+      "start": "C",
+      "move": [
+        0
+      ],
+      "direction": "none",
+      "weight": 130,
+      "attackX": 1.0,
+      "healthX": 1.0,
+      "effect": "추가 일반 보스. 선공 피해 10 감소(최소 1).",
+      "gimmick": "chipShield"
+    },
+    {
+      "id": "tiger",
+      "name": "호랑이",
+      "kind": "boss",
+      "start": "C",
+      "move": [
+        0
+      ],
+      "direction": "none",
+      "weight": 170,
+      "attackX": 1.2,
+      "healthX": 1.0,
+      "effect": "추가 일반 보스. 강한 기본 공격 계수.",
+      "gimmick": "heavyStrike"
+    },
+    {
+      "id": "reaper",
+      "name": "저승사자",
+      "kind": "boss",
+      "start": "G",
+      "move": [
+        0
+      ],
+      "direction": "none",
+      "weight": 180,
+      "attackX": 1.0,
+      "healthX": 1.15,
+      "effect": "추가 일반 보스. HP 절반 이하에서 반격 ×1.5.",
+      "gimmick": "lastStand"
+    },
+    {
+      "id": "shortcutKeeper",
+      "name": "지름길 수문장",
+      "kind": "gatekeeper",
+      "start": "C",
+      "move": [
+        0
+      ],
+      "direction": "none",
+      "weight": 130,
+      "attackX": 1,
+      "healthX": 1,
+      "gimmick": "supportResonance",
+      "effect": "특수 수문장. 업힌 말 2개 이상으로 도착하면 아군 선공 ×1.25."
+    },
+    {
+      "id": "finishKeeper",
+      "name": "완주 수문장",
+      "kind": "gatekeeper",
+      "start": "G",
+      "move": [
+        0
+      ],
+      "direction": "none",
+      "weight": 180,
+      "attackX": 1,
+      "healthX": 1.15,
+      "gimmick": "lastStand",
+      "effect": "특수 수문장. 피격 후 HP 절반 이하면 반격 ×1.5. 처치 후 완주 정산."
+    }
   ],
-
   "run": {
     "acts": [
-      { "act": 1, "rounds": [
-        { "id": "1-1", "type": "normal", "target": 600,  "guardians": 1, "baseReward": 3 },
-        { "id": "1-2", "type": "elite",  "target": 900,  "guardians": 2, "baseReward": 4 },
-        { "id": "1-3", "type": "boss",   "target": 1300, "guardians": 1, "boss": "goblin", "baseReward": 5 }
-      ]},
-      { "act": 2, "rounds": [
-        { "id": "2-1", "type": "normal", "target": 1800, "guardians": 1, "baseReward": 3 },
-        { "id": "2-2", "type": "elite",  "target": 2400, "guardians": 2, "baseReward": 4 },
-        { "id": "2-3", "type": "boss",   "target": 3200, "guardians": 1, "boss": "tiger", "baseReward": 5 }
-      ]},
-      { "act": 3, "rounds": [
-        { "id": "3-1", "type": "normal", "target": 5000,  "guardians": 2, "baseReward": 3 },
-        { "id": "3-2", "type": "elite",  "target": 7000,  "guardians": 3, "baseReward": 4 },
-        { "id": "3-3", "type": "boss",   "target": 10000, "guardians": 2, "boss": "reaper", "baseReward": 6 }
-      ]}
+      {
+        "act": 1,
+        "rounds": [
+          {
+            "id": "1-1",
+            "type": "normal",
+            "target": 600,
+            "baseReward": 3,
+            "bosses": [
+              {
+                "role": "shortcut",
+                "id": "shortcutKeeper",
+                "post": "C"
+              },
+              {
+                "role": "gate",
+                "id": "finishKeeper",
+                "post": "G"
+              }
+            ],
+            "bossScale": 1.0,
+            "baseRisk": 0,
+            "extraBosses": 0,
+            "extraBossPosts": [
+              "5",
+              "10",
+              "15"
+            ],
+            "extraBossKinds": [
+              "goblin",
+              "tiger",
+              "reaper"
+            ]
+          },
+          {
+            "id": "1-2",
+            "type": "elite",
+            "target": 900,
+            "baseReward": 4,
+            "bosses": [
+              {
+                "role": "shortcut",
+                "id": "shortcutKeeper",
+                "post": "C"
+              },
+              {
+                "role": "gate",
+                "id": "finishKeeper",
+                "post": "G"
+              }
+            ],
+            "bossScale": 1.15,
+            "baseRisk": 0,
+            "extraBosses": 1,
+            "extraBossPosts": [
+              "5",
+              "10",
+              "15"
+            ],
+            "extraBossKinds": [
+              "goblin",
+              "tiger",
+              "reaper"
+            ]
+          },
+          {
+            "id": "1-3",
+            "type": "boss",
+            "target": 1300,
+            "baseReward": 5,
+            "bosses": [
+              {
+                "role": "shortcut",
+                "id": "shortcutKeeper",
+                "post": "C"
+              },
+              {
+                "role": "gate",
+                "id": "finishKeeper",
+                "post": "G"
+              }
+            ],
+            "bossScale": 1.3,
+            "baseRisk": 1,
+            "extraBosses": 1,
+            "extraBossPosts": [
+              "5",
+              "10",
+              "15"
+            ],
+            "extraBossKinds": [
+              "goblin",
+              "tiger",
+              "reaper"
+            ]
+          }
+        ]
+      },
+      {
+        "act": 2,
+        "rounds": [
+          {
+            "id": "2-1",
+            "type": "normal",
+            "target": 1800,
+            "baseReward": 3,
+            "bosses": [
+              {
+                "role": "shortcut",
+                "id": "shortcutKeeper",
+                "post": "C"
+              },
+              {
+                "role": "gate",
+                "id": "finishKeeper",
+                "post": "G"
+              }
+            ],
+            "bossScale": 1.65,
+            "baseRisk": 0,
+            "extraBosses": 0,
+            "extraBossPosts": [
+              "5",
+              "10",
+              "15"
+            ],
+            "extraBossKinds": [
+              "goblin",
+              "tiger",
+              "reaper"
+            ]
+          },
+          {
+            "id": "2-2",
+            "type": "elite",
+            "target": 2400,
+            "baseReward": 4,
+            "bosses": [
+              {
+                "role": "shortcut",
+                "id": "shortcutKeeper",
+                "post": "C"
+              },
+              {
+                "role": "gate",
+                "id": "finishKeeper",
+                "post": "G"
+              }
+            ],
+            "bossScale": 1.9,
+            "baseRisk": 0,
+            "extraBosses": 1,
+            "extraBossPosts": [
+              "5",
+              "10",
+              "15"
+            ],
+            "extraBossKinds": [
+              "goblin",
+              "tiger",
+              "reaper"
+            ]
+          },
+          {
+            "id": "2-3",
+            "type": "boss",
+            "target": 3200,
+            "baseReward": 5,
+            "bosses": [
+              {
+                "role": "shortcut",
+                "id": "shortcutKeeper",
+                "post": "C"
+              },
+              {
+                "role": "gate",
+                "id": "finishKeeper",
+                "post": "G"
+              }
+            ],
+            "bossScale": 2.15,
+            "baseRisk": 1,
+            "extraBosses": 1,
+            "extraBossPosts": [
+              "5",
+              "10",
+              "15"
+            ],
+            "extraBossKinds": [
+              "goblin",
+              "tiger",
+              "reaper"
+            ]
+          }
+        ]
+      },
+      {
+        "act": 3,
+        "rounds": [
+          {
+            "id": "3-1",
+            "type": "normal",
+            "target": 5000,
+            "baseReward": 3,
+            "bosses": [
+              {
+                "role": "shortcut",
+                "id": "shortcutKeeper",
+                "post": "C"
+              },
+              {
+                "role": "gate",
+                "id": "finishKeeper",
+                "post": "G"
+              }
+            ],
+            "bossScale": 2.3,
+            "baseRisk": 0,
+            "extraBosses": 0,
+            "extraBossPosts": [
+              "5",
+              "10",
+              "15"
+            ],
+            "extraBossKinds": [
+              "goblin",
+              "tiger",
+              "reaper"
+            ]
+          },
+          {
+            "id": "3-2",
+            "type": "elite",
+            "target": 7000,
+            "baseReward": 4,
+            "bosses": [
+              {
+                "role": "shortcut",
+                "id": "shortcutKeeper",
+                "post": "C"
+              },
+              {
+                "role": "gate",
+                "id": "finishKeeper",
+                "post": "G"
+              }
+            ],
+            "bossScale": 2.64,
+            "baseRisk": 0,
+            "extraBosses": 1,
+            "extraBossPosts": [
+              "5",
+              "10",
+              "15"
+            ],
+            "extraBossKinds": [
+              "goblin",
+              "tiger",
+              "reaper"
+            ]
+          },
+          {
+            "id": "3-3",
+            "type": "boss",
+            "target": 10000,
+            "baseReward": 6,
+            "bosses": [
+              {
+                "role": "shortcut",
+                "id": "shortcutKeeper",
+                "post": "C"
+              },
+              {
+                "role": "gate",
+                "id": "finishKeeper",
+                "post": "G"
+              }
+            ],
+            "bossScale": 2.99,
+            "baseRisk": 1,
+            "extraBosses": 1,
+            "extraBossPosts": [
+              "5",
+              "10",
+              "15"
+            ],
+            "extraBossKinds": [
+              "goblin",
+              "tiger",
+              "reaper"
+            ]
+          }
+        ]
+      }
     ],
-    "augmentAfterActs": [1, 2],
+    "augmentAfterActs": [
+      1,
+      2
+    ],
     "endless": {
-      "comment": "3막 클리어 후 선택. 4막부터 3막 구조를 규칙으로 생성한다: 목표 = 직전 막 같은 칸 목표 × targetGrowth, 수문장 = 직전 막 + 1 (2막마다, 최대 maxGuardians), 보스는 bossCycle 순서로 반복, 막 종료마다 증강.",
+      "comment": "무한 모드는 후속 범위. 정식 런 3막 9라운드가 우선.",
       "targetGrowth": 2.2,
       "guardianStepEveryActs": 2,
       "maxGuardians": 4,
-      "bossCycle": ["goblin", "tiger", "reaper"],
-      "baseReward": [3, 4, 6],
-      "record": ["도달 막·라운드", "런 총점", "최고 완주 정산액"]
-    }
+      "bossCycle": [
+        "goblin",
+        "tiger",
+        "reaper"
+      ],
+      "baseReward": [
+        3,
+        4,
+        6
+      ],
+      "record": [
+        "도달 막·라운드",
+        "런 총점",
+        "최고 완주 정산액"
+      ]
+    },
+    "durationTargetMinutes": 30
   },
-
   "economy": {
     "startCoins": 4,
     "perRemainingToss": 1,
@@ -216,46 +1082,622 @@
     "rerollStep": 1,
     "sellRatio": 0.5,
     "handBookPrice": 3,
-    "shopSlots": { "sticks": 2, "charms": 2, "handBooks": 1 },
+    "shopSlots": {
+      "sticks": 2,
+      "charms": 2,
+      "handBooks": 1
+    },
     "shopOdds": {
       "comment": "상점 윷가락 칸의 등급 확률 (TFT 레벨별 확률표).",
-      "1": { "common": 0.70, "rare": 0.25, "legendary": 0.05 },
-      "2": { "common": 0.50, "rare": 0.40, "legendary": 0.10 },
-      "3": { "common": 0.35, "rare": 0.45, "legendary": 0.20 },
-      "endless": { "common": 0.30, "rare": 0.45, "legendary": 0.25 }
-    }
+      "1": {
+        "common": 0.7,
+        "rare": 0.25,
+        "legendary": 0.05
+      },
+      "2": {
+        "common": 0.5,
+        "rare": 0.4,
+        "legendary": 0.1
+      },
+      "3": {
+        "common": 0.35,
+        "rare": 0.45,
+        "legendary": 0.2
+      },
+      "endless": {
+        "common": 0.3,
+        "rare": 0.45,
+        "legendary": 0.25
+      }
+    },
+    "deckCapacityCost": 5,
+    "traitSlots": 3,
+    "pieceTraitSlots": 2,
+    "shopOfferCount": 3
   },
-
   "starterDecks": [
-    { "id": "woodcutter", "name": "나무꾼 덱",  "theme": "균형", "sticks": { "wood": 9, "marked": 1 }, "coins": 4,  "modifier": "없음." },
-    { "id": "feather",    "name": "깃털 덱",    "theme": "공격", "sticks": { "wood": 7, "feather": 2, "marked": 1 }, "coins": 4, "modifier": "라운드당 투척 -1." },
-    { "id": "peddler",    "name": "장돌뱅이 덱", "theme": "경제", "sticks": { "wood": 10 }, "coins": 10, "modifier": "이자 상한 +2. 빽도가 나오지 않는다." }
+    {
+      "id": "woodcutter",
+      "name": "나무꾼 덱",
+      "theme": "균형",
+      "sticks": {
+        "wood": 7,
+        "marked": 1
+      },
+      "coins": 4,
+      "modifier": "단단한 출발 특성 카드 1장.",
+      "trait": "sturdy"
+    },
+    {
+      "id": "feather",
+      "name": "깃털 덱",
+      "theme": "공격",
+      "sticks": {
+        "wood": 5,
+        "feather": 2,
+        "marked": 1
+      },
+      "coins": 4,
+      "modifier": "한 번의 큰 판 특성 카드 1장.",
+      "trait": "featherMind"
+    },
+    {
+      "id": "peddler",
+      "name": "장돌뱅이 덱",
+      "theme": "경제",
+      "sticks": {
+        "wood": 8
+      },
+      "coins": 10,
+      "modifier": "이자를 보는 눈 특성 카드 1장. 시작 10냥.",
+      "trait": "merchant"
+    }
   ],
-
   "board": {
     "comment": "좌표는 0~5 격자. 0이 출발이자 참먹이(오른쪽 아래). 말은 반시계 방향(위쪽)으로 출발한다.",
     "nodes": [
-      { "id": "0",  "x": 5, "y": 5, "tag": "start" },
-      { "id": "1",  "x": 5, "y": 4 }, { "id": "2", "x": 5, "y": 3 }, { "id": "3", "x": 5, "y": 2 }, { "id": "4", "x": 5, "y": 1 },
-      { "id": "5",  "x": 5, "y": 0, "tag": "corner" },
-      { "id": "6",  "x": 4, "y": 0 }, { "id": "7", "x": 3, "y": 0 }, { "id": "8", "x": 2, "y": 0 }, { "id": "9", "x": 1, "y": 0 },
-      { "id": "10", "x": 0, "y": 0, "tag": "corner" },
-      { "id": "11", "x": 0, "y": 1 }, { "id": "12", "x": 0, "y": 2 }, { "id": "13", "x": 0, "y": 3 }, { "id": "14", "x": 0, "y": 4 },
-      { "id": "15", "x": 0, "y": 5, "tag": "corner" },
-      { "id": "16", "x": 1, "y": 5 }, { "id": "17", "x": 2, "y": 5 }, { "id": "18", "x": 3, "y": 5 }, { "id": "19", "x": 4, "y": 5 },
-      { "id": "a1", "x": 4.1667, "y": 0.8333 }, { "id": "a2", "x": 3.3333, "y": 1.6667 },
-      { "id": "C",  "x": 2.5, "y": 2.5, "tag": "center" },
-      { "id": "a3", "x": 1.6667, "y": 3.3333 }, { "id": "a4", "x": 0.8333, "y": 4.1667 },
-      { "id": "b1", "x": 0.8333, "y": 0.8333 }, { "id": "b2", "x": 1.6667, "y": 1.6667 },
-      { "id": "b3", "x": 3.3333, "y": 3.3333 }, { "id": "b4", "x": 4.1667, "y": 4.1667 }
+      {
+        "id": "0",
+        "x": 5,
+        "y": 5,
+        "tag": "start"
+      },
+      {
+        "id": "1",
+        "x": 5,
+        "y": 4
+      },
+      {
+        "id": "2",
+        "x": 5,
+        "y": 3
+      },
+      {
+        "id": "3",
+        "x": 5,
+        "y": 2
+      },
+      {
+        "id": "4",
+        "x": 5,
+        "y": 1
+      },
+      {
+        "id": "5",
+        "x": 5,
+        "y": 0,
+        "tag": "corner"
+      },
+      {
+        "id": "6",
+        "x": 4,
+        "y": 0
+      },
+      {
+        "id": "7",
+        "x": 3,
+        "y": 0
+      },
+      {
+        "id": "8",
+        "x": 2,
+        "y": 0
+      },
+      {
+        "id": "9",
+        "x": 1,
+        "y": 0
+      },
+      {
+        "id": "10",
+        "x": 0,
+        "y": 0,
+        "tag": "corner"
+      },
+      {
+        "id": "11",
+        "x": 0,
+        "y": 1
+      },
+      {
+        "id": "12",
+        "x": 0,
+        "y": 2
+      },
+      {
+        "id": "13",
+        "x": 0,
+        "y": 3
+      },
+      {
+        "id": "14",
+        "x": 0,
+        "y": 4
+      },
+      {
+        "id": "15",
+        "x": 0,
+        "y": 5,
+        "tag": "corner"
+      },
+      {
+        "id": "16",
+        "x": 1,
+        "y": 5
+      },
+      {
+        "id": "17",
+        "x": 2,
+        "y": 5
+      },
+      {
+        "id": "18",
+        "x": 3,
+        "y": 5
+      },
+      {
+        "id": "19",
+        "x": 4,
+        "y": 5
+      },
+      {
+        "id": "a1",
+        "x": 4.1667,
+        "y": 0.8333
+      },
+      {
+        "id": "a2",
+        "x": 3.3333,
+        "y": 1.6667
+      },
+      {
+        "id": "C",
+        "x": 2.5,
+        "y": 2.5,
+        "tag": "center"
+      },
+      {
+        "id": "a3",
+        "x": 1.6667,
+        "y": 3.3333
+      },
+      {
+        "id": "a4",
+        "x": 0.8333,
+        "y": 4.1667
+      },
+      {
+        "id": "b1",
+        "x": 0.8333,
+        "y": 0.8333
+      },
+      {
+        "id": "b2",
+        "x": 1.6667,
+        "y": 1.6667
+      },
+      {
+        "id": "b3",
+        "x": 3.3333,
+        "y": 3.3333
+      },
+      {
+        "id": "b4",
+        "x": 4.1667,
+        "y": 4.1667
+      },
+      {
+        "id": "G",
+        "x": 5,
+        "y": 5.65,
+        "tag": "gate"
+      }
     ],
     "routes": {
-      "outer": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "END"],
-      "diagA": ["5", "a1", "a2", "C", "a3", "a4", "15", "16", "17", "18", "19", "END"],
-      "diagB": ["10", "b1", "b2", "C", "b3", "b4", "END"],
-      "center": ["C", "b3", "b4", "END"]
+      "outer": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "16",
+        "17",
+        "18",
+        "19",
+        "G",
+        "END"
+      ],
+      "diagA": [
+        "5",
+        "a1",
+        "a2",
+        "C",
+        "a3",
+        "a4",
+        "15",
+        "16",
+        "17",
+        "18",
+        "19",
+        "G",
+        "END"
+      ],
+      "diagB": [
+        "10",
+        "b1",
+        "b2",
+        "C",
+        "b3",
+        "b4",
+        "G",
+        "END"
+      ],
+      "center": [
+        "C",
+        "b3",
+        "b4",
+        "G",
+        "END"
+      ]
     },
-    "branchOnStop": { "5": "diagA", "10": "diagB", "C": "center" },
-    "finishRule": "경로의 END(참먹이 0을 지나는 지점)에 닿거나 넘으면 완주."
+    "branchOnStop": {
+      "5": "diagA",
+      "10": "diagB",
+      "C": "center"
+    },
+    "finishRule": "전통 29칸 + 공유 완주 관문 G. 관문에서 이동을 멈추고 생존 보스와 교전한다. 보스를 처치했거나 이미 처치돼 있으면 END로 완주 정산한다."
+  },
+  "deckTraits": [
+    {
+      "id": "sturdy",
+      "name": "단단한 출발",
+      "price": 4,
+      "effect": "말의 라운드 시작 weight +40/레벨.",
+      "initialWeight": 40
+    },
+    {
+      "id": "featherMind",
+      "name": "한 번의 큰 판",
+      "price": 4,
+      "effect": "weight ×(1+0.2×레벨). 디메리트는 재화·슬롯의 기회비용.",
+      "growthPerLevel": 0.2
+    },
+    {
+      "id": "merchant",
+      "name": "이자를 보는 눈",
+      "price": 4,
+      "effect": "이자 상한 +2/레벨, 상점 가격 -1/레벨(최소 1).",
+      "interestCapPerLevel": 2,
+      "discountPerLevel": 1
+    },
+    {
+      "id": "stackArt",
+      "name": "작은 말의 지원",
+      "price": 5,
+      "effect": "업기 지원 계수 +0.15/레벨.",
+      "supportPerLevel": 0.15
+    },
+    {
+      "id": "hotHand",
+      "name": "윷·모 연쇄",
+      "price": 5,
+      "effect": "윷·모의 weight ×(1+0.5×레벨).",
+      "bigHandXPerLevel": 0.5
+    },
+    {
+      "id": "spark",
+      "name": "곱하기 전에",
+      "price": 4,
+      "effect": "족보 +Mult 2/레벨.",
+      "addMultPerLevel": 2
+    }
+  ],
+  "pieceTraits": [
+    {
+      "id": "vital",
+      "name": "큰 그릇",
+      "price": 4,
+      "effect": "이 말의 최대 HP ×1.25.",
+      "healthX": 1.25
+    },
+    {
+      "id": "fury",
+      "name": "강한 한 수",
+      "price": 4,
+      "effect": "이 말의 공격 ×1.25.",
+      "attackX": 1.25
+    },
+    {
+      "id": "echo",
+      "name": "증폭 체질",
+      "price": 4,
+      "effect": "이 말에 귀속되는 weight 증가 ×1.25.",
+      "growthX": 1.25
+    }
+  ],
+  "shopPool": {
+    "sticks": [
+      "wood",
+      "marked",
+      "lead",
+      "feather",
+      "flame",
+      "bamboo",
+      "dragon",
+      "galaxy"
+    ],
+    "deckTraits": [
+      "sturdy",
+      "featherMind",
+      "merchant",
+      "stackArt",
+      "hotHand",
+      "spark"
+    ],
+    "pieceTraits": [
+      "vital",
+      "fury",
+      "echo"
+    ],
+    "charms": [
+      "magpie",
+      "tortoise",
+      "lucky"
+    ]
+  },
+  "engagement333": {
+    "nameSeconds": 3,
+    "sessionMinutes": 30,
+    "recallHours": 3,
+    "nameCue": "윷토체스: 업고, 곱하고, 돌파한다.",
+    "session": "3막 9라운드의 빌드 성장·위험 선택·보스 2체·상점 편집. 라운드 3~4분 목표.",
+    "recall": "런 결과에 최대 N×M·최대 업기 증폭·최대 전투 피해·빌드 카드 3장과 같은 시드 재도전 제공.",
+    "verification": "디자인 가설이다. 3초 이름 회상, 실제 세션 길이, 종료 3시간 내 비유도 회상을 사용자가 확인한다."
+  },
+  "riskChoices": [
+    {
+      "id": "standard",
+      "name": "정석 한 판",
+      "risk": 0,
+      "targetX": 1.0,
+      "rewardX": 1.0,
+      "effect": "변형 없음. 보스 추가 0체.",
+      "extraBosses": 0,
+      "bossGimmick": "none"
+    },
+    {
+      "id": "safe",
+      "name": "안전 운행",
+      "risk": 0,
+      "targetX": 0.9,
+      "rewardX": 0.5,
+      "effect": "보스 위험도 증가 없음. 목표 ×0.9, 보상 ×0.5. 보스 추가 0체.",
+      "extraBosses": 0,
+      "bossGimmick": "calm"
+    },
+    {
+      "id": "shortcut",
+      "name": "지름길 봉쇄",
+      "risk": 1,
+      "targetX": 1.0,
+      "rewardX": 1.5,
+      "effect": "대각선 지름길을 쓸 수 없다. 보스 2체 배치는 유지. 보스 추가 1체.",
+      "extraBosses": 1,
+      "bossGimmick": "none"
+    },
+    {
+      "id": "piggyback",
+      "name": "업고 달려",
+      "risk": 1,
+      "targetX": 1.1,
+      "rewardX": 1.5,
+      "effect": "업기 지원 계수 +0.25. 보스 위험도 1. 보스 추가 1체.",
+      "extraBosses": 1,
+      "bossGimmick": "loneHunter"
+    },
+    {
+      "id": "hunt",
+      "name": "사냥 시즌",
+      "risk": 1,
+      "targetX": 1.1,
+      "rewardX": 1.5,
+      "effect": "보스 처치 시 weight 배율 +0.5. 보스 weight·공격 계수는 위험도에 따라 증가. 보스 추가 1체.",
+      "extraBosses": 1,
+      "bossGimmick": "lastStand"
+    },
+    {
+      "id": "backdoFest",
+      "name": "빽도 잔치",
+      "risk": 1,
+      "targetX": 1.0,
+      "rewardX": 1.5,
+      "effect": "빽도 N ×5. 빽도로 보스 칸에 도착해도 전투 가능. 보스 추가 1체.",
+      "extraBosses": 1,
+      "bossGimmick": "none"
+    },
+    {
+      "id": "rush",
+      "name": "질주",
+      "risk": 1,
+      "targetX": 1.25,
+      "rewardX": 1.5,
+      "effect": "완주 Chips ×2. 보스 추가 1체.",
+      "extraBosses": 1,
+      "bossGimmick": "none"
+    },
+    {
+      "id": "fall",
+      "name": "낙 주의",
+      "risk": 2,
+      "targetX": 1.0,
+      "rewardX": 2.0,
+      "effect": "투척마다 10% 확률로 낙(결과 무효, 투척 소모). 보스 추가 1체.",
+      "extraBosses": 1,
+      "bossGimmick": "loneHunter"
+    },
+    {
+      "id": "allOrNothing",
+      "name": "모 아니면 도",
+      "risk": 2,
+      "targetX": 1.2,
+      "rewardX": 2.0,
+      "effect": "개·걸의 weight 증가량 0. 도·윷·모 weight ×2. 보스 추가 2체.",
+      "extraBosses": 2,
+      "bossGimmick": "lastStand"
+    },
+    {
+      "id": "lastStand",
+      "name": "벼랑 끝",
+      "risk": 2,
+      "targetX": 0.8,
+      "rewardX": 2.0,
+      "effect": "투척 -3. 교체 0. 보스 추가 2체.",
+      "extraBosses": 2,
+      "bossGimmick": "none"
+    },
+    {
+      "id": "tightHand",
+      "name": "손이 모자라",
+      "risk": 2,
+      "targetX": 1.0,
+      "rewardX": 2.0,
+      "effect": "손패 4개. 고를 윷의 선택 폭이 줄어든다. 보스 추가 1체.",
+      "extraBosses": 1,
+      "bossGimmick": "none"
+    },
+    {
+      "id": "feast",
+      "name": "잔칫날",
+      "risk": 2,
+      "targetX": 1.5,
+      "rewardX": 2.5,
+      "effect": "모든 +Mult +2. 목표 ×1.5. 보스 추가 2체.",
+      "extraBosses": 2,
+      "bossGimmick": "lastStand"
+    }
+  ],
+  "roundTraits": [
+    {
+      "id": "calm",
+      "name": "고요한 판",
+      "weightDrain": 0,
+      "speedBonus": 0,
+      "attackX": 1,
+      "effect": "판 전체 변형 없음."
+    },
+    {
+      "id": "bloodMarch",
+      "name": "핏값의 행군",
+      "weightDrain": 12,
+      "speedBonus": 1,
+      "attackX": 1.15,
+      "effect": "매 턴 생존 말·보스 weight -12. 말 이동 +1, 모든 공격 ×1.15."
+    },
+    {
+      "id": "leanWind",
+      "name": "가벼운 바람",
+      "weightDrain": 6,
+      "speedBonus": 1,
+      "attackX": 1.05,
+      "effect": "매 턴 생존 말·보스 weight -6. 말 이동 +1, 모든 공격 ×1.05."
+    },
+    {
+      "id": "hotBoard",
+      "name": "열오른 판",
+      "weightDrain": 8,
+      "speedBonus": 0,
+      "attackX": 1.2,
+      "effect": "매 턴 생존 말·보스 weight -8. 모든 공격 ×1.2."
+    }
+  ],
+  "specialTiles": [
+    {
+      "id": "fortune",
+      "name": "축복",
+      "symbol": "+W",
+      "weight": 80,
+      "effect": "도착한 주말 weight +80."
+    },
+    {
+      "id": "tax",
+      "name": "통행세",
+      "symbol": "-W",
+      "weight": -40,
+      "effect": "도착한 주말 weight -40."
+    },
+    {
+      "id": "well",
+      "name": "샘",
+      "symbol": "+HP",
+      "heal": 25,
+      "effect": "도착한 주말 HP +25 (최대 HP 이내)."
+    },
+    {
+      "id": "haste",
+      "name": "질주 계약",
+      "symbol": "+속",
+      "weight": -10,
+      "speed": 1,
+      "effect": "주말 weight -10, 라운드 이동 보너스 +1."
+    },
+    {
+      "id": "thorns",
+      "name": "가시 보물",
+      "symbol": "HP↓",
+      "weight": 50,
+      "damage": 20,
+      "effect": "주말 weight +50, HP -20."
+    }
+  ],
+  "gameMaster": {
+    "cycleTurns": 3,
+    "planCount": 12,
+    "minTiles": 2,
+    "maxTiles": 4,
+    "comment": "시작 시 시드로 갱신 계획을 만든다. 특수칸 도착 효과와 턴말 전역 효과는 예측과 실제에 공통 적용한다. 3턴마다 위치·개수·종류·판 전체 특성을 갱신하며 다음 계획을 미리 공개한다. 초기 선택보다 규모는 작고 덱 카드보다 디메리트가 크다."
+  },
+  "onboarding": {
+    "firstMoveDemo": "선택형 첫 수 체험은 도 확정을 명시하고 별도 새 장면에서 업기 증폭을 보여준다. 실제 런과 분리한다.",
+    "firstRound": "정석·안전·질주 3택 1. 특수칸 2개는 weight 보너스·회복이며 판 전체 특성은 고요한 판.",
+    "secondRound": "3턴 갱신 뒤 가벼운 바람으로 작은 턴말 손실·이동/공격 보상을 소개한다.",
+    "later": "손실 특수칸·다른 판 전체 특성·추가 보스 기믹, 상세 성장과 편집을 펼쳐서 학습한다.",
+    "disclosure": "가격·현재 불이익·교전 피해는 숨기지 않는다. 세부 수식·기록·편집기·미래 배치 목록은 접는다."
+  },
+  "modifierHierarchy": {
+    "riskChoices": "플레이어의 초기 리스크 픽. 가장 큰 메리트/디메리트, 목표·보스 능력치·기믹·수·보상 변화.",
+    "roundTraits": "마스터의 판 전체 특성. 초기 픽보다 변화 폭은 작고 구매 카드보다 직접 디메리트는 큼.",
+    "deckTraits": "플레이어 구매·편집 카드. 이익 중심이며 재화·슬롯 기회비용으로 제한.",
+    "note": "상대 스케일은 설계 기준이며 수치 균형은 사용자 플레이로 확인한다. 첫 라운드 고요한 판은 학습 예외."
   }
 }

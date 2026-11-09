@@ -85,3 +85,78 @@
 @media(max-width:1050px) { .box-layout { grid-template-columns: 150px minmax(0,1fr); } .box-intel { grid-column: 1/-1; display: flex; flex-wrap: wrap; gap: 10px; border-top: 1px solid var(--line); } .box-intel > * { flex: 1 1 120px; } .box-hand { grid-template-columns: repeat(3,minmax(0,1fr)); } }
 @media(max-width:580px) { .box-layout { grid-template-columns: minmax(0,1fr); } .box-score { display: flex; flex-wrap: wrap; gap: 8px; border-bottom: 1px solid var(--line); border-right: 0; } .box-roster { width: 100%; grid-template-columns: repeat(2,minmax(0,1fr)); } .box-score > p { margin: 0; } .box-hand { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 @media(prefers-reduced-motion:reduce) { #boxingGame * { transition: none !important; } }
+/* Weight / power separation, shop, pre-round loadout and battle presentation. */
+#boxingGame { position: relative; }
+#boxingGame .box-top h3 { font-size: 36px; letter-spacing: -.05em; margin: 0; }
+.box-top p { margin: 2px 0 0; font-size: 12px; color: var(--ink-2); }
+.box-metrics { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); border-bottom: 1px solid var(--line); background: var(--surface); }
+.box-metrics > div { min-width: 0; display: grid; gap: 2px; padding: 12px; border-right: 1px solid var(--line); }
+.box-metrics small, .box-metrics span { font-size: 11px; color: var(--ink-2); }
+.box-metrics b { font: bold 25px/1.3 Georgia,serif; color: var(--box-accent); overflow-wrap: anywhere; }
+.box-metrics em { font: 14px Consolas,monospace; color: var(--gold); }
+.box-equation { font: bold 15px/1.7 Consolas,monospace; overflow-wrap: anywhere; }
+.box-equation span:first-child { color: var(--chips); }
+.box-equation span:nth-child(2) { color: var(--mult); }
+.box-forecast { font-size: 12px; background: var(--surface-2); border-left: 3px solid var(--gold); padding: 9px; }
+.box-forecast-versus { display: grid; grid-template-columns: 1fr 22px 1fr; gap: 5px; align-items: center; }
+.box-forecast-versus > div { display: grid; gap: 3px; }
+.box-forecast-versus span { font: 11px Consolas,monospace; }
+.box-dead { color: var(--red); font-size: 12px; }
+.box-faces { display: flex; flex-wrap: wrap; gap: 8px; }
+.box-faces span { padding: 6px; border: 1px solid var(--line); font-size: 12px; }
+.box-traits, .box-loadout { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.box-trait-card, .box-shop-card { display: grid; gap: 6px; padding: 12px; border: 1px solid var(--line); border-top: 3px solid var(--gold); border-radius: 4px; background: var(--bg); min-width: 0; }
+.box-trait-card { flex: 1 1 160px; max-width: 280px; }
+.box-trait-card small, .box-shop-card small { font-size: 10px; color: var(--ink-2); }
+.box-trait-card p, .box-shop-card p, .box-shop-card span { margin: 0; font-size: 12px; }
+#boxingGame .box-selected-card { background: var(--box-accent); color: white; }
+.box-shop-services { padding: 10px 0; border-bottom: 1px dashed var(--line); }
+.box-shop-services select { max-width: 240px; margin-right: 8px; }
+.box-run-memory { border: 2px solid var(--gold); padding: 18px; background: var(--surface-2); }
+.box-memory-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin: 12px 0; }
+.box-memory-grid > div { padding: 10px; background: var(--surface); font-size: 12px; }
+.box-memory-grid b { display: block; font: bold 21px/1.5 Georgia,serif; color: var(--gold); }
+.box-memory-grid small { display: block; color: var(--ink-2); }
+.box-battle-scrim { position: absolute; z-index: 20; inset: 0; display: flex; align-items: flex-start; justify-content: center; padding: 80px 18px 24px; background: rgba(15,17,21,.74); }
+.box-battle-panel { position: sticky; top: 40px; width: min(100%,640px); padding: 22px; border: 2px solid var(--gold); border-radius: 6px; background: var(--surface); box-shadow: 0 18px 55px #0005; }
+#boxingGame .box-battle-panel h4 { font-size: 22px; margin-top: 8px; }
+.box-battle-panel > small { font: 11px Consolas,monospace; letter-spacing: .16em; color: var(--gold); }
+.box-battle-actors { display: grid; grid-template-columns: minmax(0,1fr) 30px minmax(0,1fr); align-items: center; text-align: center; gap: 12px; margin: 16px 0; }
+.box-fighter { min-height: 100px; display: grid; place-content: center; gap: 10px; padding: 12px; border: 2px solid var(--box-accent); background: var(--surface-2); }
+.box-fighter strong { font-size: 23px; }
+.box-fighter span { font: 15px Consolas,monospace; }
+.box-fighter.boss { border-color: var(--red); }
+.box-fighter.player.attacking { animation: box-player-strike .4s ease-out; }
+.box-fighter.boss.attacking { animation: box-boss-strike .4s ease-out; }
+.box-burst-number { padding: 12px; text-align: center; font: bold 22px/1.5 Georgia,'Malgun Gothic',serif; color: var(--gold); background: var(--surface-2); animation: box-burst .3s ease-out; }
+.box-battle-timeline { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; font-size: 11px; color: var(--ink-2); }
+.box-battle-timeline li.active { color: var(--ink); font-weight: bold; border-bottom: 2px solid var(--gold); }
+.box-battle-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+@keyframes box-player-strike { 40% { transform: translateX(28px) scale(1.06); } }
+@keyframes box-boss-strike { 40% { transform: translateX(-28px) scale(1.06); } }
+@keyframes box-burst { from { opacity: .5; transform: scale(.94); } to { opacity: 1; transform: scale(1); } }
+@media(max-width:1050px) { .box-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); } .box-forecast { flex: 1 1 240px; } }
+@media(max-width:580px) { .box-metrics b { font-size: 21px; } .box-memory-grid { grid-template-columns: 1fr; } .box-battle-panel { padding: 12px; } .box-battle-scrim { padding-top: 40px; } .box-fighter strong { font-size: 16px; } }
+@media(prefers-reduced-motion:reduce) { .box-fighter, .box-burst-number { animation: none !important; } }
+/* Progressive disclosure: immediate first move, optional systems below it. */
+.box-metrics.simple { grid-template-columns: repeat(3,minmax(0,1fr)); }
+.box-metric-details { padding: 7px 12px; border-bottom: 1px solid var(--line); font-size: 11px; }
+.box-metric-details p { margin-bottom: 0; }
+.box-master { padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--surface-2); display: grid; gap: 4px; font-size: 12px; }
+.box-master > small { color: var(--ink-2); }
+.box-master details { font-size: 11px; }
+.box-special rect { fill: var(--green); stroke: var(--surface); stroke-width: 2; opacity: .9; }
+.box-special text { fill: white; text-anchor: middle; font: bold 9px Consolas,'Malgun Gothic',monospace; pointer-events: none; }
+.box-special { cursor: pointer; }
+.box-quickstart { padding: 16px 0; }
+.box-quickstart > button { margin: 6px 6px 6px 0; }
+.box-quickstart p { color: var(--ink-2); font-size: 12px; }
+.box-hook { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 16px; margin: 0; background: var(--surface-2); border-bottom: 2px solid var(--gold); font-size: 13px; }
+.box-stage-wallet, .box-feedback { padding: 9px 16px; margin: 0; font-size: 12px; color: var(--ink-2); border-bottom: 1px solid var(--line); }
+.box-feedback { color: var(--box-accent); }
+.box-advanced-shop { margin-top: 16px; padding: 12px 0; border-top: 1px solid var(--line); }
+.box-advanced-shop > * { margin-top: 8px; }
+.box-simple-growth { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 12px 0; font-size: 12px; }
+.box-header-tools { max-width: 180px; }
+.box-header-tools > label { display: block; padding-top: 8px; }
+@media(max-width:580px) { .box-metrics.simple { grid-template-columns: 1fr 1fr; } .box-metrics.simple > div:last-child { grid-column: 1/-1; } }
