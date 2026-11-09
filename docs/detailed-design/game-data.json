@@ -1,11 +1,11 @@
-{
-  "schemaVersion": 2,
+﻿{
+  "schemaVersion": 3,
   "id": "yutochess-game-data",
-  "version": "1.2.0-draft",
+  "version": "1.3.0-draft",
   "source": {
     "design": "docs/2dgp_1차기획서-제출용.pptx (변준영, 2026-11)",
     "reference": "Notion '윷토체스 | 상세 기획명세 v0.2 제안' (AI 작성, 참고만)",
-    "note": "rules·board·run 구조는 확정. sticks·families·charms·roundTraits·augments·guardians와 모든 수치는 플레이테스트 전 미확정 초깃값이다. 게임 코드는 이 파일을 그대로 읽는 것을 전제로 한다."
+    "note": "2026-11-09 수정: 길목 상주 전투와 말별 weight의 완주 정산을 적용한다. rules·board·run 구조는 설계 기준이다. HTML 박싱은 1막 코어 루프를 구현하며 Python/pico2d 구현은 별도다. sticks·families·charms·roundTraits·augments·guardians와 모든 수치는 플레이테스트 전 미확정 초깃값이다. 게임 코드는 이 파일을 그대로 읽는 것을 전제로 한다."
   },
 
   "rules": {
@@ -23,8 +23,40 @@
     "finishChipsPerPiece": 150,
     "charmSlots": 5,
     "guardianRespawnTosses": 2,
-    "finishTargetPerRound": 1,
-    "endRoundWhenGoalsMet": true
+    "endRoundOnTarget": true,
+    "scoring": {
+      "mode": "finish_weight_only",
+      "initialPieceWeight": 0,
+      "effectOwner": "selected_piece_or_stack",
+      "stackWeightAllocation": "equal_then_piece_id_remainder",
+      "resetUnsettledWeightOnCapture": true,
+      "settleEachPieceOnce": true,
+      "preserveOverflowScoreAndBonus": true,
+      "comment": "투척 효과는 선택한 말의 weight에 귀속하고 완주한 말의 weight만 라운드 점수에 가산한다. 완주 개수는 독립 승리 조건이 아니다. 초과 달성 보너스 환산식은 미확정."
+    },
+    "guardianCombat": {
+      "mode": "stationary_gate",
+      "posts": ["5", "10", "C", "15"],
+      "resolveBeforeFinish": true,
+      "comment": "수문장은 지정 길목에 상주한다. 주둔 칸·공격 범위·다음 행동을 공개하고 전투로 길목 통과를 판정한다. 정식 HP·공격력·방어력·사거리 수치와 피해식은 미확정. HTML 박싱은 boxing의 임시 수치를 사용한다."
+    }
+  },
+
+  "boxing": {
+    "defaultSeed": 20261109,
+    "pieceHealth": 6,
+    "pieceAttack": 4,
+    "guardianHealth": 6,
+    "guardianAttack": 2,
+    "guardianRange": 0,
+    "bossHealth": 10,
+    "bossRange": 1,
+    "defenseBonus": 2,
+    "weightAttackDivisor": 100,
+    "weightAttackCap": 4,
+    "overflowStep": 600,
+    "overflowCoins": 1,
+    "comment": "HTML 박싱 전용 조정값. 정식 전투·보너스 균형 확정이 아니다. 공격=말 수×pieceAttack+min(weightAttackCap, 이번 기본 weight/weightAttackDivisor 내림). 피해=공격-방어(최소 1). 적 생존 시 반격하고 길목 진입 중단. 묶음 각 말이 반격 피해를 받고 한 말이라도 HP 0이면 묶음 전체 출발 복귀. 초과 overflowStep점마다 overflowCoins냥."
   },
 
   "hands": [
@@ -80,7 +112,7 @@
     { "id": "tortoise", "name": "거북 부적",     "price": 5, "effect": "완주 시 말 하나당 Chips +100 추가." },
     { "id": "piggy",    "name": "업보 부적",     "price": 6, "effect": "업기 배율에 ×1 추가 (특수 룰 배수)." },
     { "id": "tiger",    "name": "호랑이 부적",   "price": 6, "effect": "잡을 때마다 이 부적의 Mult +1 (런 동안 누적)." },
-    { "id": "goblin",   "name": "도깨비 방망이",  "price": 7, "effect": "모가 나오면 최종 점수 ×2." },
+    { "id": "goblin",   "name": "도깨비 방망이",  "price": 7, "effect": "모가 나오면 선택한 말의 이번 weight 증가량 ×2." },
     { "id": "taegeuk",  "name": "태극 부적",     "price": 4, "effect": "중앙(방)에 멈추면 Chips +60." },
     { "id": "lucky",    "name": "복주머니",      "price": 5, "effect": "라운드 시작 시 투척 +1." },
     { "id": "coins",    "name": "엽전 꾸러미",   "price": 4, "effect": "이자 상한 +3냥." },
@@ -94,11 +126,11 @@
     { "id": "safe",        "name": "안전 운행",   "risk": 0, "targetX": 0.90, "rewardX": 0.5, "effect": "수문장이 등장하지 않는다." },
     { "id": "shortcut",    "name": "지름길 봉쇄", "risk": 1, "targetX": 1.00, "rewardX": 1.5, "effect": "대각선 지름길을 쓸 수 없다." },
     { "id": "piggyback",   "name": "업고 달려",   "risk": 1, "targetX": 1.10, "rewardX": 1.5, "effect": "업기 배율에 ×1 추가. 수문장 +1." },
-    { "id": "hunt",        "name": "사냥 시즌",   "risk": 1, "targetX": 1.10, "rewardX": 1.5, "effect": "잡기 배수 ×3. 수문장 +1, 수문장 이동 +1칸." },
+    { "id": "hunt",        "name": "사냥 시즌",   "risk": 1, "targetX": 1.10, "rewardX": 1.5, "effect": "전투 승리 배수 ×3. 수문장 +1로 추가 길목을 방어한다." },
     { "id": "backdoFest",  "name": "빽도 잔치",   "risk": 1, "targetX": 1.00, "rewardX": 1.5, "effect": "빽도 Chips ×5. 빽도로 수문장을 잡을 수 있다." },
     { "id": "rush",        "name": "질주",       "risk": 1, "targetX": 1.25, "rewardX": 1.5, "effect": "완주 Chips ×2." },
     { "id": "fall",        "name": "낙 주의",     "risk": 2, "targetX": 1.00, "rewardX": 2.0, "effect": "투척마다 10% 확률로 낙(결과 무효, 투척 소모)." },
-    { "id": "allOrNothing","name": "모 아니면 도","risk": 2, "targetX": 1.20, "rewardX": 2.0, "effect": "개·걸 점수 0. 도·윷·모 최종 Mult ×2." },
+    { "id": "allOrNothing","name": "모 아니면 도","risk": 2, "targetX": 1.20, "rewardX": 2.0, "effect": "개·걸의 이번 weight 증가량 0. 도·윷·모 최종 Mult ×2." },
     { "id": "lastStand",   "name": "벼랑 끝",     "risk": 2, "targetX": 0.80, "rewardX": 2.0, "effect": "투척 -3. 교체 0." },
     { "id": "tightHand",   "name": "손이 모자라", "risk": 2, "targetX": 1.00, "rewardX": 2.0, "effect": "손패 -2 (4장, 고르는 판단이 없다)." },
     { "id": "feast",       "name": "잔칫날",     "risk": 2, "targetX": 1.50, "rewardX": 2.5, "effect": "모든 Mult +2. 목표 점수 ×1.5." }
@@ -138,10 +170,10 @@
   ],
 
   "guardians": [
-    { "id": "guard",  "name": "수문장",  "kind": "normal", "start": 10, "move": [1, 2, 1, 3], "direction": "reverse", "effect": "매 투척 뒤 예고된 칸 수만큼 반대 방향으로 이동. 내 말에 닿으면 잡는다." },
-    { "id": "goblin", "name": "도깨비",  "kind": "boss",   "start": 10, "move": [2, 2, 3],    "direction": "reverse", "effect": "3투척마다 빈 칸 하나에 함정을 놓는다. 함정을 밟은 말은 출발로 돌아간다." },
-    { "id": "tiger",  "name": "호랑이",  "kind": "boss",   "start": 10, "move": [3],          "direction": "chase",   "effect": "가장 점수 배율이 높은 내 말 묶음을 향해 최단 경로로 3칸씩 쫓는다." },
-    { "id": "reaper", "name": "저승사자","kind": "boss",   "start": 0,  "move": [0],          "direction": "none",    "effect": "참먹이(0)에 서 있다. 완주 Chips 절반. 저승사자를 잡으면 Mult ×5." }
+    { "id": "guard",  "name": "수문장",  "kind": "normal", "start": 10, "move": [0], "direction": "none", "effect": "지정 길목에 상주하며 범위에 진입한 말과 전투한다. 공격 범위와 다음 행동을 예고한다." },
+    { "id": "goblin", "name": "도깨비",  "kind": "boss",   "start": 10, "move": [0], "direction": "none", "effect": "10번 길목에 상주. 3투척마다 주둔지 주변 빈칸에 함정을 놓는다. 범위 수치는 미확정. 함정을 밟은 말은 출발 복귀하고 미정산 weight·귀속 효과를 잃는다." },
+    { "id": "tiger",  "name": "호랑이",  "kind": "boss",   "start": 10, "move": [0], "direction": "none", "effect": "10번 길목에 상주. 공격 범위 안의 말 중 weight가 가장 높은 묶음을 우선 공격한다. 범위 밖으로 추격하지 않는다." },
+    { "id": "reaper", "name": "저승사자","kind": "boss",   "start": 0,  "move": [0],          "direction": "none",    "effect": "참먹이(0)에 상주하며 완주 직전 교전을 요구한다. 완주 Chips 절반. 전투 승리 시 이번 weight 증가 계산의 Mult ×5. 해당 말의 weight는 완주 때 정산한다." }
   ],
 
   "run": {
@@ -170,7 +202,7 @@
       "maxGuardians": 4,
       "bossCycle": ["goblin", "tiger", "reaper"],
       "baseReward": [3, 4, 6],
-      "record": ["도달 막·라운드", "런 총점", "최고 투척 점수"]
+      "record": ["도달 막·라운드", "런 총점", "최고 완주 정산액"]
     }
   },
 
