@@ -1,4 +1,4 @@
-﻿#boxingGame { --box-score-width: 170px; --box-intel-width: 180px; --box-accent: #285d8f; font-size: 14px; background: var(--surface); border: 2px solid var(--ink); border-radius: 4px; overflow: hidden; outline-offset: 4px; }
+﻿#boxingGame { --box-score-width: 170px; --box-intel-width: 180px; --box-accent: #285d8f; font-size: 14px; background: var(--surface); border: 2px solid var(--ink); border-radius: 4px; overflow: clip; outline-offset: 4px; }
 #boxingGame * { box-sizing: border-box; }
 #boxingGame h3 { margin: 4px 0; font-family: Georgia, 'Malgun Gothic', serif; font-size: 22px; }
 #boxingGame h4 { margin: 14px 0 8px; }
@@ -49,7 +49,7 @@
 .box-hand-heading small { color: var(--ink-2); font-size: 11px; font-weight: normal; }
 .box-hand { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: 8px; margin-top: 12px; }
 #boxingGame .box-card { display: flex; flex-direction: column; align-items: flex-start; text-align: left; padding: 8px; gap: 5px; min-width: 0; }
-#boxingGame .box-card.chosen { outline: 2px solid var(--box-accent); background: var(--surface-2); transform: translateY(-3px); }
+#boxingGame .box-card.chosen, #boxingGame .box-card.chosen:hover, #boxingGame .box-card.chosen:focus-visible { outline: 3px solid var(--ink); background: var(--surface-2); transform: translateY(-12px); }
 .box-card span, .box-card small { font-size: 10px; }
 .box-stick { align-self: center; border: 2px solid var(--gold); border-radius: 40% 40% 6px 6px; background: var(--surface-2); width: 22px; height: 52px; display: grid; place-items: center; color: var(--red); font-size: 20px; }
 .box-prob { font: 12px/1.7 Consolas,'Malgun Gothic',monospace; color: var(--box-accent); }
@@ -222,9 +222,6 @@
 .box-piece.active > circle { stroke: var(--ink-2); stroke-width: 2; }
 .box-next-panel { padding: 12px 16px; border-block: 1px solid var(--line); background: var(--surface); }
 .box-next-panel > small { color: var(--ink-2); font-size: 11px; }
-.box-landings { display: flex; flex-wrap: wrap; gap: 6px; margin: 9px 0; }
-.box-landings > span { padding: 5px 9px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 4px; font-size: 12px; }
-.box-landings strong { color: inherit; }
 .box-wallet { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); padding: 14px 16px; gap: 20px; border-block: 2px solid var(--gold); background: var(--surface-2); }
 .box-wallet > div { display: grid; gap: 5px; }
 .box-wallet small { font-size: 12px; color: var(--ink-2); }
@@ -288,3 +285,65 @@
 
 .box-hover-route { fill: none; stroke: var(--ink-2); stroke-width: 2; stroke-dasharray: 5 5; stroke-linecap: round; stroke-linejoin: round; }
 .box-move-overlay { pointer-events: none; }
+
+/* The hand is always visible when selecting; derived stats have one editable source. */
+.box-turn-flow { font-size: 12px; color: var(--ink-2); margin: 0 0 12px; }
+.box-turn-flow b { color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
+#boxingGame article.box-card { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; padding: 8px; border: 1px solid var(--line); border-radius: 4px; min-width: 0; }
+.box-hidden-stick { color: var(--ink-2); background: var(--surface-2); }
+.box-derived-stats { display: grid; gap: 5px; grid-column: 1/-1; padding: 12px; background: var(--surface); border: 1px solid var(--line); }
+.box-derived-stats small { font-size: 11px; color: var(--ink-2); }
+
+.box-draw-layout { display: grid; grid-template-columns: minmax(0,1fr) 104px; gap: 18px; align-items: start; }
+.box-draw-layout > .box-deck-pane { grid-column: 2; grid-row: 1; }
+.box-draw-layout > div { grid-column: 1; grid-row: 1; }
+.box-draw-layout > div { min-width: 0; }
+.box-deck-pane { padding: 10px 0; text-align: center; }
+.box-deck-pane p { font-size: 11px; color: var(--ink-2); line-height: 1.8; }
+.box-deck-stack { width: 86px; min-height: 126px; margin: 0 auto; padding: 12px 6px; display: grid; align-content: center; gap: 5px; border: 2px solid var(--ink-2); border-radius: 5px; background: var(--surface-2); box-shadow: 3px 3px 0 var(--surface),4px 4px 0 var(--line),6px 6px 0 var(--surface),7px 7px 0 var(--line); }
+.box-deck-stack span, .box-deck-stack small { font-size: 11px; }
+.box-deck-stack b { font: bold 28px Consolas,monospace; }
+#boxingGame .box-hidden-stick { min-height: 144px; }
+@media(max-width:580px) { .box-draw-layout { grid-template-columns: minmax(0,1fr) 76px; gap: 10px; } .box-deck-stack { width: 66px; min-height: 100px; } }
+
+
+.box-play-controls { background: var(--surface); border-top: 2px solid var(--ink); scroll-margin-block: 12px; }
+.box-play-controls:empty { display: none; }
+.box-play-controls .box-hand-area { border-top: 0; }
+.box-play-controls .box-hand { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: 22px 9px; padding: 16px 4px 8px; margin-top: 0; }
+#boxingGame .box-play-controls .box-hand > .box-card { min-width: 0; min-height: 144px; overflow-wrap: anywhere; transition: transform .15s ease-out; }
+.box-play-controls .box-hand-heading { padding: 6px 0; }
+.box-draw-ghost { position: fixed; z-index: 30; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; padding: 8px; box-sizing: border-box; border: 1px solid var(--line); border-radius: 4px; color: var(--ink-2); background: var(--surface-2); pointer-events: none; overflow: hidden; }
+.box-draw-ghost small { font-size: 10px; }
+.box-draw-ghost .box-stick { align-self: center; }
+@media(prefers-reduced-motion:reduce) { #boxingGame .box-play-controls .box-card { transition: none; } }
+
+.box-intel .box-next-panel { padding: 0 0 14px; margin-bottom: 16px; border-top: 0; }
+.box-preview-pager { display: flex; align-items: center; justify-content: space-between; gap: 4px; margin: 9px 0; }
+#boxingGame .box-preview-pager button { padding: 5px 6px; font-size: 11px; }
+.box-preview-pager span { font-size: 11px; white-space: nowrap; }
+.box-next-candidate { padding: 10px 0; overflow-wrap: anywhere; }
+.box-next-candidate > strong { display: block; font-size: 20px; }
+@media(max-width:1050px) {
+  .box-play-controls .box-hand { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  #boxingGame:not(.board-wide) .box-layout { grid-template-columns: minmax(0,1fr) 200px; }
+  #boxingGame:not(.board-wide) .box-score { grid-column: 1/-1; border-right: 0; border-bottom: 1px solid var(--line); }
+  #boxingGame:not(.board-wide) .box-intel { grid-column: 2; display: block; border-top: 0; }
+}
+@media(max-width:580px) {
+  .box-play-controls .box-hand { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  #boxingGame:not(.board-wide) .box-layout { grid-template-columns: minmax(0,1fr); }
+  #boxingGame:not(.board-wide) .box-intel { grid-column: 1; grid-row: 2; border-left: 0; border-bottom: 1px solid var(--line); }
+  #boxingGame:not(.board-wide) .box-board { grid-row: 3; }
+}
+
+#boxingGame.board-wide.next-preview-open .box-layout { grid-template-columns: minmax(0,1fr) 220px; }
+#boxingGame.board-wide.next-preview-open .box-board { grid-column: 1; grid-row: 1; }
+#boxingGame.board-wide.next-preview-open .box-intel { grid-column: 2; grid-row: 1; border-top: 0; }
+#boxingGame.board-wide.next-preview-open .box-score { grid-column: 1/-1; grid-row: 2; }
+@media(max-width:580px) {
+  #boxingGame.board-wide.next-preview-open .box-layout { grid-template-columns: minmax(0,1fr); }
+  #boxingGame.board-wide.next-preview-open .box-score { grid-row: 1; }
+  #boxingGame.board-wide.next-preview-open .box-intel { grid-column: 1; grid-row: 2; border-left: 0; }
+  #boxingGame.board-wide.next-preview-open .box-board { grid-row: 3; }
+}

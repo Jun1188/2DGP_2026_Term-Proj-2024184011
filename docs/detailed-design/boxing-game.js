@@ -7,12 +7,12 @@
   const fix=v=>Number(v).toFixed(2).replace(/0+$/,'').replace(/\.$/,'');
   const labelPos=p=>p==null?'출발 0 · 수문장 옆':p==='END'?'완주':p==='G'?'완주 관문':p==='J'?'귀환 합류':p==='0'?'출발':p+'번';
   const button=(text,action,value='',off=false,css='')=>'<button type="button" class="'+css+'" data-action="'+action+'" data-value="'+esc(value)+'"'+(off?' disabled':'')+'>'+text+'</button>';
-  let D,core,nodes,edit=false,selection='frame:ui',message='',forced='',hover=null,drag=null,battle=null,timer=null,previewChoice=null,inspectedPos=null,boardWide=false,refreshingPreview=false;
+  let D,core,nodes,edit=false,selection='frame:ui',message='',forced='',hover=null,drag=null,battle=null,timer=null,previewChoice=null,inspectedPos=null,boardWide=false,refreshingPreview=false,drawing=false,nextPreviewOpen=false,nextPreviewIndex=0;
   const layout={scoreWidth:180,intelWidth:195,fontSize:14,accent:'#285d8f'};
   const layers={frame:true,pieces:true,guardians:true,threat:true,specials:true};
-  const phaseNames={MENU:'메뉴·덱 특성',TRAIT:'리스크 선택',PREP:'출전 윷 편집',SELECT:'윷 선택',MOVE:'갈림길·이동',REWARD:'라운드 결과',CHOICE:'상점 / 추가 이자',SHOP:'상점·성장',WIN:'런 완주',LOSE:'런 종료'};
+  const phaseNames={MENU:'메뉴·덱 특성',TRAIT:'리스크 선택',PREP:'출전 윷 편집',DRAW:'윷 드로우',REVEAL:'손패 공개 대기',SELECT:'던질 윷 선택',MOVE:'갈림길·이동',REWARD:'라운드 결과',CHOICE:'상점 / 추가 이자',SHOP:'상점·성장',WIN:'런 완주',LOSE:'런 종료'};
   const s=()=>core.state;
-  const locked=()=>edit||!!battle;
+  const locked=()=>edit||!!battle||drawing;
   const inventoryOptions=(empty=false)=> (empty?'<option value="0">교체 없이 보관</option>':'')+s().collection.map(i=>'<option value="'+i.uid+'">'+esc(core.stickById[i.type].name)+' #'+i.uid+' +'+i.level+'</option>').join('');
   // Inline SVG uses a fixed palette of shapes, so no image request or font glyph is required.
   const iconShapes={
@@ -34,7 +34,7 @@
     return rows.filter(r=>!odds||odds.rows.some(v=>v.hand.id===r.hand.id&&v.p>0));
   }
   function pathContext() {
-    if(edit||!['SELECT','MOVE'].includes(s().phase))return null;
+    if(edit||!['SELECT','MOVE'].includes(s().phase)||(s().phase==='SELECT'&&s().selected.length!==4))return null;
     const valid=previewChoice?.revision===s().revision&&previewChoice.phase===s().phase;
     const g=valid?core.living().find(g=>g.id===previewChoice.groupId)||core.activeGroup():core.activeGroup();
     if(!g)return null;
@@ -66,15 +66,15 @@
   }
   function routeInspector() {
     const ctx=pathContext();
-    if(!ctx)return '';
     if(inspectedPos!=null)return '<b>'+esc(labelPos(inspectedPos))+' · 칸 안내</b><p>'+esc(spaceInfo(inspectedPos))+'</p>'+button('이동 경로로 돌아가기','clear-preview');
+    if(!ctx)return '';
     const r=ctx.row,p=ctx.projection;
     if(!r)return '';
     const route=r.path.map(step=>labelPos(step.pos)).join(' → '),origin=labelPos(r.origin);
     return '<b>'+(s().phase==='SELECT'?'투척 전 가정':'확정된 윷 결과')+' · 말 '+esc(r.groupName)+' · '+esc(r.hand.name)+' / '+esc(r.routeName||'현재 길')+'</b><p class="box-path-itinerary">현재 '+esc(origin)+(r.skipped?' · 이동 없음':r.path.length?' → '+esc(route):' · 현재 칸 재교전')+'</p><strong>'+esc(r.skipped?'움직일 수 있는 말이 없습니다.':r.path.length+'칸 이동 · '+arrivalNotes(r))+'</strong>'+(p?.battle?'<p>확정 전투 · 아군 HP '+num(p.battle.playerHpBefore)+' → '+num(p.battle.playerHpAfter)+' / 보스 HP '+num(p.battle.bossHpBefore)+' → '+num(p.battle.bossHpAfter)+(p.battle.dead?' · 아군 사망 위험':'')+'</p>':'')+'<p class="box-muted">'+(s().phase==='SELECT'?'미리보기만으로 투척·이동하지 않습니다.':'경로 보기로 비교한 뒤 선택지의 이동 버튼을 누르세요.')+'</p>';
   }
   function mapTools() {
-    return '<div class="box-map-toolbar"><b>보드 살펴보기</b>'+button(boardWide?'기본 크기':'보드 크게 보기','map-size')+' '+button('미리보기 지우기','clear-preview')+(s().master?'<small>마스터 갱신 '+(s().master.cycle-s().turn%s().master.cycle)+'턴 뒤</small>':'')+'<details data-box-detail="map-help"><summary>칸 범례 · 조작</summary><p>● 내 말　■ 보스　◇ 특수칸</p><p>기물: 현재 칸　선택지에 커서를 올릴 때만 경로 표시　화살촉: 최종 도착점</p><p>칸을 누르면 효과를 확인합니다. Tab으로 초점 이동, 경로 보기에서 Enter로 미리보기, 이동 버튼으로 선택, Esc로 미리보기 지우기. Space로 던지기는 보드·버튼 밖에서 동작합니다. 확대 시 좁은 화면은 좌우로 스크롤하세요.</p><p>특수칸·일반 보스는 도착할 때만 발동합니다. G는 반드시 멈춥니다.</p></details></div>';
+    return '<div class="box-map-toolbar"><b>보드 살펴보기</b>'+button(boardWide?'기본 크기':'보드 크게 보기','map-size')+' '+button(nextPreviewOpen?'다음 칸 닫기':'다음 칸 보기','toggle-next','',locked()).replace(' data-action=', ' aria-expanded="'+nextPreviewOpen+'" aria-controls="boxNextPanel" data-action=')+' '+button('미리보기 지우기','clear-preview')+(s().master?'<small>마스터 갱신 '+(s().master.cycle-s().turn%s().master.cycle)+'턴 뒤</small>':'')+'<details data-box-detail="map-help"><summary>칸 범례 · 조작</summary><p>● 내 말　■ 보스　◇ 특수칸</p><p>기물: 현재 칸　선택지에 커서를 올릴 때만 경로 표시　화살촉: 최종 도착점</p><p>칸을 누르면 효과를 확인합니다. Tab으로 초점 이동, 경로 보기에서 Enter로 미리보기, 이동 버튼으로 선택, Esc로 미리보기 지우기. Space로 던지기는 보드·버튼 밖에서 동작합니다. 확대 시 좁은 화면은 좌우로 스크롤하세요.</p><p>특수칸·일반 보스는 도착할 때만 발동합니다. G는 반드시 멈춥니다.</p></details></div>';
   }
   function refreshPathPreview() {
     if(refreshingPreview)return;refreshingPreview=true;
@@ -98,9 +98,13 @@
     previewChoice={groupId:gid,key,mode,revision:s().revision,phase:s().phase};inspectedPos=null;refreshPathPreview();
   }
   function movementPanel() {
-    if(s().phase!=='SELECT')return '';
-    const g=core.activeGroup(),rows=movementRows();if(!rows.length)return '';
-    return '<section class="box-next-panel" aria-label="다음 칸 예측"><b>다음 칸 · '+esc(labelPos(g.pos))+'에서 출발</b><div class="box-landings">'+rows.map(r=>previewButton('<strong>'+esc(r.hand.name)+'</strong> → '+esc(r.skipped?'이동 없음':labelPos(r.arrival))+(r.groupName!==core.name(g)?' <small>말 '+esc(r.groupName)+'</small>':'')+(rows.some(o=>o.hand.id===r.hand.id&&o.route!==r.route)?' <small>'+esc(r.routeName)+'</small>':''),'preview-path',pathKey(r),g.id,pathKey(r),locked(),'box-preview-choice')).join('')+'</div><small>후보를 가리키거나 눌러 점선·화살표로 경로를 확인하세요. 결과는 투척 후 확정됩니다.</small></section>';
+    if(!nextPreviewOpen)return '<section id="boxNextPanel" hidden></section>';
+    const st=s(),g=core.activeGroup();
+    const rows=g&&['SELECT','MOVE'].includes(st.phase)&&(st.phase==='MOVE'||st.selected.length===4)?movementRows(g):[];
+    if(!rows.length)return '<section id="boxNextPanel" class="box-next-panel" aria-label="다음 칸 예측"><h4>다음 칸</h4><p class="box-muted">손패에서 윷 4개를 고르면 이동 후보를 확인할 수 있습니다.</p></section>';
+    nextPreviewIndex=Math.min(nextPreviewIndex,rows.length-1);
+    const r=rows[nextPreviewIndex],key=pathKey(r),off=locked();
+    return '<section id="boxNextPanel" class="box-next-panel" aria-label="다음 칸 예측"><h4>다음 칸</h4><div class="box-preview-pager">'+button('Previous','previous-next','',off||nextPreviewIndex===0)+'<span aria-live="polite">'+(nextPreviewIndex+1)+' / '+rows.length+'</span>'+button('Next','next-next','',off||nextPreviewIndex===rows.length-1)+'</div><article class="box-next-candidate"'+previewAttrs(g.id,key)+'><b>'+esc(r.hand.name)+' · '+esc(r.routeName||'현재 길')+'</b><p>말 '+esc(r.groupName)+' · '+esc(labelPos(r.origin))+'에서</p><strong>'+esc(r.skipped?'이동 없음':labelPos(r.arrival))+'</strong><p>'+esc(r.skipped?'움직일 수 있는 말이 없습니다.':r.path.length+'칸 이동 · '+arrivalNotes(r))+'</p>'+previewButton('경로 보기','preview-path',key,g.id,key,off,'box-preview-choice')+'</article><small>후보 위에 커서를 올리면 경로를 표시합니다. 후보 넘기기는 이동하지 않습니다.</small></section>';
   }
   function summary() {
     const st=s(),live=core.living().reduce((n,g)=>n+core.weight(g),0);
@@ -126,7 +130,7 @@
       const atk=g.ids.reduce((n,id)=>n+core.stats(st.pieces[id]).attack,0),p=st.pieces[core.carrier(g)];
       return '<b>'+groupIcons(g)+' 말 '+esc(core.name(g))+'</b><span>'+esc(labelPos(g.pos))+'</span><strong class="box-weight-number">'+num(core.weight(g))+' <small>점</small></strong><span class="box-mini-hp"><i style="width:'+Math.min(100,hp/max*100)+'%"></i></span><span>HP '+num(hp)+' / '+num(max)+'</span><small>공격 '+num(atk)+' · 이동속도 '+(p.moveSpeed+(p.moveBonus||0)+core.field().speedBonus)+'</small><span>'+g.ids.flatMap(id=>st.pieces[id].traits).map(id=>icons(core.pieceTraitById[id])).join('')+'</span>';
     };
-    return '<span class="box-eyebrow">ACTIVE PIECE</span><h4>이번에 움직일 말</h4><div class="box-active-traits">'+st.deckTraits.map(t=>icons(core.traitById[t.id])).join('')+'</div>'+(active?'<div class="box-active-piece">'+card(active)+'</div>':'<p>진행할 말이 없습니다.</p>')+'<p class="box-muted">던지면 이 말이 바로 이동합니다.<br>보유점수는 완주할 때 확정됩니다.</p><details data-box-detail="pieces"><summary>던지기 전 다른 말 선택</summary><div class="box-roster">'+core.living().map(g=>'<button type="button" data-action="active" data-value="'+g.id+'" aria-pressed="'+(g.id===active?.id)+'"'+(locked()||st.phase!=='SELECT'?' disabled':'')+'>'+card(g)+'</button>').join('')+'</div></details>'+st.pieces.filter(p=>p.dead).map(p=>'<p class="box-dead">말 '+'ABCD'[p.id]+' 사망</p>').join('');
+    return '<span class="box-eyebrow">ACTIVE PIECE</span><h4>이번에 움직일 말</h4><div class="box-active-traits">'+st.deckTraits.map(t=>icons(core.traitById[t.id])).join('')+'</div>'+(active?'<div class="box-active-piece">'+card(active)+'</div>':'<p>진행할 말이 없습니다.</p>')+'<p class="box-muted">던지면 이 말이 바로 이동합니다.<br>보유점수는 완주할 때 확정됩니다.</p><details data-box-detail="pieces"><summary>던지기 전 다른 말 선택</summary><div class="box-roster">'+core.living().map(g=>'<button type="button" data-action="active" data-value="'+g.id+'" aria-pressed="'+(g.id===active?.id)+'"'+(locked()||!['DRAW','REVEAL','SELECT'].includes(st.phase)?' disabled':'')+'>'+card(g)+'</button>').join('')+'</div></details>'+st.pieces.filter(p=>p.dead).map(p=>'<p class="box-dead">말 '+'ABCD'[p.id]+' 사망</p>').join('');
   }
   function board() {
     const st=s(),active=core.activeGroup(),ctx=pathContext(),xy=id=>{const n=nodes[nodes[id]?.aliasOf||id];return n?[70+n.x*80,70+n.y*80]:[0,0];};
@@ -183,15 +187,48 @@
     const moving=!!battle&&!battle.projection.battle;
     return '<div class="box-roll-result" aria-live="polite"><div class="box-roll-name"><small>'+(r.hand==='fall'?'결과 무효':'확정된 윷 결과')+'</small><b>'+esc(h?.name||'낙')+'</b><strong>'+(h?(h.move<0?'뒤로 1칸':h.move+'칸'):'이동 없음')+'</strong><small>'+(moving?'이동 중…':!st.pending&&st.lastTurn?.skipped?'이번 턴 성장 없음':st.pending?'이동속도 보너스·관문 정지는 이동 경로에 반영':'이동 완료 · '+esc(st.lastTurn?.scoreGain>0?'완주':labelPos(st.lastTurn?.arrival)))+'</small></div>'+(hasValue?'<div class="box-score-equation"><div><small>기본점수</small><b>'+num(value.n)+'</b></div><span>×</span><div><small>배율</small><b>'+num(value.m)+'</b></div><span>×</span><div><small>추가배율</small><b>'+fix(value.x)+'</b></div><strong>= +'+num(value.gain)+'<small>말의 보유점수</small></strong></div>':'<p>보유점수는 말에 쌓이고, 완주해야 확정됩니다.</p>')+(st.lastTurn&&!st.pending&&!st.lastTurn.skipped?'<p>말 '+esc(st.lastTurn.group)+' 보유점수 '+num(st.lastTurn.weightBefore)+' → <b>'+num(st.lastTurn.weightAfter)+'</b> · 이번 완주 확정 <b>+'+num(st.lastTurn.scoreGain)+'</b></p>':'')+'</div>';
   }
+  function handCards(conceal=false,selectable=true) {
+    const st=s();return '<div class="box-hand">'+st.hand.map((uid,i)=>{
+      const drawn=st.lastDraw?.includes(uid);
+      if(conceal&&drawn)return '<article class="box-card box-hidden-stick" data-hand-uid="'+uid+'" data-new-draw="true" aria-label="새로 드로우한 비공개 윷"><small>'+(i+1)+' · 드로우 완료</small><div class="box-stick">?</div><b>공개 대기</b></article>';
+      const item=core.item(uid),b=core.stickById[item.type],picked=st.selected.includes(uid),tag=selectable?'button':'article';
+      return '<'+tag+(selectable?' type="button" data-action="card" data-value="'+uid+'" aria-pressed="'+picked+'"'+(locked()||(!picked&&st.selected.length>=4)?' disabled':''):'')+' data-hand-uid="'+uid+'" class="box-card '+(picked?'chosen':'')+'"><small>'+(i+1)+' · '+(drawn?'새로 드로우':'유지한 손패')+'</small><div class="box-stick">'+icons(b)+'</div><b>'+esc(b.name)+' +'+item.level+'</b><span>배 '+Math.round(b.pFlat*100)+'% · 기본점수 +'+b.chips+'</span><small>'+esc(b.effect)+'</small></'+tag+'>';
+    }).join('')+'</div>';
+  }
+  function deckPanel() {
+    const st=s();return '<aside class="box-deck-pane"><div class="box-deck-stack" role="img" aria-label="드로우 더미 '+st.draw.length+'개"><span>윷 덱</span><b>'+st.draw.length+'</b><small>드로우 더미</small></div><p>출전 '+st.deck.length+'개<br>손패 '+st.hand.length+'개</p></aside>';
+  }
   function handPanel() {
-    const st=s();if(!['SELECT','MOVE'].includes(st.phase))return '';
+    const st=s();if(!['DRAW','REVEAL','SELECT','MOVE'].includes(st.phase))return '';
     const g=core.activeGroup(),options=st.phase==='MOVE'&&g?core.routeOptions(g):[];
-    if(st.phase==='MOVE')return turnResult()+(battle?'':options.length>1?'<div class="box-junction"><h4>갈림길 · 경로를 비교한 뒤 고르세요.</h4><p>선택지에 커서를 올리면 해당 길만 표시합니다. 경로 보기는 이동하지 않습니다.</p><div class="box-offers">'+options.map(o=>{const p=core.preview(g.id,o.id),key=st.pending.hand.id+':'+o.id;return '<article class="box-route-option"'+previewAttrs(g.id,key)+'><h4>'+esc(o.name)+' → '+esc(labelPos(p.arrival))+'</h4>'+previewButton('경로 보기','preview-path',key,g.id,key,false,'box-preview-choice')+'<p>'+p.path.length+'칸 이동'+(p.battle?' · ⚔ 선공 '+num(p.battle.hit)+' / 반격 '+num(p.battle.counter):' · 전투 없음')+'</p>'+forecast(p)+button('이 길로 '+p.path.length+'칸 이동','route',o.id,false,'box-primary')+'</article>';}).join('')+'</div></div>':button('확정 결과로 이동 계속','resume','','','box-primary'));
+    if(st.phase==='MOVE')return (battle?'':options.length>1?'<div class="box-junction"><h4>갈림길 · 경로를 비교한 뒤 고르세요.</h4><p>선택지에 커서를 올리면 해당 길만 표시합니다. 경로 보기는 이동하지 않습니다.</p><div class="box-offers">'+options.map(o=>{const p=core.preview(g.id,o.id),key=st.pending.hand.id+':'+o.id;return '<article class="box-route-option"'+previewAttrs(g.id,key)+'><h4>'+esc(o.name)+' → '+esc(labelPos(p.arrival))+'</h4>'+previewButton('경로 보기','preview-path',key,g.id,key,false,'box-preview-choice')+'<p>'+p.path.length+'칸 이동'+(p.battle?' · ⚔ 선공 '+num(p.battle.hit)+' / 반격 '+num(p.battle.counter):' · 전투 없음')+'</p>'+forecast(p)+button('이 길로 '+p.path.length+'칸 이동','route',o.id,false,'box-primary')+'</article>';}).join('')+'</div></div>':button('확정 결과로 이동 계속','resume','','','box-primary'));
+    const flow='<p class="box-turn-flow">'+[['DRAW','1 드로우'],['REVEAL','2 손패 공개'],['SELECT','3 던질 윷 선택']].map(([phase,text])=>phase===st.phase?'<b aria-current="step">'+text+'</b>':text).join(' → ')+'</p>';
+    if(st.phase==='DRAW')return '<div class="box-hand-area">'+flow+'<div class="box-draw-layout">'+deckPanel()+'<div><h4>덱에서 윷을 드로우하세요.</h4><p>유지한 손패 '+st.hand.length+'개 · 이번에 '+Math.max(0,core.handSize()-st.hand.length)+'개 보충</p>'+button('윷 '+Math.max(0,core.handSize()-st.hand.length)+'개 드로우','draw-hand','',locked(),'box-primary')+'<p class="box-muted">덱에서 손패로 뽑는 모션 뒤 윷을 공개합니다.</p></div></div></div>';
+    if(st.phase==='REVEAL')return '<div class="box-hand-area">'+flow+'<div class="box-draw-layout">'+deckPanel()+'<div><h4>'+(drawing?'덱에서 손패로 윷을 뽑는 중…':'손패 공개 대기')+'</h4>'+handCards(true,false)+(drawing?'<p class="box-muted" aria-live="polite">드로우 뒤 손패를 공개합니다. 사용할 윷은 직접 고르세요.</p>':button('손패 공개 → 던질 윷 고르기','reveal-hand','',locked(),'box-primary'))+'</div></div></div>';
     const odds=st.selected.length===4?core.outcomes(st.selected):null;
-    return turnResult()+'<div class="box-hand-area"><div class="box-hand-heading"><div><h4>말 '+esc(g?core.name(g):'—')+' · 윷 '+st.selected.length+'/4개 준비</h4><small>기본 4개가 준비됩니다. 바꾸기는 선택입니다.</small></div>'+button('윷 던지기 → 바로 이동','toss','',locked()||st.selected.length!==4||!g,'box-primary')+'</div><p class="box-prob">'+(odds?odds.rows.map(v=>v.hand.name+' '+(v.p*100).toFixed(0)+'%').join(' · '):'윷을 4개 선택하세요.')+'</p><div class="box-ready-sticks" aria-label="이번에 던질 윷">'+st.selected.map(uid=>{const i=core.item(uid),b=core.stickById[i.type];return '<span>'+icons(b)+esc(b.name)+(i.level?' +'+i.level:'')+'</span>';}).join('')+'</div><details class="box-hand-edit" data-box-detail="hand"><summary>던질 윷 바꾸기 · 점수 범위 보기</summary><p>파란 윷 4개를 던집니다. 배/등 확률과 점수 재료를 조절하세요.</p>'+button('선택 윷 교체 · 남은 '+st.swaps,'swap','',locked()||!st.selected.length||st.swaps<=0)+'<div class="box-hand">'+st.hand.map((uid,i)=>{
-      const v=core.item(uid),b=core.stickById[v.type],picked=st.selected.includes(uid);
-      return '<button type="button" class="box-card '+(picked?'chosen':'')+'" data-action="card" data-value="'+uid+'" aria-pressed="'+picked+'"'+(locked()?' disabled':'')+'><small>'+(i+1)+' · '+esc(b.family)+'</small><div class="box-stick">'+icons(b)+'</div><b>'+esc(b.name)+' +'+v.level+'</b><span>배 '+Math.round(b.pFlat*100)+'% · 기본점수 +'+b.chips+'</span><small>'+esc(b.effect)+'</small></button>';
-    }).join('')+'</div>'+(odds?'<p>기본 보유점수 증가 <b>'+num(odds.min)+'~'+num(odds.max)+'</b> · 업기·말 특성·보스 증폭 전</p>':'')+'</details></div>'+movementPanel();
+    return '<div class="box-hand-area">'+flow+'<div class="box-hand-heading"><div><h4>말 '+esc(g?core.name(g):'—')+' · 던질 윷 '+st.selected.length+'/4개 선택</h4><small>손패에서 사용할 윷을 고르면 강조됩니다. 다시 누르면 해제됩니다.</small></div>'+button('선택한 4개 던지기','toss','',locked()||st.selected.length!==4||!g,'box-primary')+'</div><div class="box-draw-layout">'+deckPanel()+'<div>'+handCards()+'<p class="box-prob">'+(odds?odds.rows.map(v=>v.hand.name+' '+(v.p*100).toFixed(0)+'%').join(' · '):'4개를 고르면 결과 확률을 확인할 수 있습니다. 다음 칸은 보드 상단 토글로 엽니다.')+'</p>'+button('선택 윷 반환·교체 드로우 · 남은 '+st.swaps,'swap','',locked()||!st.selected.length||st.swaps<=0)+(odds?'<details data-box-detail="hand-math"><summary>기본 점수 증가 범위</summary><p>'+num(odds.min)+'~'+num(odds.max)+' · 업기·말 특성·보스 증폭 전</p></details>':'')+'</div></div></div>';
+  }
+  async function drawCards() {
+    if(locked()||s().phase!=='DRAW')return;
+    const owner=core,flights=[];core.drawTurn();drawing=true;render();
+    try {
+      if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
+        const deck=root.querySelector('.box-deck-stack').getBoundingClientRect();
+        const cards=[...root.querySelectorAll('[data-new-draw="true"]')];
+        await Promise.all(cards.map((card,index)=>{
+          if(!card.animate)return Promise.resolve();
+          const target=card.getBoundingClientRect(),x=deck.x+deck.width/2-target.x-target.width/2,y=deck.y+deck.height/2-target.y-target.height/2;
+          const ghost=card.cloneNode(true);ghost.classList.add('box-draw-ghost');ghost.setAttribute('aria-hidden','true');
+          Object.assign(ghost.style,{left:target.x+'px',top:target.y+'px',width:target.width+'px',height:target.height+'px'});
+          document.body.append(ghost);card.style.visibility='hidden';flights.push({ghost,card});
+          return ghost.animate([{transform:'translate('+x+'px,'+y+'px) scale('+(deck.width/target.width)+','+(deck.height/target.height)+')',opacity:.8},{transform:'translate(0,0) scale(1)',opacity:1}],{duration:360,delay:index*70,easing:'ease-out',fill:'backwards'}).finished.catch(()=>{}).then(()=>{ghost.remove();card.style.visibility='';});
+        }));
+      }
+    }catch(error){if(core===owner)core.log('드로우 연출을 생략하고 손패를 공개합니다.');}
+    finally{
+      for(const {ghost,card} of flights){ghost.remove();card.style.visibility='';}
+      if(core===owner){drawing=false;core.revealHand();render();root.querySelector('[data-action="card"]')?.focus({preventScroll:true});}
+    }
   }
   function traitCards() {
     return s().deckTraits.map((t,index)=>'<article class="box-trait-card"><small>DECK TRAIT / Lv.'+t.level+'</small><b>'+icons(core.traitById[t.id])+esc(core.traitById[t.id].name)+'</b><p>'+esc(core.traitById[t.id].effect)+'</p>'+(['SHOP','PREP'].includes(s().phase)?button('삭제','remove-trait',index,locked())+(s().phase==='SHOP'?button('강화 '+core.price(D.boxing.traitUpgradeCost*t.level)+'냥','upgrade-trait',index,locked()||t.level>=3):''):'')+'</article>').join('');
@@ -220,7 +257,7 @@
     return '<h4>상점 · 다음 라운드를 준비하세요.</h4><div class="box-shop-columns"><section class="box-shop-area" aria-label="윷 구매와 덱 편집"><h4>'+icons({icons:['bamboo']},'윷')+'윷 구매 · 덱 편집</h4><div class="box-offers">'+st.shop.filter(o=>o.kind==='stick').map(offer).join('')+'</div><label>구매와 동시에 삭제할 윷<select id="boxReplace">'+inventoryOptions(true)+'</select></label><details class="box-deck-edit" data-box-detail="deck-edit"><summary>덱 편집 · 출전 '+st.deck.length+'/'+st.capacity+'개</summary><p>선택한 윷이 다음 라운드에 출전합니다. 최소 '+D.rules.minDeckSize+'개. 라운드 직전에 다시 조정할 수 있습니다.</p><div class="box-loadout">'+owned+'</div>'+button('출전 상한 +1 / '+core.price(D.boxing.deckCapacityCost)+'냥','capacity','',locked()||st.capacity>=D.boxing.deckCapacityMax)+'<div class="box-shop-services"><h4>윷 강화 · 삭제 · 판매</h4><label>보유 윷<select id="boxOwned">'+inventoryOptions()+'</select></label><p id="boxUpgradeInfo"></p>'+button('강화 시도','upgrade-stick','',locked())+' '+button('삭제','delete-stick','',locked())+' '+button('판매','sell-stick','',locked())+'<small>확률 강화는 유지/하락을 적용합니다. 파괴는 후속 범위입니다.</small></div></details></section><section class="box-shop-area" aria-label="특성 구매와 편집"><h4>'+icons({icons:['star']},'특성')+'특성 구매</h4><div class="box-offers">'+st.shop.filter(o=>o.kind!=='stick').map(offer).join('')+'</div><details data-box-detail="deck-traits"><summary>보유 덱 특성 '+st.deckTraits.length+'/'+D.rules.deckTraitSlots+' · 강화/삭제</summary><div class="box-traits">'+traitCards()+'</div></details></section></div><section class="box-piece-management" aria-label="말별 강화와 특성"><h4>말 관리 · 각 말에 적용</h4><div class="box-offers">'+st.templates.map(t=>{const cost=core.price(D.boxing.pieceUpgradeCost*(t.level+1));return '<article class="box-shop-card box-piece-template"><b>'+pieceIcon(t.id)+'말 '+'ABCD'[t.id]+' Lv.'+t.level+'</b><span>시작 W '+t.baseWeight+' / HP '+t.baseHealth+' / 공격 '+t.baseAttack+' / 속도 '+t.moveSpeed+'</span><small>weight 계수 HP '+fix(t.healthCoeff)+' · 공격 '+fix(t.attackCoeff)+'</small>'+button(t.level>=6?'최대 강화':'이 말 강화 '+cost+'냥','upgrade-piece',t.id,locked()||t.level>=6||st.coins<cost)+'<small>다음 라운드부터 적용</small><div>'+t.traits.map((id,index)=>'<p>'+icons(core.pieceTraitById[id])+esc(core.pieceTraitById[id].name)+' '+button('삭제','remove-piece-trait',t.id+':'+index,locked())+'</p>').join('')+(t.traits.length<D.rules.pieceTraitSlots?'<p class="box-muted">빈 특성 '+(D.rules.pieceTraitSlots-t.traits.length)+'칸</p>':'')+'</div></article>';}).join('')+'</div></section><div class="box-shop-footer">'+button('상품 다시 뽑기 '+(D.economy.rerollBase+st.rerolls*D.economy.rerollStep)+'냥','reroll','',locked())+button('다음 리스크 선택 → 출전 윷 편집','next','',locked()||st.deck.length<D.rules.minDeckSize,'box-primary')+'</div>';
   }
   function machine() {
-    return '<details class="box-tools" data-box-detail="machine"><summary>박싱 머신 · 레이어 / 고정 장면 / 저장</summary><div class="box-tool-grid"><fieldset><legend>레이어 표시</legend>'+Object.entries({frame:'UI 프레임',pieces:'말',guardians:'보스',threat:'보스 칸',specials:'특수칸'}).map(([id,name])=>'<label><input type="checkbox" data-layer-toggle="'+id+'"'+(layers[id]?' checked':'')+'> '+name+'</label>').join('')+'</fieldset><label>투척 결과<select id="boxForced"><option value="">시드 난수</option>'+D.hands.map(h=>'<option value="'+h.id+'"'+(forced===h.id?' selected':'')+'>'+esc(h.name)+' 고정</option>').join('')+'</select></label><div>별도 새 런의 확인 장면<br>'+['combat','stack','finish','failure','reward','choice','shop'].map((id,i)=>button(['보스 예측·전투','작은 말 업기','완주·초과 보상','투척 소진','라운드 결과','상점 / 추가 이자','상점 UI'][i],'scenario',id,locked())).join(' ')+'</div>'+button('장면·빌드 저장','save','',!!battle)+'<label>장면 불러오기<input type="file" id="boxScene" accept=".json,application/json"'+(battle?' disabled':'')+'></label></div><p>시드·손패·확률·재화·다음 목표는 공개합니다. 리스크 선택지·손패·상품은 난수로 뽑고, 투척 후 예측과 실제 전투는 같은 계산을 사용합니다.</p></details>';
+    return '<details class="box-tools" data-box-detail="machine"><summary>박싱 머신 · 레이어 / 고정 장면 / 저장</summary><div class="box-tool-grid"><fieldset><legend>레이어 표시</legend>'+Object.entries({frame:'UI 프레임',pieces:'말',guardians:'보스',threat:'보스 칸',specials:'특수칸'}).map(([id,name])=>'<label><input type="checkbox" data-layer-toggle="'+id+'"'+(layers[id]?' checked':'')+'> '+name+'</label>').join('')+'</fieldset><label>투척 결과<select id="boxForced"><option value="">시드 난수</option>'+D.hands.map(h=>'<option value="'+h.id+'"'+(forced===h.id?' selected':'')+'>'+esc(h.name)+' 고정</option>').join('')+'</select></label><div>별도 새 런의 확인 장면<br>'+['combat','stack','finish','failure','reward','choice','shop'].map((id,i)=>button(['보스 예측·전투','작은 말 업기','완주·초과 보상','투척 소진','라운드 결과','상점 / 추가 이자','상점 UI'][i],'scenario',id,locked())).join(' ')+'</div>'+button('장면·빌드 저장','save','',!!battle||drawing)+'<label>장면 불러오기<input type="file" id="boxScene" accept=".json,application/json"'+(battle||drawing?' disabled':'')+'></label></div><p>시드·손패·확률·재화·다음 목표는 공개합니다. 리스크 선택지·손패·상품은 난수로 뽑고, 투척 후 예측과 실제 전투는 같은 계산을 사용합니다.</p></details>';
   }
   function hpBox(value,max) {
     const percent=Math.min(100,Math.max(0,value/Math.max(1,max)*100));
@@ -279,19 +316,33 @@
     if(kind==='rules')fields=field('target','목표 점수',st.target,1,D.boxing.maxWeight)+field('score','정산 점수(장면용)',st.score,0,D.boxing.maxWeight*4)+field('tosses','남은 투척',st.tosses,0,99)+field('swaps','남은 교체',st.swaps,0,99)+field('coins','재화',st.coins,0,1000000000)+field('risk','특성 위험도',st.trait?.risk||0,0,5);
     if(kind==='unit'||kind==='boss'){
       const p=kind==='unit'?st.pieces[+id]:st.guards.find(b=>b.id===id),g=kind==='unit'?st.groups.find(g=>g.ids.includes(+id)):p;
-      fields=pos(g?.pos??null)+field('weight','현재 weight',p.weight,0,D.boxing.maxWeight)+field('hp','현재 HP',p.hp,0,D.boxing.maxWeight)+
-        field('baseHealth','기본 HP',p.baseHealth,1,1000000,.01)+field('baseAttack','기본 공격',p.baseAttack,0,1000000,.01)+field('healthCoeff','weight → HP 계수',p.healthCoeff,0,5,.01)+field('attackCoeff','weight → 공격 계수',p.attackCoeff,0,5,.01)+field('healthFactor','윷/보스 HP 배율',p.healthFactor,.1,10,.01)+field('attackFactor','윷/보스 공격 배율',p.attackFactor,.1,10,.01)+(kind==='unit'?field('moveSpeed','기본 이동속도',p.moveSpeed,1,6)+field('moveBonus','라운드 이동 보너스',p.moveBonus||0,-2,3):'')+
-        '<p class="box-muted">현재 최대 HP '+num(core.stats(p).maxHp)+' / 공격 '+num(core.stats(p).attack)+'. 수치 변경 후 HP는 새 최대 HP 이하로 적용합니다. 말 HP/weight가 0이면 사망입니다.</p>';
-      if(kind==='unit')fields+='<label><input type="checkbox" data-edit="persist"> 기본 능력치·계수를 이후 라운드 원형에도 반영</label>';
+      fields=pos(g?.pos??null)+field('weight','weight',p.weight,0,D.boxing.maxWeight)+field('baseHealth','기본 HP',p.baseHealth,1,1000000,.01)+field('baseAttack','기본 공격',p.baseAttack,0,1000000,.01)+field('healthScale','추가 HP 배율',p.healthScale??1,.1,10,.1)+field('attackScale','추가 공격 배율',p.attackScale??1,.1,10,.1)+(kind==='unit'?field('moveSpeed','기본 이동속도',p.moveSpeed,1,6)+field('moveBonus','라운드 이동 보너스',p.moveBonus||0,-2,3):'')+
+        '<output id="boxDerivedStats" class="box-derived-stats" aria-live="polite"></output><p class="box-muted">현재 HP·최대 HP·공격은 계산 결과이며 직접 입력하지 않습니다. 받은 피해량을 유지합니다. 고정 weight 계수 HP '+fix(p.healthCoeff)+' / 공격 '+fix(p.attackCoeff)+' · 윷/보스 HP ×'+fix(p.healthFactor)+' / 공격 ×'+fix(p.attackFactor)+'. 추가 배율은 윷 결과에 덮어쓰이지 않습니다.</p>';
+      if(kind==='unit')fields+='<label><input type="checkbox" data-edit="persist"> 기본값·추가 배율을 이후 라운드 원형에도 반영</label>';
     }
     if(kind==='master')fields=field('cycle','갱신 주기(턴)',st.master.cycle,1,9)+'<label>현재 판 전체 특성<select data-edit="roundTrait">'+D.roundTraits.map(t=>'<option value="'+t.id+'"'+(core.currentPlan().roundTraitId===t.id?' selected':'')+'>'+esc(t.name+' · '+t.effect)+'</option>').join('')+'</select></label>'+button('특수칸 추가','add-tile');
     if(kind==='tile'){const tile=core.currentPlan().tiles.find(t=>t.pos===id);fields=pos(tile.pos)+'<label>종류<select data-edit="tileType">'+D.specialTiles.map(t=>'<option value="'+t.id+'"'+(tile.type===t.id?' selected':'')+'>'+esc(t.name+' · '+t.effect)+'</option>').join('')+'</select></label>'+button('이 특수칸 삭제','delete-tile',id);}
-    return '<div class="box-editor"><h4>장면 편집 · 진행 일시정지</h4><label>편집 대상<select id="boxEditObject">'+opts.map(([value,text])=>'<option value="'+value+'"'+(selection===value?' selected':'')+'>'+esc(text)+'</option>').join('')+'</select></label><div class="box-editor-grid">'+fields+'</div>'+button('변경 적용','apply-edit','','','box-primary')+' '+button('장면 저장','save')+'<p class="box-editor-message" role="status">'+esc(message)+'</p><p class="box-muted">칸은 시각 좌표, 말·보스는 가까운 칸으로 드래그합니다. 말 위치를 바꾸면 해당 묶음의 빽도 이력을 다시 구성합니다. 위험도 변경은 보스의 기본 체력·공격 계수를 재계산합니다.</p></div>';
+    return '<div class="box-editor"><h4>장면 편집 · 진행 일시정지</h4><label>편집 대상<select id="boxEditObject">'+opts.map(([value,text])=>'<option value="'+value+'"'+(selection===value?' selected':'')+'>'+esc(text)+'</option>').join('')+'</select></label><div class="box-editor-grid">'+fields+'</div>'+button('변경 적용','apply-edit','','','box-primary')+' '+button('장면 저장','save')+'<p class="box-editor-message" role="status">'+esc(message)+'</p><p class="box-muted">칸은 시각 좌표, 말·보스는 가까운 칸으로 드래그합니다. 말 위치를 바꾸면 해당 묶음의 빽도 이력을 다시 구성합니다. 위험도는 보스 HP·공격 배율에 한 번만 반영하고 편집한 기본값·추가 배율은 유지합니다.</p></div>';
   }
   function warp(g,pos) {
     g.pos=pos;if(pos==null){g.route='outer';g.history=[];return;}
     if(!D.board.routes[g.route].includes(pos))g.route=Object.keys(D.board.routes).find(r=>D.board.routes[r].includes(pos));
     g.history=D.board.routes[g.route].slice(0,D.board.routes[g.route].indexOf(pos)).map(p=>({pos:p==='0'?null:p,route:g.route}));
+  }
+  function unitEditValues() {
+    const keys=['weight','baseHealth','baseAttack','healthScale','attackScale','moveSpeed','moveBonus'],values={};
+    for(const el of root.querySelectorAll('[data-edit]'))if(keys.includes(el.dataset.edit)){
+      const value=el.valueAsNumber;
+      if(!Number.isFinite(value)||value<+el.min||value>+el.max||(el.step==='1'&&!Number.isInteger(value)))throw new Error(el.parentElement.textContent.trim()+' 범위를 확인하세요.');
+      values[el.dataset.edit]=value;
+    }
+    return values;
+  }
+  function updateUnitNumbers() {
+    const box=root.querySelector('#boxDerivedStats');if(!box)return;
+    const [kind,id]=selection.split(':'),p=kind==='unit'?s().pieces[+id]:s().guards.find(b=>b.id===id);
+    try{const next=core.retune(p,unitEditValues()),value=core.stats(next);box.innerHTML='<b>적용 예정 · HP '+num(next.hp)+' / '+num(value.maxHp)+' · 공격 '+num(value.attack)+'</b><small>현재 HP '+num(p.hp)+' / '+num(core.stats(p).maxHp)+' · 공격 '+num(core.stats(p).attack)+' · 변경 적용 전 미리보기</small>';}
+    catch(error){box.textContent=error.message;}
   }
   function applyEdit() {
     if(!edit)return;
@@ -305,24 +356,23 @@
       }
       if(kind==='node'){const x=read('x',0,5.65),y=read('y',0,7.3);Object.assign(nodes[id],{x,y});}
       if(kind==='rules'){
-        if(!['SELECT','MOVE'].includes(st.phase))throw new Error('출전 후 자원을 편집하세요.');
+        if(!['DRAW','REVEAL','SELECT','MOVE'].includes(st.phase))throw new Error('출전 후 자원을 편집하세요.');
         const next={target:read('target',1,D.boxing.maxWeight,true),score:read('score',0,D.boxing.maxWeight*4,true),tosses:read('tosses',0,99,true),swaps:read('swaps',0,99,true),coins:read('coins',0,1000000000,true)};
         const r=read('risk',0,5,true),oldRisk=st.trait.risk;Object.assign(st,next);st.trait={...st.trait,risk:r};
-        if(r!==oldRisk){const fresh=core.bossUnits();for(const b of st.guards){const next=fresh.find(n=>n.id===b.id);if(next){const missing=core.stats(b).maxHp-b.hp,position=b.pos,dead=b.hp===0;Object.assign(b,next,{pos:position,hp:dead?0:Math.max(1,core.stats(next).maxHp-missing)});}}}
+        if(r!==oldRisk){const fresh=core.bossUnits();for(const b of st.guards){const base=fresh.find(n=>n.id===b.id);if(base)Object.assign(b,core.retune(b,{healthFactor:base.healthFactor,attackFactor:base.attackFactor}));}}
       }
       if(kind==='master'){const cycle=read('cycle',1,9,true);if(!D.roundTraits.some(t=>t.id===values.roundTrait))throw new Error('없는 판 전체 특성입니다.');st.master.cycle=cycle;core.currentPlan().roundTraitId=values.roundTrait;}
       if(kind==='tile'){const tile=core.currentPlan().tiles.find(t=>t.pos===id);if(!Object.hasOwn(nodes,values.pos)||values.pos==='END'||nodes[values.pos].aliasOf||!D.specialTiles.some(t=>t.id===values.tileType)||core.currentPlan().tiles.some(t=>t!==tile&&t.pos===values.pos))throw new Error('특수칸의 위치·종류·중복을 확인하세요.');tile.pos=values.pos;tile.type=values.tileType;selection='tile:'+tile.pos;}
       if(kind==='unit'||kind==='boss'){
         const p=kind==='unit'?st.pieces[+id]:st.guards.find(b=>b.id===id);
-        const next={weight:read('weight',0,D.boxing.maxWeight,true),hp:read('hp',0,D.boxing.maxWeight,true),baseHealth:read('baseHealth',1,1000000),baseAttack:read('baseAttack',0,1000000),healthCoeff:read('healthCoeff',0,5),attackCoeff:read('attackCoeff',0,5),healthFactor:read('healthFactor',.1,10),attackFactor:read('attackFactor',.1,10)};
+        const changes=unitEditValues(),next=core.retune(p,changes);
         const position=values.pos==='WAIT'?null:values.pos;if(position!=null&&(!Object.hasOwn(nodes,position)||position==='END'||(kind==='boss'&&nodes[position].aliasOf)))throw new Error('유효한 칸을 선택하세요.');if(kind==='boss'&&position==null)throw new Error('보스는 칸에 배치해야 합니다.');
-        if(kind==='unit'){next.moveSpeed=read('moveSpeed',1,6,true);next.moveBonus=read('moveBonus',-2,3,true);}
-        Object.assign(p,next);p.hp=Math.min(p.hp,core.stats(p).maxHp);
+        Object.assign(p,next);
         if(kind==='boss')p.pos=position;
         else {
           p.dead=p.hp===0||p.weight===0;if(p.dead){p.hp=0;p.weight=0;for(const g of st.groups)g.ids=g.ids.filter(v=>v!==p.id);st.groups=st.groups.filter(g=>g.ids.length);}
           else {let g=st.groups.find(g=>g.ids.includes(p.id));if(!g){g={id:Math.max(3,...st.groups.map(g=>g.id))+1,ids:[p.id],pos:null,route:'outer',history:[]};st.groups.push(g);}warp(g,position);}
-          if(values.persist)Object.assign(st.templates[p.id],{baseWeight:Math.max(1,p.weight),baseHealth:p.baseHealth,baseAttack:p.baseAttack,healthCoeff:p.healthCoeff,attackCoeff:p.attackCoeff,moveSpeed:p.moveSpeed});
+          if(values.persist)Object.assign(st.templates[p.id],{baseWeight:Math.max(1,changes.weight),baseHealth:p.baseHealth,baseAttack:p.baseAttack,healthCoeff:p.healthCoeff,attackCoeff:p.attackCoeff,healthScale:p.healthScale??1,attackScale:p.attackScale??1,moveSpeed:p.moveSpeed});
         }
       }
       core.updateRecord(st);core.log('[편집] '+selection+' 적용.');core.touched();message='적용했습니다. 편집 종료 후 같은 장면에서 플레이하세요.';
@@ -349,10 +399,10 @@
     const owned=new Set(q.collection.map(i=>i.uid));
     for(const key of ['deck','hand','draw','selected'])check(list(q[key],16)&&q[key].every(uid=>owned.has(uid))&&new Set(q[key]).size===q[key].length,'덱/손패 값 오류');
     check(q.deck.length<=q.capacity&&q.selected.length<=4&&q.selected.every(uid=>q.hand.includes(uid)),'출전 구성/선택 값 오류');
-    if(['SELECT','MOVE'].includes(q.phase)){const pool=[...q.hand,...q.draw];check(q.deck.length>=4&&pool.length===q.deck.length&&new Set(pool).size===pool.length&&pool.every(uid=>q.deck.includes(uid)),'손패와 셔플 덱의 구성이 다릅니다.');}
+    if(['DRAW','REVEAL','SELECT','MOVE'].includes(q.phase)){const pool=[...q.hand,...q.draw];check(q.deck.length>=4&&pool.length===q.deck.length&&new Set(pool).size===pool.length&&pool.every(uid=>q.deck.includes(uid)),'손패와 셔플 덱의 구성이 다릅니다.');}
     check(list(q.deckTraits,3)&&q.deckTraits.every(t=>Object.hasOwn(core.traitById,t.id)&&integer(t.level,1,3))&&new Set(q.deckTraits.map(t=>t.id)).size===q.deckTraits.length,'덱 특성 값 오류');
     const validTraits=traits=>list(traits,2)&&traits.every(id=>Object.hasOwn(core.pieceTraitById,id))&&new Set(traits).size===traits.length;
-    const baseUnit=p=>p&&number(p.baseHealth,1,1000000)&&number(p.baseAttack,0,1000000)&&number(p.healthCoeff,0,5)&&number(p.attackCoeff,0,5)&&(p.moveSpeed==null||integer(p.moveSpeed,1,6))&&validTraits(p.traits);
+    const baseUnit=p=>p&&(p.healthScale==null||number(p.healthScale,.1,10))&&(p.attackScale==null||number(p.attackScale,.1,10))&&number(p.baseHealth,1,1000000)&&number(p.baseAttack,0,1000000)&&number(p.healthCoeff,0,5)&&number(p.attackCoeff,0,5)&&(p.moveSpeed==null||integer(p.moveSpeed,1,6))&&validTraits(p.traits);
     check(list(q.templates,4)&&q.templates.length===4&&q.templates.every((p,i)=>p.id===i&&integer(p.level,0,6)&&number(p.baseWeight,1,D.boxing.maxWeight)&&baseUnit(p)&&integer(p.moveSpeed,1,6)),'말 원형 값 오류');
     const liveUnit=p=>baseUnit(p)&&number(p.weight,0,D.boxing.maxWeight)&&number(p.healthFactor,.1,10)&&number(p.attackFactor,.1,10)&&number(p.hp,0,core.stats(p).maxHp);
     check(list(q.pieces,4)&&q.pieces.every((p,i)=>p.id===i&&liveUnit(p)&&typeof p.dead==='boolean'&&typeof p.settled==='boolean'&&integer(p.moveSpeed,1,6)&&integer(p.moveBonus,-2,3)&&(p.dead?(p.hp===0&&p.weight===0):(p.hp>0&&p.weight>0))&&list(p.effects,10000)),'라운드 말 값 오류');
@@ -361,7 +411,7 @@
     check(list(q.guards,5)&&q.guards.every(b=>liveUnit(b)&&/^boss-[0-4]$/.test(b.id)&&D.guardians.some(d=>d.id===b.kind)&&['shortcut','gate','extra'].includes(b.role)&&typeof b.name==='string'&&b.name.length<80&&Object.hasOwn(nodes,b.pos)&&b.pos!=='END'&&!nodes[b.pos].aliasOf)&&new Set(q.guards.map(b=>b.id)).size===q.guards.length,'보스 값 오류');
     check(list(q.riskOffers,3)&&q.riskOffers.every(id=>D.riskChoices.some(t=>t.id===id))&&list(q.charms,5)&&q.charms.every(id=>D.shopPool.charms.includes(id)),'특성 선택지/부적 값 오류');
     if(q.trait)check(D.riskChoices.some(t=>t.id===q.trait.id)&&integer(q.trait.risk,0,5)&&number(q.trait.targetX,.1,10)&&number(q.trait.rewardX,.1,10),'라운드 특성 값 오류');
-    if(['PREP','SELECT','MOVE','REWARD','CHOICE','SHOP','WIN','LOSE'].includes(q.phase))check(!!q.trait,'선택한 라운드 특성이 없습니다.');
+    if(['PREP','DRAW','REVEAL','SELECT','MOVE','REWARD','CHOICE','SHOP','WIN','LOSE'].includes(q.phase))check(!!q.trait,'선택한 라운드 특성이 없습니다.');
     if(q.phase==='MOVE')check(q.pending&&list(q.pending.items,4)&&q.pending.items.length===4&&new Set(q.pending.items).size===4&&q.pending.items.every(uid=>owned.has(uid))&&list(q.pending.faces,4)&&q.pending.faces.length===4&&q.pending.faces.every(f=>['flat','back'].includes(f))&&D.hands.some(h=>h.id===q.pending.hand?.id),'투척 결과 값 오류');
     check(list(q.shop,3)&&q.shop.every(o=>integer(o.index,0,2)&&['stick','deckTrait','pieceTrait','charm'].includes(o.kind)&&typeof o.sold==='boolean'&&(o.kind==='stick'?D.shopPool.sticks:o.kind==='deckTrait'?D.shopPool.deckTraits:o.kind==='pieceTrait'?D.shopPool.pieceTraits:D.shopPool.charms).includes(o.ref))&&integer(q.rerolls,0,10000),'상점 값 오류');
     if(['REWARD','CHOICE'].includes(q.phase))check(q.reward&&['base','remaining','interest','overflow','bonus','sum'].every(key=>number(q.reward[key]))&&q.reward.sum===q.reward.base+q.reward.remaining+q.reward.interest+q.reward.bonus,'보상 값 오류');
@@ -369,12 +419,17 @@
     check(integer(ui.scoreWidth,140,280)&&integer(ui.intelWidth,150,300)&&integer(ui.fontSize,12,20)&&/^#[0-9a-f]{6}$/i.test(ui.accent),'UI 값 오류');
     check(list(data.nodes,Object.keys(nodes).length)&&data.nodes.length===Object.keys(nodes).length&&new Set(data.nodes.map(n=>n.id)).size===data.nodes.length&&data.nodes.every(n=>Object.hasOwn(nodes,n.id)&&number(n.x,0,5.65)&&number(n.y,0,7.3)),'보드 좌표 값 오류');
     check(data.forced===''||D.hands.some(h=>h.id===data.forced),'고정 결과 값 오류');
-    if(['SELECT','MOVE','REWARD','CHOICE','SHOP','WIN','LOSE'].includes(q.phase))check(q.pieces.length===4&&q.guards.length>=2,'라운드 말·보스 구성이 필요합니다.');
+    if(['DRAW','REVEAL','SELECT','MOVE','REWARD','CHOICE','SHOP','WIN','LOSE'].includes(q.phase))check(q.pieces.length===4&&q.guards.length>=2,'라운드 말·보스 구성이 필요합니다.');
     if(q.master)check(integer(q.master.cycle,1,9)&&list(q.master.plans,36)&&q.master.plans.length>0&&integer(q.master.index,0,q.master.plans.length-1)&&q.master.plans.every(p=>D.roundTraits.some(t=>t.id===p.roundTraitId)&&list(p.tiles,8)&&new Set(p.tiles.map(t=>t.pos)).size===p.tiles.length&&p.tiles.every(t=>Object.hasOwn(nodes,t.pos)&&t.pos!=='END'&&!nodes[t.pos].aliasOf&&D.specialTiles.some(d=>d.id===t.type))),'마스터 계획 값 오류');
-    if(['SELECT','MOVE','REWARD','CHOICE','SHOP','WIN','LOSE'].includes(q.phase))check(!!q.master,'마스터 계획이 없습니다.');
+    if(['DRAW','REVEAL','SELECT','MOVE','REWARD','CHOICE','SHOP','WIN','LOSE'].includes(q.phase))check(!!q.master,'마스터 계획이 없습니다.');
     check(q.activeGroupId==null||integer(q.activeGroupId,0,1000000),'진행 말 값 오류');
     if(q.lastTurn)check(integer(q.lastTurn.turn,0,10000)&&typeof q.lastTurn.hand==='string'&&q.lastTurn.hand.length<20&&typeof q.lastTurn.group==='string'&&q.lastTurn.group.length<20&&['n','m','x','gain','weightBefore','weightAfter','scoreGain'].every(k=>number(q.lastTurn[k]))&&position(q.lastTurn.arrival),'직전 결과 값 오류');
-    const restored=structuredClone(q);restored.serial=Math.max(restored.serial,...q.collection.map(i=>i.uid),0);
+    if(q.handFlow!=null)check(q.handFlow===1,'손패 단계 버전 오류');
+    if(q.lastDraw!=null)check(list(q.lastDraw,16)&&new Set(q.lastDraw).size===q.lastDraw.length&&q.lastDraw.every(uid=>q.hand.includes(uid)),'드로우 기록 값 오류');
+    if(['DRAW','REVEAL'].includes(q.phase))check(q.selected.length===0,'공개 전에는 윷을 선택할 수 없습니다.');
+    const restored=structuredClone(q);
+    if(q.handFlow!==1&&q.phase==='SELECT'){restored.phase='REVEAL';restored.selected=[];restored.lastDraw=[...q.hand];}
+    restored.lastDraw??=[];restored.serial=Math.max(restored.serial,...q.collection.map(i=>i.uid),0);
     if(restored.pending)restored.pending.hand=D.hands.find(h=>h.id===restored.pending.hand.id);
     if(restored.trait)restored.trait={...D.riskChoices.find(t=>t.id===restored.trait.id),risk:restored.trait.risk};
     core.replaceState(restored);Object.assign(layout,{scoreWidth:ui.scoreWidth,intelWidth:ui.intelWidth,fontSize:ui.fontSize,accent:ui.accent});for(const n of data.nodes)Object.assign(nodes[n.id],{x:n.x,y:n.y});for(const key of Object.keys(layers))if(typeof data.layers?.[key]==='boolean')layers[key]=data.layers[key];
@@ -383,20 +438,20 @@
   function render() {
     const openDetails=new Set([...root.querySelectorAll('details[data-box-detail][open]')].map(el=>el.dataset.boxDetail));
     const focused=document.activeElement?.closest('[data-action]'),focusAction=focused?.dataset.action,focusValue=focused?.dataset.value;
-    const st=s(),focus=root.contains(document.activeElement),play=['SELECT','MOVE'].includes(st.phase),showBoard=play||edit;
-    root.classList.toggle('editing',edit);root.classList.toggle('board-wide',boardWide);root.style.setProperty('--box-score-width',layout.scoreWidth+'px');root.style.setProperty('--box-intel-width',layout.intelWidth+'px');root.style.setProperty('--box-accent',layout.accent);root.style.fontSize=layout.fontSize+'px';
-    const toolbar='<div class="box-top"><div><span class="box-eyebrow">YUTOCHESS / WEIGHT × POWER</span><h3>윷토체스</h3><p>업고, 곱하고, 돌파한다.</p></div><details class="box-header-tools"><summary>시드·새 런</summary><label>런 시드<input id="boxSeed" type="number" min="0" max="4294967295" value="'+st.seed+'"></label>'+button('메뉴 / 새 런','reset','',!!battle)+'</details>'+button(edit?'편집 종료 → 플레이':'편집 모드','editor','',!!battle)+'</div>';
+    const st=s(),focus=root.contains(document.activeElement),play=['DRAW','REVEAL','SELECT','MOVE'].includes(st.phase),showBoard=play||edit;
+    root.classList.toggle('next-preview-open',nextPreviewOpen);root.classList.toggle('editing',edit);root.classList.toggle('board-wide',boardWide);root.style.setProperty('--box-score-width',layout.scoreWidth+'px');root.style.setProperty('--box-intel-width',layout.intelWidth+'px');root.style.setProperty('--box-accent',layout.accent);root.style.fontSize=layout.fontSize+'px';
+    const toolbar='<div class="box-top"><div><span class="box-eyebrow">YUTOCHESS / WEIGHT × POWER</span><h3>윷토체스</h3><p>업고, 곱하고, 돌파한다.</p></div><details class="box-header-tools"><summary>시드·새 런</summary><label>런 시드<input id="boxSeed" type="number" min="0" max="4294967295" value="'+st.seed+'"></label>'+button('메뉴 / 새 런','reset','',!!battle||drawing)+'</details>'+button(edit?'편집 종료 → 플레이':'편집 모드','editor','',!!battle||drawing)+'</div>';
     const status=st.phase==='MENU'?'':'<div class="box-status" aria-live="polite"><b>'+core.row().act+'막 · '+core.row().id+'</b><span>'+phaseNames[st.phase]+'</span>'+(play?'<span>투척 '+st.tosses+' / 교체 '+st.swaps+'</span><span>출전 '+st.deck.length+'/'+st.capacity+'</span>':'')+(st.practice?'<b>연습 · 첫 3턴만 고정</b>':'')+'</div>';
-    const loop=st.phase==='MENU'?'':'<div class="box-loop">'+['TRAIT','PREP','SELECT','REWARD','CHOICE','SHOP'].map((p,i)=>'<span>'+(i?' → ':'')+((st.phase===p||(p==='SELECT'&&st.phase==='MOVE'))?'<b>':'')+esc({TRAIT:'리스크 선택',PREP:'출전 편집',SELECT:'PvE',REWARD:'라운드 결과',CHOICE:'상점 / 추가 이자',SHOP:'상점'}[p])+((st.phase===p||(p==='SELECT'&&st.phase==='MOVE'))?'</b>':'')+'</span>').join('')+'</div>';
-    const hints=['던지기 한 번으로 이동합니다. 작은 말을 큰 말에 업어 보세요.','업으면 보유점수와 다음 배율이 커집니다. 한 번 더 던져 보세요.','갈림길에서만 길을 고릅니다. 수문장에 멈추면 HP 전투!'];
+    const loop=st.phase==='MENU'?'':'<div class="box-loop">'+['TRAIT','PREP','SELECT','REWARD','CHOICE','SHOP'].map((p,i)=>'<span>'+(i?' → ':'')+((st.phase===p||(p==='SELECT'&&['DRAW','REVEAL','MOVE'].includes(st.phase)))?'<b>':'')+esc({TRAIT:'리스크 선택',PREP:'출전 편집',SELECT:'PvE',REWARD:'라운드 결과',CHOICE:'상점 / 추가 이자',SHOP:'상점'}[p])+((st.phase===p||(p==='SELECT'&&['DRAW','REVEAL','MOVE'].includes(st.phase)))?'</b>':'')+'</span>').join('')+'</div>';
+    const hints=['드로우 → 손패 공개 → 4개 선택. 작은 말을 큰 말에 업어 보세요.','다시 손패를 보충하고 던질 윷을 직접 고릅니다.','손패 선택 뒤 투척합니다. 갈림길에서만 길을 고르고 도착 칸에서 전투합니다.'];
     const hintIndex=Math.min(2,Math.max(0,st.phase==='MOVE'?st.turn-1:st.turn));
     const intro=play&&st.round===0&&(st.turn<3||st.phase==='MOVE'&&st.turn<=3)?'<div class="box-hook"><b>'+(st.practice?'체험 '+(hintIndex+1)+'/3 · '+D.hands.find(h=>h.id===D.onboarding.firstThreeHands[hintIndex]).name+' 고정 — ':'')+hints[hintIndex]+'</b>'+(st.practice?button('체험 종료 · 실제 런 시작','start-real'):'')+'</div>':st.practice?'<div class="box-hook"><b>3턴 체험 이후는 시드 난수입니다.</b>'+button('실제 런 시작','start-real','','','box-primary')+'</div>':'';
-    const game=showBoard?handPanel()+'<div class="box-layout"><aside class="box-score">'+roster()+'</aside><div class="box-board">'+mapTools()+'<div class="box-map-viewport" tabindex="0" role="region" aria-label="윷판 지도">'+board()+'</div><section id="boxRouteInspector" class="box-route-inspector" aria-live="polite">'+routeInspector()+'</section><p class="box-board-key">● 내 말　■ 보스　◇ 특수칸</p></div><aside class="box-intel">'+intel()+'</aside></div>':'';
+    const game=showBoard?turnResult()+'<div class="box-layout"><aside class="box-score">'+roster()+'</aside><div class="box-board">'+mapTools()+'<div class="box-map-viewport" tabindex="0" role="region" aria-label="윷판 지도">'+board()+'</div><section id="boxRouteInspector" class="box-route-inspector" aria-live="polite">'+routeInspector()+'</section><p class="box-board-key">● 내 말　■ 보스　◇ 특수칸</p></div><aside class="box-intel">'+movementPanel()+intel()+'</aside></div><div class="box-play-controls" aria-label="하단 덱과 손패 조작">'+handPanel()+'</div>':'';
     const compact=!showBoard&&st.phase!=='MENU'?'<div class="box-wallet"><div><small>현재 가진 금액</small><b>'+st.coins+'냥</b></div><div><small>다음 라운드 예상 이자</small><b>+'+core.interest()+'냥</b></div></div>':'';
     root.innerHTML=toolbar+loop+status+(play?summary():'')+intro+(!play&&st.phase==='LOSE'&&st.lastTurn?turnResult():'')+compact+(edit?editorPanel():'')+(showBoard?(st.master&&st.round===0&&st.turn<=3?'<details class="box-master-fold" data-box-detail="master"><summary>마스터 · '+esc(core.field().effect)+'</summary>'+masterPanel()+'</details>':masterPanel()):'')+game+'<div class="box-stage">'+stage()+'</div>'+
       (st.log.length&&st.phase!=='MENU'?'<p class="box-feedback" aria-live="polite">'+esc(st.log.at(-1).message)+'</p>':'')+machine()+'<details class="box-events"><summary>상세 사건 기록 · '+st.log.length+'건</summary><ol>'+st.log.slice(-50).reverse().map(e=>'<li><small>'+esc(e.round)+' / '+e.turn+'T</small> '+esc(e.message)+'</li>').join('')+'</ol></details>'+animationPanel();
     for(const el of root.querySelectorAll('details[data-box-detail]'))el.open=openDetails.has(el.dataset.boxDetail);
-    updateUpgradeInfo();refreshPathPreview();
+    updateUpgradeInfo();updateUnitNumbers();refreshPathPreview();
     if(battle)root.querySelector('.box-battle-actions button')?.focus({preventScroll:true});else if(focus){const next=[...root.querySelectorAll('[data-action]')].find(el=>el.dataset.action===focusAction&&el.dataset.value===focusValue&&!el.disabled);(next||root).focus({preventScroll:true});}
   }
   function updateUpgradeInfo() {
@@ -407,11 +462,13 @@
     const object=event.target.closest('[data-edit-kind]');if(edit&&object){selection=object.dataset.editKind+':'+object.dataset.editId;render();return;}
     const target=event.target.closest('[data-action]');if(!target||target.disabled)return;const action=target.dataset.action,value=target.dataset.value;
     if(action==='skip-battle'){finishAnimation();return;}
-    if(action==='close-battle'&&battle?.done){battle=null;render();return;}
-    if(battle)return;
+    if(action==='close-battle'&&battle?.done){battle=null;render();if(s().phase==='DRAW')root.querySelector('[data-action="draw-hand"]')?.focus();return;}
+    if(battle||drawing)return;
     if(action==='editor'){previewChoice=null;inspectedPos=null;edit=!edit;message='';if(!edit){core.reconcile();resolveRoll();}else render();return;}
     if(action==='save'){saveScene();return;}
     if(action==='map-size'){boardWide=!boardWide;render();return;}
+    if(action==='toggle-next'){nextPreviewOpen=!nextPreviewOpen;previewChoice=null;inspectedPos=null;render();return;}
+    if(action==='previous-next'||action==='next-next'){const rows=movementRows();nextPreviewIndex=Math.max(0,Math.min(rows.length-1,nextPreviewIndex+(action==='next-next'?1:-1)));previewChoice=null;inspectedPos=null;render();return;}
     if(action==='clear-preview'){previewChoice=null;inspectedPos=null;refreshPathPreview();return;}
     if(action==='inspect-space'&&!edit){inspectedPos=value;refreshPathPreview();return;}
     if(action==='preview-path'){const explicit=event.detail===0||event.pointerType==='touch';showPathPreview(+target.dataset.previewGroup,value,explicit?'explicit':'pointer');if(explicit)root.querySelector('.box-map-viewport')?.scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});return;}
@@ -419,7 +476,7 @@
     if(edit&&action==='delete-tile'){const p=core.currentPlan();p.tiles=p.tiles.filter(t=>t.pos!==value);selection='master:stage';core.touched();render();return;}
     if(action==='apply-edit'){applyEdit();return;}
     if(edit&&action!=='reset')return;
-    previewChoice=null;inspectedPos=null;
+    previewChoice=null;inspectedPos=null;nextPreviewIndex=0;
     switch(action){
       case 'reset':core.reset(Number(root.querySelector('#boxSeed').value)||0);edit=false;forced='';hover=null;break;
       case 'start-real':quickRun();break;
@@ -431,6 +488,8 @@
       case 'risk':core.chooseRisk(value);break;
       case 'loadout':core.toggleDeck(+value);break;
       case 'start':core.startRound();break;
+      case 'draw-hand':drawCards();return;
+      case 'reveal-hand':core.revealHand();render();root.querySelector('[data-action="card"]')?.focus({preventScroll:true});return;
       case 'card':core.select(+value);break;
       case 'swap':core.swap();break;
       case 'toss':tossAndMove();return;
@@ -452,6 +511,7 @@
       case 'scenario':core.scenario(value);forced='do';hover=null;break;
     }
     render();
+    if(s().phase==='DRAW'&&['quickstart','start-real','practice','start','swap','scenario'].includes(action))root.querySelector('[data-action="draw-hand"]')?.focus();
   });
   root.addEventListener('pointerover',event=>{
     if(event.pointerType==='touch')return;
@@ -470,8 +530,9 @@
     if(next&&+next.dataset.previewGroup===previewChoice.groupId&&next.dataset.previewKey===previewChoice.key)return;
     previewChoice=null;refreshPathPreview();
   });
+  root.addEventListener('input',event=>{if(event.target.matches('[data-edit]'))updateUnitNumbers();});
   root.addEventListener('change',async event=>{
-    if(battle)return;
+    if(battle||drawing)return;
     const el=event.target;
     if(el.id==='boxForced'){forced=el.value;return;}
     if(el.id==='boxOwned'){updateUpgradeInfo();return;}
@@ -482,13 +543,13 @@
   root.addEventListener('keydown',event=>{
     if(event.target.matches('input,select,textarea,summary'))return;
     if(battle){if(event.key==='Tab'){const buttons=[...root.querySelectorAll('.box-battle-actions button:not(:disabled)')];if(buttons.length){event.preventDefault();const at=buttons.indexOf(document.activeElement),next=(at+(event.shiftKey?-1:1)+buttons.length)%buttons.length;buttons[next].focus();}}if(event.key==='Escape'){if(battle.done){battle=null;render();}else finishAnimation();}return;}
-    if(edit)return;
+    if(edit||drawing)return;
     if(event.key==='Escape'){event.preventDefault();previewChoice=null;inspectedPos=null;refreshPathPreview();return;}
     const mapNode=event.target.closest('[data-action="inspect-space"]');if(mapNode&&['Enter',' '].includes(event.key)){event.preventDefault();inspectedPos=mapNode.dataset.value;refreshPathPreview();return;}
     const token=event.target.closest('.box-piece');if(token&&['Enter',' '].includes(event.key)){event.preventDefault();core.setActive(+token.dataset.value);render();return;}
     if(s().phase==='SELECT'&&event.key===' '&&!event.target.closest('button,a,[role="button"],.box-map-viewport')){event.preventDefault();tossAndMove();}
     if(s().phase==='SELECT'&&event.key.toLowerCase()==='r'){core.swap();render();}
-    if(s().phase==='SELECT'&&/^[1-6]$/.test(event.key)&&s().hand[+event.key-1]){core.select(s().hand[+event.key-1]);const panel=root.querySelector('.box-hand-edit');if(panel)panel.open=true;render();}
+    if(s().phase==='SELECT'&&/^[1-6]$/.test(event.key)&&s().hand[+event.key-1]){core.select(s().hand[+event.key-1]);render();}
   });
   root.addEventListener('pointerdown',event=>{
     if(!edit||event.button!==0||battle)return;const target=event.target.closest('[data-edit-kind]');if(!target)return;
@@ -508,6 +569,6 @@
   function endDrag(event){if(!drag||event.pointerId!==drag.pointer)return;if(root.hasPointerCapture(drag.pointer))root.releasePointerCapture(drag.pointer);if(drag.moved){core.log('[편집] '+selection+' 드래그 배치.');core.touched();}drag=null;render();}
   root.addEventListener('pointerup',endDrag);root.addEventListener('pointercancel',endDrag);
   window.YutoBoxing={icons,mount(data){
-    if(timer!=null)clearTimeout(timer);battle=null;D=data;previewChoice=null;inspectedPos=null;boardWide=false;core=window.YutoCore.create(data);nodes=Object.fromEntries(D.board.nodes.map(n=>[n.id,{...n}]));edit=false;forced='';hover=null;message='';render();
+    if(timer!=null)clearTimeout(timer);battle=null;drawing=false;D=data;nextPreviewOpen=false;nextPreviewIndex=0;previewChoice=null;inspectedPos=null;boardWide=false;core=window.YutoCore.create(data);nodes=Object.fromEntries(D.board.nodes.map(n=>[n.id,{...n}]));edit=false;forced='';hover=null;message='';render();
   }};
 })();

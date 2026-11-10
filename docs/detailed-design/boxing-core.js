@@ -17,23 +17,31 @@
     const name=g=>g.ids.map(id=>'ABCD'[id]).join('+');
     const carrier=(g,st=s)=>[...g.ids].sort((a,b)=>st.pieces[b].weight-st.pieces[a].weight||a-b)[0];
     const activeGroup=(st=s)=>living(st).find(g=>g.id===st.activeGroupId)||[...living(st)].sort((a,b)=>weight(b,st)-weight(a,st)||a.id-b.id)[0]||null;
-    function setActive(gid){if(s.phase==='SELECT'&&living().some(g=>g.id===gid)){s.activeGroupId=gid;touched();}}
+    function setActive(gid){if(['DRAW','REVEAL','SELECT'].includes(s.phase)&&living().some(g=>g.id===gid)){s.activeGroupId=gid;touched();}}
     const sumTrait=(key,st=s)=>st.deckTraits.reduce((n,t)=>n+(traitById[t.id][key]||0)*t.level,0);
     const pieceFactor=(p,key)=>p.traits.reduce((n,id)=>n*(pieceTraitById[id]?.[key]||1),1);
     const currentPlan=(st=s)=>st.master?.plans[st.master.index]||null;
     const field=(st=s)=>D.roundTraits.find(t=>t.id===currentPlan(st)?.roundTraitId)||D.roundTraits[0];
     function stats(p,st=s) {
-      return {maxHp:Math.max(1,Math.floor((p.baseHealth+p.weight*p.healthCoeff)*p.healthFactor*pieceFactor(p,'healthX'))),
-        attack:Math.max(1,Math.floor((p.baseAttack+p.weight*p.attackCoeff)*p.attackFactor*pieceFactor(p,'attackX')*field(st).attackX))};
+      return {maxHp:Math.max(1,Math.floor((p.baseHealth+p.weight*p.healthCoeff)*(p.healthScale??1)*p.healthFactor*pieceFactor(p,'healthX'))),
+        attack:Math.max(1,Math.floor((p.baseAttack+p.weight*p.attackCoeff)*(p.attackScale??1)*p.attackFactor*pieceFactor(p,'attackX')*field(st).attackX))};
     }
-    function sync(p,oldMax) {p.hp=Math.min(stats(p).maxHp,Math.max(0,p.hp+Math.max(0,stats(p).maxHp-oldMax)));}
-    function grow(p,amount) {const old=stats(p).maxHp;p.weight=Math.min(C.maxWeight,Math.max(0,p.weight+Math.floor(amount)));sync(p,old);}
+    function sync(p,oldMax,st=s) {const max=stats(p,st).maxHp;p.hp=p.hp<=0?0:Math.min(max,Math.max(0,p.hp+max-oldMax));}
+    function grow(p,amount,st=s,oldMax=stats(p,st).maxHp) {p.weight=Math.min(C.maxWeight,Math.max(0,p.weight+Math.floor(amount)));sync(p,oldMax,st);}
+    function retune(p,changes,st=s) {const next={...p,...changes};sync(next,stats(p,st).maxHp,st);if(next.weight<=0)next.hp=0;if(Object.hasOwn(next,'dead')){next.dead=next.hp===0;if(next.dead)next.weight=0;}return next;}
     function random() {s.rng=(Math.imul(s.rng,1664525)+1013904223)>>>0;return s.rng/4294967296;}
     function shuffle(values) {const a=[...values];for(let i=a.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
     function log(message,st=s) {st.log.push({round:row(st)?.id||'menu',turn:st.turn,message});}
     function touched() {s.revision++;}
     function addItem(type) {const i={uid:++s.serial,type,level:0};s.collection.push(i);return i.uid;}
-    function drawHand() {const size=Math.min(s.deck.length,s.trait?.id==='tightHand'?4:R.handSize);while(s.hand.length<size&&s.draw.length)s.hand.push(s.draw.pop());if(s.phase==='SELECT'&&!s.selected.length)s.selected=s.hand.slice(0,R.sticksPerToss);}
+    const handSize=()=>Math.min(s.deck.length,s.trait?.id==='tightHand'?4:R.handSize);
+    function drawTurn() {
+      if(s.phase!=='DRAW')return;
+      const before=s.hand.length;s.lastDraw=[];s.selected=[];
+      while(s.hand.length<handSize()&&s.draw.length){const uid=s.draw.pop();s.hand.push(uid);s.lastDraw.push(uid);}
+      s.phase='REVEAL';touched();log('드로우 '+s.lastDraw.length+'개 · 유지 손패 '+before+'개 · 손패 공개 대기.');
+    }
+    function revealHand() {if(s.phase!=='REVEAL')return;s.phase='SELECT';s.selected=[];touched();log('손패 '+s.hand.length+'개 공개 · 던질 윷 4개를 직접 고르세요.');}
     function interest(st=s) {return Math.min(D.economy.interestCap+sumTrait('interestCapPerLevel',st),Math.floor(st.coins/D.economy.interestPer));}
     function price(value) {return Math.max(1,value-sumTrait('discountPerLevel'));}
     function offerRisks() {
@@ -44,10 +52,10 @@
       s.riskOffers=offers.map(t=>t.id);
     }
     function reset(seed) {
-      s={version:2,seed:seed>>>0,rng:seed>>>0,serial:0,revision:0,round:0,phase:'MENU',practice:false,activeGroupId:null,lastRoll:null,lastTurn:null,turn:0,startedAt:Date.now(),
+      s={version:2,seed:seed>>>0,rng:seed>>>0,serial:0,revision:0,round:0,phase:'MENU',handFlow:1,lastDraw:[],practice:false,activeGroupId:null,lastRoll:null,lastTurn:null,turn:0,startedAt:Date.now(),
         collection:[],deck:[],capacity:R.startingDeckMax,deckTraits:[],charms:[],coins:D.economy.startCoins,
         templates:Array.from({length:R.piecesPerPlayer},(_,id)=>({id,level:0,baseWeight:C.pieceBaseWeight,baseHealth:C.pieceBaseHealth,baseAttack:C.pieceBaseAttack,
-          healthCoeff:C.pieceHealthWeightCoeff,attackCoeff:C.pieceAttackWeightCoeff,moveSpeed:C.pieceMoveSpeed,traits:[]})),
+          healthCoeff:C.pieceHealthWeightCoeff,attackCoeff:C.pieceAttackWeightCoeff,moveSpeed:C.pieceMoveSpeed,healthScale:1,attackScale:1,traits:[]})),
         master:null,pieces:[],groups:[],guards:[],hand:[],draw:[],selected:[],pending:null,riskOffers:[],trait:null,target:0,score:0,total:0,tosses:0,swaps:0,
         shop:[],rerolls:0,reward:null,log:[],record:{maxGain:0,maxWeight:0,maxAttack:0,maxHp:0,maxHit:0,maxN:0,maxM:0,maxX:1,bosses:0}};
       log('윷토체스 · 업고, 곱하고, 돌파한다. 시작 덱을 선택하세요.');
@@ -71,18 +79,18 @@
       return placements.map((placement,index)=>{
         const b=D.guardians.find(b=>b.id===placement.id),r=risk(st),healthScale=(1+r*C.riskHealthStep)*(st.trait?.bossGimmick==='calm'?0.9:1),attackScale=(1+r*C.riskAttackStep)*(st.trait?.bossGimmick==='calm'?0.9:1);
         const g={id:'boss-'+index,kind:b.id,role:placement.role,unitClass:b.kind,gimmick:b.gimmick,pickGimmick:st.trait?.bossGimmick||'none',name:b.name,pos:placement.post,
-          weight:Math.round(b.weight*row(st).bossScale*healthScale),baseHealth:C.bossBaseHealth*healthScale,baseAttack:C.bossBaseAttack*attackScale,
-          healthCoeff:C.bossHealthWeightCoeff,attackCoeff:C.bossAttackWeightCoeff,healthFactor:b.healthX,attackFactor:b.attackX*attackScale,traits:[],hp:1};
+          weight:Math.round(b.weight*row(st).bossScale),baseHealth:C.bossBaseHealth,baseAttack:C.bossBaseAttack,
+          healthCoeff:C.bossHealthWeightCoeff,attackCoeff:C.bossAttackWeightCoeff,healthScale:1,attackScale:1,healthFactor:b.healthX*healthScale,attackFactor:b.attackX*attackScale,traits:[],hp:1};
         g.hp=stats(g).maxHp;return g;
       });
     }
     function startRound() {
       if(s.phase!=='PREP')return;
       if(s.deck.length<R.minDeckSize||s.deck.length>s.capacity){log('출전 윷은 '+R.minDeckSize+'~'+s.capacity+'개여야 합니다.');return;}
-      s.phase='SELECT';s.activeGroupId=0;s.lastRoll=null;s.lastTurn=null;s.turn=0;s.score=0;s.reward=null;s.pending=null;s.selected=[];
+      s.phase='DRAW';s.lastDraw=[];s.activeGroupId=0;s.lastRoll=null;s.lastTurn=null;s.turn=0;s.score=0;s.reward=null;s.pending=null;s.selected=[];
       const delta=s.deckTraits.reduce((n,t)=>n+(traitById[t.id].tossDelta||0),0);
       s.tosses=Math.max(1,R.tossesPerRound+delta+(s.charms.includes('lucky')?1:0)-(s.trait.id==='lastStand'?3:0));
-      s.swaps=R.swapsPerRound;s.hand=[];s.draw=shuffle(s.deck);drawHand();
+      s.swaps=R.swapsPerRound;s.hand=[];s.draw=shuffle(s.deck);
       s.pieces=s.templates.map(t=>{const p={...copy(t),weight:t.baseWeight+sumTrait('initialWeight'),healthFactor:1,attackFactor:1,hp:1,dead:false,settled:false,effects:[],moveBonus:0};p.hp=stats(p).maxHp;return p;});
       // Reserve groups are drawn at start 0; null prevents a returning piece from carrying untravelled reserves into the finish.
       s.groups=s.pieces.map(p=>({id:p.id,ids:[p.id],pos:null,route:'outer',history:[]}));s.guards=bossUnits();s.master=makeMaster();
@@ -129,7 +137,7 @@
     function select(uid) {if(s.phase!=='SELECT')return;if(s.selected.includes(uid))s.selected=s.selected.filter(v=>v!==uid);else if(s.hand.includes(uid)&&s.selected.length<R.sticksPerToss)s.selected.push(uid);touched();}
     function swap() {
       if(s.phase!=='SELECT'||s.swaps<=0||!s.selected.length)return;
-      const out=[...s.selected];s.hand=s.hand.filter(uid=>!out.includes(uid));s.draw=shuffle([...s.draw,...out]);s.selected=[];s.swaps--;drawHand();touched();log(out.length+'개 교체 · 반환 후 셔플.');
+      const out=[...s.selected];s.hand=s.hand.filter(uid=>!out.includes(uid));s.draw=shuffle([...s.draw,...out]);s.selected=[];s.swaps--;s.lastDraw=[];s.phase='DRAW';touched();log(out.length+'개 교체 반환·셔플 · 교체 드로우 대기.');
     }
     function toss(forced='') {
       if(s.phase!=='SELECT'||s.selected.length!==R.sticksPerToss||s.tosses<=0)return;
@@ -137,12 +145,12 @@
       if(forced==='backdo'&&!items.some(uid=>stickById[item(uid).type].marked)){log('빽도 고정은 표시 윷이 필요합니다.');return;}
       let faces=items.map(uid=>random()<stickById[item(uid).type].pFlat?'flat':'back');
       if(forced){const h=D.hands.find(h=>h.id===forced);if(h){faces.fill('back');const order=items.map((_,i)=>i).sort((a,b)=>Number(!!stickById[item(items[a]).type].marked)-Number(!!stickById[item(items[b]).type].marked));if(forced==='backdo')faces[items.findIndex(uid=>stickById[item(uid).type].marked)]='flat';else order.slice(0,h.flats).forEach(i=>faces[i]='flat');}}
-      const hand=handFor(items,faces);s.turn++;s.tosses--;s.pending={items,faces,hand,route:null};s.lastRoll={turn:s.turn,hand:hand.id,items:[...items],faces:[...faces]};s.selected=[];
+      const hand=handFor(items,faces);s.turn++;s.tosses--;s.pending={items,faces,hand,route:null};s.lastRoll={turn:s.turn,hand:hand.id,items:[...items],faces:[...faces]};s.selected=[];s.lastDraw=[];
       const active=activeGroup();
       const canBack=g=>g.pos!=null&&g.history.length>0;
       const fallback=hand.move<0&&!canBack(active||{pos:null})?[...living()].filter(canBack).sort((a,b)=>weight(b)-weight(a)||a.id-b.id)[0]:null;
       s.activeGroupId=(fallback||active)?.id??null;
-      s.hand=s.hand.filter(uid=>!items.includes(uid));s.draw=shuffle([...s.draw,...items]);
+      s.hand=s.hand.filter(uid=>!items.includes(uid));s.draw=shuffle([...s.draw,...items]);log('사용 윷 '+items.length+'개 덱 반환·셔플 · 남은 손패 '+s.hand.length+'개 유지.');
       const fall=s.trait.id==='fall'&&random()<0.1;
       if(!fall&&R.extraTossOn.includes(hand.id))s.tosses++;
       log((forced?'[고정] ':'')+hand.name+' · '+calculate(s.pending).lines.join(' → '));touched();
@@ -210,7 +218,7 @@
     function applyTile(g,st,events) {
       const tile=currentPlan(st)?.tiles.find(t=>samePos(t.pos,g.pos));if(!tile||!g.ids.length)return;
       const effect=D.specialTiles.find(t=>t.id===tile.type),p=st.pieces[carrier(g,st)];
-      if(effect.weight)grow(p,effect.weight);
+      if(effect.weight)grow(p,effect.weight,st);
       if(effect.heal)p.hp=Math.min(stats(p,st).maxHp,p.hp+effect.heal);
       if(effect.damage)p.hp=Math.max(0,p.hp-effect.damage);
       if(effect.speed)p.moveBonus=Math.min(3,(p.moveBonus||0)+effect.speed);
@@ -220,8 +228,8 @@
       if(!st.master)return;
       const trait=field(st);
       if(trait.weightDrain){
-        for(const p of st.pieces)if(!p.dead&&!p.settled)grow(p,-trait.weightDrain);
-        for(const b of st.guards)if(b.hp>0){grow(b,-trait.weightDrain);if(b.weight===0)b.hp=0;}
+        for(const p of st.pieces)if(!p.dead&&!p.settled)grow(p,-trait.weightDrain,st);
+        for(const b of st.guards)if(b.hp>0){grow(b,-trait.weightDrain,st);if(b.weight===0)b.hp=0;}
         removeDepleted(st);events.push({type:'master',title:'판 전체 · '+trait.name,message:'생존 말·보스 weight -'+trait.weightDrain+' · 정산한 말 제외'});log(trait.name+' 턴말 weight -'+trait.weightDrain,st);
       }
       if(st.turn>0&&st.turn%st.master.cycle===0){
@@ -243,18 +251,18 @@
         const previous=g.ids.includes(main)?g.ids.length:partner.ids.length,newSupports=combined.length-previous;
         const support=R.scoring.stackSupportBonus+sumTrait('supportPerLevel',next)+(next.trait.id==='piggyback'?0.25:0);
         const bonus=Math.floor(next.pieces[main].weight*support*newSupports);
-        g.ids=combined.sort((a,b)=>a-b);next.groups=next.groups.filter(x=>x!==partner);grow(next.pieces[main],bonus);
+        g.ids=combined.sort((a,b)=>a-b);next.groups=next.groups.filter(x=>x!==partner);grow(next.pieces[main],bonus,next);
         events.push({type:'burst',title:'업기 증폭',message:'낮은 weight 지원 '+newSupports+'개 → 주말 '+'ABCD'[main]+' weight +'+bonus});
         log(name(g)+' 업기 · 주말 '+'ABCD'[main]+' +'+bonus+' weight.',next);
       }
       let main=next.pieces[carrier(g,next)];
-      const previousMax=stats(main).maxHp;main.attackFactor=next.pending.hand.attackX;main.healthFactor=next.pending.hand.healthX;sync(main,previousMax);
-      const value=calculate(next.pending,next,main,g.ids.length);grow(main,value.gain);
+      const previousMax=stats(main,next).maxHp;main.attackFactor=next.pending.hand.attackX;main.healthFactor=next.pending.hand.healthX;
+      const value=calculate(next.pending,next,main,g.ids.length);grow(main,value.gain,next,previousMax);
       main.effects.push({turn:next.turn,hand:next.pending.hand.id,items:[...next.pending.items],n:value.n,m:value.m,x:value.x});
       next.record.maxGain=Math.max(next.record.maxGain,value.gain);next.record.maxN=Math.max(next.record.maxN,value.n);next.record.maxM=Math.max(next.record.maxM,value.m);next.record.maxX=Math.max(next.record.maxX,value.x);
       events.push({type:'burst',title:'N × M → weight',message:value.n+' × '+value.m+' × '+value.x.toFixed(2)+' = +'+value.gain});
       log('주말 '+'ABCD'[main.id]+' 성장 '+value.n+' × '+value.m+' × '+value.x.toFixed(2)+' = +'+value.gain+' weight.',next);
-      applyTile(g,next,events);
+      removeDepleted(next);applyTile(g,next,events);
       if(g.ids.length)main=next.pieces[carrier(g,next)];
       const boss=next.guards.find(b=>b.hp>0&&samePos(b.pos,g.pos));let battle=null;
       if(boss&&g.ids.length){
@@ -271,7 +279,7 @@
         else {
           next.tosses+=R.captureExtraToss;next.record.bosses++;
           const multiplier=C.bossVictoryX+risk(next)*C.bossVictoryRiskStep+(next.trait.id==='hunt'?0.5:0);
-          const bonus=Math.floor(main.weight*(multiplier-1));grow(main,bonus);
+          const bonus=Math.floor(main.weight*(multiplier-1));grow(main,bonus,next);
           events.push({type:'burst',title:'보스 돌파 ×'+multiplier.toFixed(2),message:'주말 weight +'+bonus+' · 투척 +'+R.captureExtraToss});
           log(boss.name+' 처치 · weight ×'+multiplier.toFixed(2)+' · 추가 투척.',next);
         }
@@ -281,7 +289,7 @@
       if(g.ids.length&&(g.pos==='G'||g.pos==='END')&&!next.guards.some(b=>b.hp>0&&b.pos==='G')){
         main=next.pieces[carrier(g,next)];
         const base=calculate(next.pending,next,main,g.ids.length),finished=calculate(next.pending,next,main,g.ids.length,g.ids.length);
-        grow(main,finished.gain-base.gain);g.pos='END';
+        grow(main,finished.gain-base.gain,next);g.pos='END';
         const sum=g.ids.reduce((n,id)=>n+(next.pieces[id].settled?0:next.pieces[id].weight),0);
         for(const id of g.ids)next.pieces[id].settled=true;next.score+=sum;
         events.push({type:'settle',title:'완주 정산',message:'+'+sum+'점 · 현재 '+next.score+' / 목표 '+next.target});log(name(g)+' 완주 +'+sum+'점. 중복 정산 없음.',next);
@@ -298,7 +306,7 @@
         const base=Math.round(row().baseReward*s.trait.rewardX),remaining=s.tosses*D.economy.perRemainingToss,i=interest(),overflow=s.score-s.target,bonus=Math.floor(overflow/C.overflowStep)*C.overflowCoins;
         s.reward={base,remaining,interest:i,overflow,bonus,sum:base+remaining+i+bonus};s.phase='REWARD';log('목표 달성 · 초과 '+overflow+' · 보상 수령 대기.');
       }else if(s.tosses<=0||living().length===0){s.phase='LOSE';log('런 종료. 미완주 weight는 점수로 정산하지 않습니다.');}
-      else{s.phase='SELECT';drawHand();}
+      else{s.phase='DRAW';s.lastDraw=[];log('다음 턴 · 사용 윷은 덱에 반환됨. 부족한 손패를 드로우하세요.');}
       touched();
     }
     function commitMove(projection) {if(s.phase!=='MOVE'||!projection||projection.revision!==s.revision)return false;const p=projection;s=p.next;s.lastTurn={turn:s.turn,hand:s.pending.hand.id,group:p.groupName,n:p.value.n,m:p.value.m,x:p.value.x,gain:p.value.gain,weightBefore:p.weightBefore,weightAfter:p.weightAfter,scoreGain:p.scoreGain,arrival:p.arrival,steps:p.path.length,events:p.events.map(e=>({type:e.type,title:e.title,message:e.message}))};finishTurn(true);return true;}
@@ -310,14 +318,14 @@
     }
     function claimReward() {
       if(s.phase!=='REWARD')return;
-      s.coins+=s.reward.sum;s.total+=s.score;s.hand=[];s.draw=[];s.selected=[];
+      s.coins+=s.reward.sum;s.total+=s.score;s.hand=[];s.draw=[];s.selected=[];s.lastDraw=[];
       s.phase=s.round===allRounds.length-1?'WIN':'CHOICE';
       log('라운드 결과 보상 '+s.reward.sum+'냥 1회 수령.');touched();
     }
     function enterShop() {if(s.phase!=='CHOICE')return;s.phase='SHOP';rollShop();log('상점 입장 · 현재 잔액으로 구매와 성장을 선택하세요.');touched();}
     function skipShop() {if(s.phase!=='CHOICE')return;const bonus=interest();s.coins+=bonus;log('상점 건너뛰기 · 추가 이자 +'+bonus+'냥 1회 지급.');advanceRound();}
     function advanceRound() {
-      s.round++;s.phase='TRAIT';s.trait=null;s.score=0;s.target=row().target;s.groups=[];s.pieces=[];s.guards=[];s.master=null;s.hand=[];s.draw=[];s.lastRoll=null;s.lastTurn=null;s.activeGroupId=null;
+      s.round++;s.phase='TRAIT';s.trait=null;s.score=0;s.target=row().target;s.groups=[];s.pieces=[];s.guards=[];s.master=null;s.hand=[];s.draw=[];s.lastDraw=[];s.lastRoll=null;s.lastTurn=null;s.activeGroupId=null;
       offerRisks();touched();
     }
     function nextRound() {if(s.phase==='SHOP')advanceRound();}
@@ -356,10 +364,10 @@
       if(['reward','choice','shop'].includes(kind)){s.score=s.target+C.overflowStep;finishTurn(true);if(kind!=='reward')claimReward();if(kind==='shop')enterShop();}
       log('[장면] '+kind+' · 고정 도로 확인할 수 있습니다.');touched();
     }
-    function replaceState(next) {s=next;if(s.phase==='SELECT'&&!s.selected.length)s.selected=s.hand.slice(0,R.sticksPerToss);touched();}
-    function reconcile() {if(['SELECT','MOVE'].includes(s.phase)&&(s.score>=s.target||!living().length||(s.phase==='SELECT'&&s.tosses<=0)))finishTurn(true);}
+    function replaceState(next) {s=next;s.lastDraw??=[];s.handFlow=1;touched();}
+    function reconcile() {if(['DRAW','REVEAL','SELECT','MOVE'].includes(s.phase)&&(s.score>=s.target||!living().length||(s.phase!=='MOVE'&&s.tosses<=0)))finishTurn(true);}
     reset(C.defaultSeed);
     return {get state(){return s;},rounds:allRounds,stickById,traitById,pieceTraitById,row,item,weight,boardPos,samePos,living,activeGroup,setActive,routeOptions,movementForecast,carrier,name,stats,field,currentPlan,sumTrait,calculate,outcomes,interest,price,bossUnits,risk,
-      reset,chooseDeck,chooseRisk,startRound,select,swap,toss,plan,preview,commitMove,claimReward,enterShop,skipShop,nextRound,product,buy,reroll,toggleDeck,removeItem,upgradeStick,capacity,upgradeDeckTrait,removeDeckTrait,upgradePiece,removePieceTrait,scenario,replaceState,reconcile,log,touched,sync,updateRecord};
+      reset,chooseDeck,chooseRisk,startRound,drawTurn,revealHand,handSize,select,swap,toss,plan,preview,commitMove,claimReward,enterShop,skipShop,nextRound,product,buy,reroll,toggleDeck,removeItem,upgradeStick,capacity,upgradeDeckTrait,removeDeckTrait,upgradePiece,removePieceTrait,scenario,replaceState,reconcile,log,touched,sync,retune,updateRecord};
   }};
 })();

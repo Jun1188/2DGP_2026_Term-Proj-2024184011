@@ -12,7 +12,7 @@
     $('iconLegend').innerHTML=[...D.presentation.pieceIcons.map((key,i)=>({name:'말 '+'ABCD'[i],icons:[key]})),...D.sticks,...D.deckTraits,...D.pieceTraits].map(entry=>'<span>'+icon(entry)+esc(entry.name)+'</span>').join('');
     const C=D.boxing,R=D.rules,engine=window.YutoCore.create(D),all=engine.rounds;
     table('tblRules',['자원','값','설명'],[
-      ['말',R.piecesPerPlayer,'원형의 시작 weight·기본 HP·공격으로 매 라운드 출전'],['시작 출전 상한',R.startingDeckMax,'보유함과 출전 덱 분리. 상점 확장 가능'],['최소 출전 윷',R.minDeckSize,'매 라운드 직전 구성'],['손패',R.handSize,'출전 윷 수 이내. 투척 후 사용 윷 반환·셔플'],['한 번에 투척',R.sticksPerToss,'선택 4개'],['투척',R.tossesPerRound,'윷·모·보스 처치로 추가'],['교체',R.swapsPerRound,'선택 윷 반환·셔플·보충'],['덱/말 특성 슬롯',R.deckTraitSlots+' / '+R.pieceTraitSlots,'상점 편집'],['수문장',2,'C / G 고정. 1라운드 일반 0체, 2라운드부터 기본+픽 추가']]);
+      ['말',R.piecesPerPlayer,'원형의 시작 weight·기본 HP·공격으로 매 라운드 출전'],['시작 출전 상한',R.startingDeckMax,'보유함과 출전 덱 분리. 상점 확장 가능'],['최소 출전 윷',R.minDeckSize,'매 라운드 직전 구성'],['손패',R.handSize,'드로우→공개→직접 4개 선택. 남은 손패 유지'],['한 번에 투척',R.sticksPerToss,'선택 4개'],['투척',R.tossesPerRound,'윷·모·보스 처치로 추가'],['교체',R.swapsPerRound,'선택 윷 반환·셔플→드로우→공개→재선택'],['덱/말 특성 슬롯',R.deckTraitSlots+' / '+R.pieceTraitSlots,'상점 편집'],['수문장',2,'C / G 고정. 1라운드 일반 0체, 2라운드부터 기본+픽 추가']]);
     const sample=[{uid:1,type:'marked',level:0},...Array.from({length:3},(_,i)=>({uid:i+2,type:'wood',level:0}))];
     engine.state.collection=sample;engine.state.trait=D.riskChoices.find(t=>t.id==='standard');
     const baseline=engine.outcomes(sample.map(i=>i.uid));
