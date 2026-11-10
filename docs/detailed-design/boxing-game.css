@@ -406,3 +406,12 @@
 .box-score-feedback .score-source-finish { box-shadow: 0 0 8px color-mix(in srgb,var(--gold) 40%,transparent); }
 @keyframes box-score-directed { 0% { transform: translateY(calc(var(--score-lift) * -1)) scale(.96); opacity: .5; } 45% { transform: translateY(var(--score-lift)) scale(1.06); } 100% { transform: translateY(0) scale(1); opacity: 1; } }
 @media(prefers-reduced-motion:reduce) { .box-score-feedback.score-changed span { animation: none; } }
+
+/* Temporary GPT Image PNG: confined to the metric, behind readable text. */
+.box-temp-fx-anchor { position: relative; isolation: isolate; overflow: hidden; }
+.box-temp-fx-anchor > :not(.box-temp-score-fx) { position: relative; z-index: 1; }
+.box-temp-score-fx { position: absolute; z-index: 0; pointer-events: none; left: 0; top: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0; }
+.box-temp-score-fx.loss { filter: hue-rotate(315deg) saturate(1.5); }
+.box-temp-score-fx.gain { filter: hue-rotate(65deg) saturate(1.1); }
+.box-temp-score-fx.kind-stack, .box-temp-score-fx.kind-finish { filter: saturate(1.2) brightness(1.15); }
+@media(prefers-reduced-motion:reduce) { .box-temp-score-fx { display: none; } }

@@ -13,7 +13,18 @@
   const phaseNames={MENU:'메뉴·덱 특성',TRAIT:'리스크 선택',PREP:'출전 윷 편집',DRAW:'윷 드로우',REVEAL:'손패 공개 대기',SELECT:'던질 윷 선택',MOVE:'갈림길·이동',REWARD:'라운드 결과',CHOICE:'상점 / 추가 이자',SHOP:'상점·성장',WIN:'런 완주',LOSE:'런 종료'};
   const s=()=>core.state;
   const locked=()=>edit||!!battle||drawing;
-  let boardKind='',scoreSnapshot=null,feedbackKey='',scoreFrames=[];
+  let boardKind='',scoreSnapshot=null,feedbackKey='',scoreFrames=[],tempFxEnabled=true;
+  const tempFxImage=new Image();
+  tempFxImage.src=new URL('assets/temp-score-fx/score-burst.png',document.currentScript.src).href;
+  function tempScoreBurst(el,power,loss,kind) {
+    if(!tempFxEnabled||!tempFxImage.complete||!tempFxImage.naturalWidth)return;
+    const host=el.parentElement,fx=tempFxImage.cloneNode();
+    host.classList.add('box-temp-fx-anchor');
+    fx.className='box-temp-score-fx '+(loss?'loss':'gain')+' kind-'+kind;
+    fx.alt='';fx.setAttribute('aria-hidden','true');host.append(fx);
+    const distance=(loss?1:-1)*(4+power*3),scale=kind==='finish'?1.2:1;
+    fx.animate([{opacity:0,transform:'translateY(0) scale(.35)'},{opacity:.65,transform:'translateY('+distance/2+'px) scale('+scale+')',offset:.3},{opacity:0,transform:'translateY('+distance+'px) scale('+(scale+.15*power)+')'}],{duration:300+power*120,easing:'ease-out'}).finished.catch(()=>{}).finally(()=>fx.remove());
+  }
   function syncBoard() {
     const kind=core.row()?.type==='boss'?'expanded':'standard';
     if(boardKind!==kind){nodes=Object.fromEntries(core.board().nodes.map(n=>[n.id,{...n}]));boardKind=kind;selection='frame:ui';inspectedPos=null;previewChoice=null;}
@@ -128,6 +139,7 @@
       el.classList.add('box-score-number-change',delta>0?'score-up':'score-down','score-kind-'+kind,'score-power-'+power);
       const badge=document.createElement('small');badge.className='box-score-delta';badge.textContent=(delta>0?'↑ +':'↓ −')+num(amount);badge.setAttribute('aria-label',(delta>0?'증가 ':'감소 ')+num(amount));el.after(badge);
       if(reduced)continue;
+      tempScoreBurst(el,power,delta<0,kind);
       const duration=220+power*110,start=performance.now(),from=previous[metric];
       const scale=1+power*(kind==='finish' ? 0.12 : kind==='stack' ? 0.1 : kind==='tile' ? 0.03 : 0.07),tilt=kind==='special'?power:0,shake=kind==='combat'?power*2:0;
       el.animate([{transform:'translate(0,0) scale(1) rotate(0deg)'},{transform:'translate('+shake+'px,'+(delta>0?-2*power:2*power)+'px) scale('+scale+') rotate('+tilt+'deg)',offset:.35},{transform:'translate('+(-shake)+'px,0) scale('+(1+(scale-1)/3)+') rotate('+(-tilt)+'deg)',offset:.65},{transform:'translate(0,0) scale(1) rotate(0deg)'}],{duration,easing:'cubic-bezier(.2,.7,.3,1)'});
@@ -299,7 +311,7 @@
     return '<h4>상점 · 다음 라운드를 준비하세요.</h4><div class="box-shop-columns"><section class="box-shop-area" aria-label="윷 구매와 덱 편집"><h4>'+icons({icons:['bamboo']},'윷')+'윷 구매 · 덱 편집</h4><div class="box-offers">'+st.shop.filter(o=>o.kind==='stick').map(offer).join('')+'</div><label>구매와 동시에 삭제할 윷<select id="boxReplace">'+inventoryOptions(true)+'</select></label><details class="box-deck-edit" data-box-detail="deck-edit"><summary>덱 편집 · 출전 '+st.deck.length+'/'+st.capacity+'개</summary><p>선택한 윷이 다음 라운드에 출전합니다. 최소 '+D.rules.minDeckSize+'개. 라운드 직전에 다시 조정할 수 있습니다.</p><div class="box-loadout">'+owned+'</div>'+button('출전 상한 +1 / '+core.price(D.boxing.deckCapacityCost)+'냥','capacity','',locked()||st.capacity>=D.boxing.deckCapacityMax)+'<div class="box-shop-services"><h4>윷 강화 · 삭제 · 판매</h4><label>보유 윷<select id="boxOwned">'+inventoryOptions()+'</select></label><p id="boxUpgradeInfo"></p>'+button('강화 시도','upgrade-stick','',locked())+' '+button('삭제','delete-stick','',locked())+' '+button('판매','sell-stick','',locked())+'<small>확률 강화는 유지/하락을 적용합니다. 파괴는 후속 범위입니다.</small></div></details></section><section class="box-shop-area" aria-label="특성 구매와 편집"><h4>'+icons({icons:['star']},'특성')+'특성 구매</h4><div class="box-offers">'+st.shop.filter(o=>o.kind!=='stick').map(offer).join('')+'</div><details data-box-detail="deck-traits"><summary>보유 덱 특성 '+st.deckTraits.length+'/'+D.rules.deckTraitSlots+' · 강화/삭제</summary><div class="box-traits">'+traitCards()+'</div></details></section></div><section class="box-piece-management" aria-label="말별 강화와 특성"><h4>말 관리 · 각 말에 적용</h4><div class="box-offers">'+st.templates.map(t=>{const cost=core.price(D.boxing.pieceUpgradeCost*(t.level+1));return '<article class="box-shop-card box-piece-template"><b>'+pieceIcon(t.id)+'말 '+'ABCD'[t.id]+' Lv.'+t.level+'</b><span>시작 W '+t.baseWeight+' / HP '+t.baseHealth+' / 공격 '+t.baseAttack+' / 속도 '+t.moveSpeed+'</span><small>weight 계수 HP '+fix(t.healthCoeff)+' · 공격 '+fix(t.attackCoeff)+'</small>'+button(t.level>=6?'최대 강화':'이 말 강화 '+cost+'냥','upgrade-piece',t.id,locked()||t.level>=6||st.coins<cost)+'<small>다음 라운드부터 적용</small><div>'+t.traits.map((id,index)=>'<p>'+icons(core.pieceTraitById[id])+esc(core.pieceTraitById[id].name)+' '+button('삭제','remove-piece-trait',t.id+':'+index,locked())+'</p>').join('')+(t.traits.length<D.rules.pieceTraitSlots?'<p class="box-muted">빈 특성 '+(D.rules.pieceTraitSlots-t.traits.length)+'칸</p>':'')+'</div></article>';}).join('')+'</div></section><div class="box-shop-footer">'+button('상품 다시 뽑기 '+(D.economy.rerollBase+st.rerolls*D.economy.rerollStep)+'냥','reroll','',locked())+button('다음 리스크 선택 → 출전 윷 편집','next','',locked()||st.deck.length<D.rules.minDeckSize,'box-primary')+'</div>';
   }
   function machine() {
-    return '<details class="box-tools" data-box-detail="machine"><summary>박싱 머신 · 레이어 / 고정 장면 / 저장</summary><div class="box-tool-grid"><fieldset><legend>레이어 표시</legend>'+Object.entries({frame:'UI 프레임',pieces:'말',guardians:'보스',threat:'보스 칸',specials:'특수칸'}).map(([id,name])=>'<label><input type="checkbox" data-layer-toggle="'+id+'"'+(layers[id]?' checked':'')+'> '+name+'</label>').join('')+'</fieldset><label>투척 결과<select id="boxForced"><option value="">시드 난수</option>'+D.hands.map(h=>'<option value="'+h.id+'"'+(forced===h.id?' selected':'')+'>'+esc(h.name)+' 고정</option>').join('')+'</select></label><div>별도 새 런의 확인 장면<br>'+['combat','stack','finish','failure','reward','choice','shop'].map((id,i)=>button(['보스 예측·전투','작은 말 업기','완주·초과 보상','투척 소진','라운드 결과','상점 / 추가 이자','상점 UI'][i],'scenario',id,locked())).join(' ')+'</div>'+button('장면·빌드 저장','save','',!!battle||drawing)+'<label>장면 불러오기<input type="file" id="boxScene" accept=".json,application/json"'+(battle||drawing?' disabled':'')+'></label></div><p>시드·손패·확률·재화·다음 목표는 공개합니다. 리스크 선택지·손패·상품은 난수로 뽑고, 투척 후 예측과 실제 전투는 같은 계산을 사용합니다.</p></details>';
+    return '<details class="box-tools" data-box-detail="machine"><summary>박싱 머신 · 레이어 / 고정 장면 / 저장</summary><div class="box-tool-grid">'+button(tempFxEnabled?'임시 이미지 효과: 켜짐':'임시 이미지 효과: 꺼짐','toggle-temp-fx')+'<fieldset><legend>레이어 표시</legend>'+Object.entries({frame:'UI 프레임',pieces:'말',guardians:'보스',threat:'보스 칸',specials:'특수칸'}).map(([id,name])=>'<label><input type="checkbox" data-layer-toggle="'+id+'"'+(layers[id]?' checked':'')+'> '+name+'</label>').join('')+'</fieldset><label>투척 결과<select id="boxForced"><option value="">시드 난수</option>'+D.hands.map(h=>'<option value="'+h.id+'"'+(forced===h.id?' selected':'')+'>'+esc(h.name)+' 고정</option>').join('')+'</select></label><div>별도 새 런의 확인 장면<br>'+['combat','stack','finish','failure','reward','choice','shop'].map((id,i)=>button(['보스 예측·전투','작은 말 업기','완주·초과 보상','투척 소진','라운드 결과','상점 / 추가 이자','상점 UI'][i],'scenario',id,locked())).join(' ')+'</div>'+button('장면·빌드 저장','save','',!!battle||drawing)+'<label>장면 불러오기<input type="file" id="boxScene" accept=".json,application/json"'+(battle||drawing?' disabled':'')+'></label></div><p>시드·손패·확률·재화·다음 목표는 공개합니다. 리스크 선택지·손패·상품은 난수로 뽑고, 투척 후 예측과 실제 전투는 같은 계산을 사용합니다.</p></details>';
   }
   function practicePanel() {
     const groups=[
@@ -538,6 +550,7 @@
     if(battle||drawing)return;
     if(action==='editor'){previewChoice=null;inspectedPos=null;edit=!edit;message='';if(!edit){core.reconcile();resolveRoll();}else render();return;}
     if(action==='save'){saveScene();return;}
+    if(action==='toggle-temp-fx'){tempFxEnabled=!tempFxEnabled;render();return;}
     if(action==='map-size'){boardWide=!boardWide;render();return;}
     if(action==='toggle-next'){nextPreviewOpen=!nextPreviewOpen;previewChoice=null;inspectedPos=null;render();return;}
     if(action==='previous-next'||action==='next-next'){const rows=movementRows();nextPreviewIndex=Math.max(0,Math.min(rows.length-1,nextPreviewIndex+(action==='next-next'?1:-1)));previewChoice=null;inspectedPos=null;render();return;}
