@@ -347,3 +347,62 @@
   #boxingGame.board-wide.next-preview-open .box-intel { grid-column: 1; grid-row: 2; border-left: 0; }
   #boxingGame.board-wide.next-preview-open .box-board { grid-row: 3; }
 }
+
+.box-practice { border: 2px solid var(--blue); padding: 14px; margin: 12px 0; }
+.box-practice label { display: block; margin: 10px 0; }
+.box-practice select { width: 100%; max-width: 100%; }
+.box-practice p { font-size: 12px; line-height: 1.6; }
+.box-enemy-turns { border: 1px solid var(--line); padding: 12px; margin: 10px 0; }
+.box-enemy-turns article { border-top: 1px solid var(--line); padding: 7px 0; }
+.box-enemy-turns p { margin: 5px 0; font-size: 12px; }
+.box-battle-panel { max-height: 85vh; overflow-y: auto; }
+
+/* Route controls and map share normal document flow; neither covers the other. */
+#boxingGame.choosing-route .box-layout { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
+#boxingGame.choosing-route .box-board { grid-column: 1/-1; grid-row: 1; }
+#boxingGame.choosing-route .box-score, #boxingGame.choosing-route .box-intel { grid-column: auto; grid-row: 2; border-top: 1px solid var(--line); }
+.box-map-and-route { display: grid; grid-template-columns: minmax(0,1fr); scroll-margin-top: 12px; }
+.choosing-route .box-map-and-route { grid-template-columns: minmax(0,1fr) minmax(180px,220px); align-items: start; }
+#boxingGame.choosing-route .box-map-viewport > svg { width: 100%; min-width: 0; max-height: calc(100svh - 120px); object-fit: contain; }
+.box-route-dock { padding: 12px; border-left: 1px solid var(--line); background: var(--surface); }
+.box-route-dock p { margin: 7px 0; font-size: 12px; }
+.box-route-buttons { display: grid; gap: 8px; }
+.box-route-dock .box-route-option { padding: 9px; }
+.box-route-dock .box-route-option small { display: block; margin: 6px 0; font-size: 11px; }
+#boxingGame .box-route-dock button { padding: 7px; min-height: 36px; }
+@media(max-width:500px) {
+  .choosing-route .box-map-and-route { grid-template-columns: minmax(0,1fr); }
+  #boxingGame.choosing-route .box-map-viewport > svg { max-height: 47svh; }
+  .box-route-dock { border-left: 0; border-top: 1px solid var(--line); padding: 8px; }
+  .box-route-buttons { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  #boxingGame.choosing-route .box-score, #boxingGame.choosing-route .box-intel { grid-column: 1/-1; grid-row: auto; }
+}
+
+.box-score-feedback { padding: 12px 16px; border-block: 1px solid var(--line); background: var(--surface-2); }
+.box-score-feedback > div { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.box-score-feedback span { display: grid; gap: 3px; border: 1px solid currentColor; border-radius: 4px; padding: 6px 10px; max-width: 230px; animation: none; }
+.box-score-feedback strong { font: bold 23px/1.2 Consolas, monospace; }
+.box-score-feedback .gain { color: var(--box-accent); }
+.box-score-feedback .loss { color: var(--red); }
+.box-score-feedback small, .box-score-feedback p { font-size: 11px; margin: 0; }
+@keyframes box-score-pop { from { transform: translateY(6px); opacity: .35; } to { transform: translateY(0); opacity: 1; } }
+@media(prefers-reduced-motion:reduce) { .box-score-feedback span { animation: none; } }
+
+.box-score-number-change { display: inline-block; transform-origin: center; }
+.box-score-number-change.score-up { color: var(--box-accent); }
+.box-score-number-change.score-down { color: var(--red); }
+.box-score-delta { display: inline-block; margin-left: 5px; font: bold 12px Consolas, monospace; color: inherit; }
+.box-score-number-change.score-kind-stack, .score-source-stack { text-shadow: 0 0 8px color-mix(in srgb,var(--gold) 45%,transparent); }
+.box-score-number-change.score-kind-combat { border-bottom: 2px solid var(--red); }
+.box-score-number-change.score-kind-special { border-bottom: 2px dotted var(--gold); }
+.box-score-number-change.score-kind-finish { text-shadow: 0 0 12px color-mix(in srgb,var(--gold) 65%,transparent); }
+.box-score-feedback.score-changed .gain { --score-lift: -5px; animation: box-score-directed .3s ease-out; }
+.box-score-feedback.score-changed .loss { --score-lift: 5px; animation: box-score-directed .3s ease-out; }
+.box-score-feedback.score-changed .score-power-2 { animation-duration: .45s; }
+.box-score-feedback.score-changed .score-power-3 { animation-duration: .6s; border-width: 2px; }
+.box-score-feedback .score-source-roll { border-radius: 4px; }
+.box-score-feedback .score-source-special { border-style: dashed; }
+.box-score-feedback .score-source-combat { border-left-width: 4px; }
+.box-score-feedback .score-source-finish { box-shadow: 0 0 8px color-mix(in srgb,var(--gold) 40%,transparent); }
+@keyframes box-score-directed { 0% { transform: translateY(calc(var(--score-lift) * -1)) scale(.96); opacity: .5; } 45% { transform: translateY(var(--score-lift)) scale(1.06); } 100% { transform: translateY(0) scale(1); opacity: 1; } }
+@media(prefers-reduced-motion:reduce) { .box-score-feedback.score-changed span { animation: none; } }

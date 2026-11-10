@@ -6,13 +6,13 @@
   function table(id,head,rows){const el=$(id);if(el)el.innerHTML='<tr>'+head.map(v=>'<th>'+esc(v)+'</th>').join('')+'</tr>'+rows.map(row=>'<tr>'+row.map(v=>'<td>'+esc(v)+'</td>').join('')+'</tr>').join('');}
   $('themeBtn').addEventListener('click',()=>{const root=document.documentElement,dark=root.dataset.theme?root.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;root.dataset.theme=dark?'light':'dark';});
   function render(D){
-    if(D.schemaVersion!==6||!D.boxing||!D.deckTraits||!D.riskChoices||!D.gameMaster||!D.specialTiles)throw new Error('1.6 기획 데이터가 필요합니다.');
+    if(D.schemaVersion!==7||!D.boxing||!D.deckTraits||!D.riskChoices||!D.gameMaster||!D.specialTiles)throw new Error('1.7 기획 데이터가 필요합니다.');
     window.YutoBoxing.mount(D);
     const icon=window.YutoBoxing.icons;
     $('iconLegend').innerHTML=[...D.presentation.pieceIcons.map((key,i)=>({name:'말 '+'ABCD'[i],icons:[key]})),...D.sticks,...D.deckTraits,...D.pieceTraits].map(entry=>'<span>'+icon(entry)+esc(entry.name)+'</span>').join('');
     const C=D.boxing,R=D.rules,engine=window.YutoCore.create(D),all=engine.rounds;
     table('tblRules',['자원','값','설명'],[
-      ['말',R.piecesPerPlayer,'원형의 시작 weight·기본 HP·공격으로 매 라운드 출전'],['시작 출전 상한',R.startingDeckMax,'보유함과 출전 덱 분리. 상점 확장 가능'],['최소 출전 윷',R.minDeckSize,'매 라운드 직전 구성'],['손패',R.handSize,'드로우→공개→직접 4개 선택. 남은 손패 유지'],['한 번에 투척',R.sticksPerToss,'선택 4개'],['투척',R.tossesPerRound,'윷·모·보스 처치로 추가'],['교체',R.swapsPerRound,'선택 윷 반환·셔플→드로우→공개→재선택'],['덱/말 특성 슬롯',R.deckTraitSlots+' / '+R.pieceTraitSlots,'상점 편집'],['수문장',2,'C / G 고정. 1라운드 일반 0체, 2라운드부터 기본+픽 추가']]);
+      ['말',R.piecesPerPlayer,'원형의 시작 weight·기본 HP·공격으로 매 라운드 출전'],['시작 출전 상한',R.startingDeckMax,'보유함과 출전 덱 분리. 상점 확장 가능'],['최소 출전 윷',R.minDeckSize,'매 라운드 직전 구성'],['손패',R.handSize,'드로우→공개→직접 4개 선택. 남은 손패 유지'],['한 번에 투척',R.sticksPerToss,'선택 4개'],['투척',R.tossesPerRound,'윷·모·보스 처치로 추가'],['교체',R.swapsPerRound,'선택 윷 반환·셔플→드로우→공개→재선택'],['덱/말 특성 슬롯',R.deckTraitSlots+' / '+R.pieceTraitSlots,'상점 편집'],['수문장',2,'C / G 고정. 일반 보스는 기본 시야 3칸, 발견 뒤 랜덤 윷 추적'],['일반 칸',D.normalTiles.gain+' / '+D.normalTiles.loss,'도착 보유점수. 출처별 +/- 즉시 피드백']]);
     const sample=[{uid:1,type:'marked',level:0},...Array.from({length:3},(_,i)=>({uid:i+2,type:'wood',level:0}))];
     engine.state.collection=sample;engine.state.trait=D.riskChoices.find(t=>t.id==='standard');
     const baseline=engine.outcomes(sample.map(i=>i.uid));
@@ -37,7 +37,7 @@
     table('tblMasterTraits',['부류','이름','효과'],[...D.roundTraits.map(t=>['판 전체',t.name,t.effect]),...D.specialTiles.map(t=>['특수칸',t.name,t.effect])]);
     table('tblGuardians',['보스','기본 weight','HP 배율','공격 배율','효과'],D.guardians.map(b=>[b.name,b.weight,b.healthX,b.attackX,b.effect]));
     table('tblDecks',['덱','출전 구성','엽전','효과 카드'],D.starterDecks.map(d=>[d.name,Object.entries(d.sticks).map(([id,n])=>engine.stickById[id].name+' '+n).join(' / '),d.coins,engine.traitById[d.trait].name]));
-    table('tblRounds',['라운드','유형','기본 목표','보스 배치','보스 성장 계수','기본 보상'],all.map(r=>[r.id,{normal:'일반',elite:'엘리트',boss:'막 보스'}[r.type],num(r.target),r.bosses.map(b=>D.guardians.find(g=>g.id===b.id).name+' / '+b.post).join(', ')+' + 일반 '+r.extraBosses+(r===all[0]?' (첫 판 추가 없음)':' + 픽 추가'),r.bossScale,r.baseReward]));
+    table('tblRounds',['라운드','유형','기본 목표','보드 / 기믹','보스 배치','보스 성장 계수','기본 보상'],all.map(r=>[r.id,{normal:'일반',elite:'엘리트',boss:'빅 라운드'}[r.type],num(r.target),(r.type==='boss'?'외곽 28칸 / 충격 HP -'+r.pulseDamage:'외곽 20칸')+' / 특수칸 '+r.tileCount,r.bosses.map(b=>D.guardians.find(g=>g.id===b.id).name+' / '+b.post).join(', ')+' + 일반 '+r.extraBosses+(r===all[0]?' (첫 판 추가 없음)':' + 픽 추가'),r.bossScale,r.baseReward]));
     const max=Math.max(...all.map(r=>r.target)),w=850,h=230,bottom=195,bw=75;
     $('targetChart').innerHTML='<svg viewBox="0 0 '+w+' '+h+'" role="img" aria-label="9라운드 기본 목표">'+all.map((r,i)=>{const bh=Math.sqrt(r.target/max)*150,x=45+i*85;return '<rect x="'+x+'" y="'+(bottom-bh)+'" width="'+bw+'" height="'+bh+'" fill="'+(r.type==='boss'?'var(--red)':'var(--blue)')+'"/><text x="'+(x+bw/2)+'" y="'+(bottom-bh-6)+'" text-anchor="middle" font-size="12" fill="var(--ink)">'+num(r.target)+'</text><text x="'+(x+bw/2)+'" y="215" text-anchor="middle" font-size="12" fill="var(--ink)">'+r.id+'</text>';}).join('')+'</svg>';
     table('tblEconomy',['항목','규칙'],[['시작 출전 상한',R.startingDeckMax+'개'],['이자',D.economy.interestPer+'냥당 1냥, 상한 '+D.economy.interestCap+' + 특성'],['상점 건너뛰기','보상 수령 후 잔액 기준 추가 이자 1회. 다음 라운드 직행'],['기본 재진열',D.economy.rerollBase+'냥, 누를 때마다 +'+D.economy.rerollStep],['출전 상한 +1',C.deckCapacityCost+'냥'],['말 강화',C.pieceUpgradeCost+' × (현재 레벨+1)냥'],['덱 특성 강화',C.traitUpgradeCost+' × 현재 레벨 냥'],['초과 보너스',C.overflowStep+'점당 '+C.overflowCoins+'냥']]);
