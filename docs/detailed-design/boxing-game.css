@@ -25,8 +25,7 @@
 .box-roster button span, .box-roster button small { font-size: 11px; }
 .box-board { min-width: 0; background: var(--bg); position: relative; }
 .box-board svg { display: block; width: 100%; height: auto; max-height: none; touch-action: none; }
-.box-route { fill: none; stroke: var(--line); stroke-width: 3; }
-.box-route.diagonal { stroke-dasharray: 5 4; }
+.box-route { fill: none; stroke: var(--line); stroke-width: 1.5; }
 .box-node { fill: var(--surface); stroke: var(--ink-2); stroke-width: 1.5; }
 .box-node-label { text-anchor: middle; font-size: 10px; fill: var(--ink-2); }
 .box-danger { fill: var(--red); opacity: .12; stroke: var(--red); stroke-width: 2; }
@@ -35,10 +34,8 @@
 .box-guard .box-guard-hp { fill: var(--red); font: bold 12px Consolas, monospace; }
 .box-guard.fallen { opacity: .25; }
 .box-piece { cursor: pointer; }
-.box-piece circle { fill: var(--box-accent); stroke: var(--surface); stroke-width: 3; }
-.box-piece text { text-anchor: middle; fill: white; font: bold 12px Consolas, monospace; }
-.box-piece .box-piece-weight { fill: var(--box-accent); font-size: 12px; }
-.box-preview { fill: none; stroke: var(--gold); stroke-width: 3; stroke-dasharray: 6 3; pointer-events: none; }
+.box-piece > circle { fill: var(--ink); stroke: var(--surface); stroke-width: 1.5; }
+.box-piece text { text-anchor: middle; fill: var(--surface); font: bold 12px Consolas, monospace; }
 .box-frame-line { fill: none; stroke: var(--gold); stroke-width: 2; pointer-events: none; }
 .box-frame-title { fill: var(--ink-2); font: 9px Consolas, monospace; letter-spacing: 2px; text-anchor: middle; }
 .box-trap { fill: var(--red); font: bold 26px Consolas, monospace; text-anchor: middle; }
@@ -213,7 +210,6 @@
 @media(max-width:580px) { .box-battle-scrim { padding: 10px; } .box-battle-panel { max-height: calc(100dvh - 20px); } .box-battle-actors { gap: 5px; grid-template-columns: minmax(0,1fr) 23px minmax(0,1fr); } .box-fighter { padding: 7px; } .box-hp-box b { font-size: 20px; } .box-roll-result { gap: 10px; } .box-score-equation { font-size: 20px; } }
 @media(prefers-reduced-motion:reduce) { .box-fighter.hit, .box-damage, .box-score-equation > strong { animation: none !important; } .box-hp-track i { transition: none; } }
 
-.box-piece.active circle { stroke: var(--gold); stroke-width: 4; }
 
 /* Next-square cues, fixed shape identities, and separate shop decisions. */
 .box-icons { display: inline-flex; align-items: center; gap: 2px; vertical-align: middle; margin-right: 5px; color: inherit; }
@@ -221,23 +217,14 @@
 #boxingGame .box-stick { width: auto; min-width: 34px; height: 58px; padding: 5px; }
 .box-stick .box-icons { flex-direction: column; margin: 0; }
 .box-stick .box-icons svg { width: 17px; height: 17px; }
-.box-piece-symbol { fill: none; stroke: white; stroke-width: 2; stroke-linejoin: round; }
-.box-piece-symbol circle { fill: none; stroke: white; stroke-width: 2; }
-.box-next-panel { padding: 12px 16px; border-block: 2px solid var(--box-accent); background: var(--surface); }
+.box-piece-symbol { fill: none; stroke: var(--surface); stroke-width: 2; stroke-linejoin: round; }
+.box-piece-symbol circle { fill: none; stroke: var(--surface); stroke-width: 2; }
+.box-piece.active > circle { stroke: var(--ink-2); stroke-width: 2; }
+.box-next-panel { padding: 12px 16px; border-block: 1px solid var(--line); background: var(--surface); }
 .box-next-panel > small { color: var(--ink-2); font-size: 11px; }
 .box-landings { display: flex; flex-wrap: wrap; gap: 6px; margin: 9px 0; }
 .box-landings > span { padding: 5px 9px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 4px; font-size: 12px; }
-.box-landings strong { color: var(--box-accent); }
-.box-course-arrow, .box-course-return, .box-next-arrow { fill: none; stroke: var(--box-accent); stroke-width: 3; }
-.box-course-return { stroke-dasharray: 4 3; }
-.box-next-arrow { stroke-width: 7; }
-.box-landing-ring { fill: var(--gold); fill-opacity: .12; stroke: var(--gold); stroke-width: 3; stroke-dasharray: 4 3; }
-.box-move-path { fill: none; stroke: var(--box-accent); stroke-width: 6; stroke-opacity: .6; stroke-linejoin: round; }
-.box-landing-label, .box-next-label, .box-start-note { fill: var(--box-accent); font: bold 12px 'Malgun Gothic',sans-serif; text-anchor: middle; paint-order: stroke; stroke: var(--bg); stroke-width: 4; }
-.box-start-note { font-size: 11px; }
-.box-step-number circle { fill: var(--box-accent); stroke: var(--surface); stroke-width: 2; }
-.box-step-number text { fill: white; font: bold 11px Consolas,monospace; text-anchor: middle; }
-.box-move-overlay, .box-move-labels { pointer-events: none; }
+.box-landings strong { color: inherit; }
 .box-wallet { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); padding: 14px 16px; gap: 20px; border-block: 2px solid var(--gold); background: var(--surface-2); }
 .box-wallet > div { display: grid; gap: 5px; }
 .box-wallet small { font-size: 12px; color: var(--ink-2); }
@@ -270,27 +257,21 @@
 
 /* Roll-and-move conventions: inspect first, then activate a route. */
 #boxingGame .box-preview-choice { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; min-height: 42px; text-align: left; }
-#boxingGame .box-previewing { outline: 2px solid var(--box-accent); outline-offset: 2px; background: var(--surface-2); }
-.box-route-option.box-previewing { border-color: var(--box-accent); border-width: 2px; }
+#boxingGame .box-previewing { border-color: var(--ink-2); }
+.box-route-option.box-previewing { border-color: var(--ink-2); }
 .box-route-option > .box-primary { width: 100%; margin-top: 12px; }
-.box-choice-path { fill: none; stroke: var(--box-accent); stroke-width: 5; stroke-dasharray: 8 6; stroke-linecap: round; stroke-linejoin: round; }
-.box-choice-path.alternative { stroke-width: 3; opacity: .55; }
-.box-choice-arrow { fill: none; stroke: var(--box-accent); stroke-width: 4; }
-.box-arrival-target { fill: none; stroke: var(--box-accent); stroke-width: 3; }
-.box-landing-ring.selected { stroke: var(--box-accent); stroke-width: 4; fill: var(--box-accent); }
 .box-map-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 10px; border-bottom: 1px solid var(--line); font-size: 12px; }
 .box-map-toolbar > b { margin-right: auto; }
 .box-map-toolbar details { flex-basis: 100%; }
 .box-map-toolbar p { margin: 8px 0 0; }
-.box-route-inspector { padding: 12px; border-block: 2px solid var(--box-accent); background: var(--surface-2); font-size: 12px; overflow-wrap: anywhere; min-height: 100px; }
-.box-route-inspector b { color: var(--box-accent); }
+.box-route-inspector { padding: 12px; border-block: 1px solid var(--line); background: var(--surface-2); font-size: 12px; overflow-wrap: anywhere; min-height: 100px; }
+.box-route-inspector b { color: var(--ink); }
 .box-route-inspector p { margin: 7px 0; }
 .box-route-inspector > strong { display: block; }
 .box-path-itinerary { line-height: 1.9; }
 .box-map-space, .box-guard[role="button"] { cursor: help; }
 .box-map-space:focus .box-node, .box-map-space.inspected .box-node { stroke: var(--box-accent); stroke-width: 4; }
 .box-special:focus rect, .box-guard:focus rect { stroke: var(--gold); stroke-width: 4; }
-.box-piece.preview-piece > circle { stroke: var(--gold); stroke-width: 4; stroke-dasharray: 4 3; }
 #boxingGame.board-wide .box-layout { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
 #boxingGame.board-wide .box-board { grid-column: 1/-1; grid-row: 1; }
 #boxingGame.board-wide .box-score, #boxingGame.board-wide .box-intel { grid-column: auto; grid-row: 2; display: block; border-top: 1px solid var(--line); }
@@ -304,3 +285,6 @@
 .box-map-toolbar > small { flex-basis: 100%; color: var(--ink-2); }
 
 .box-route-inspector:empty { display: none; }
+
+.box-hover-route { fill: none; stroke: var(--ink-2); stroke-width: 2; stroke-dasharray: 5 5; stroke-linecap: round; stroke-linejoin: round; }
+.box-move-overlay { pointer-events: none; }
