@@ -174,11 +174,11 @@
       return hands.flatMap(hand=>{
         const canBack=unit=>unit.pos!=null&&unit.history.length>0;
         const mover=hand.move<0&&!canBack(g)?[...living()].filter(canBack).sort((a,b)=>weight(b)-weight(a)||a.id-b.id)[0]:g;
-        if(!mover)return [{hand,route:g.route,path:[],arrival:g.pos,groupName:name(g),skipped:true}];
+        if(!mover)return [{hand,route:g.route,path:[],arrival:g.pos,origin:g.pos,groupId:g.id,groupName:name(g),skipped:true}];
         const mock={...s,pending:{hand,route:null}};
         return routeOptions(mover,mock).map(option=>{
           const st={...mock,pending:{hand,route:option.id}},path=plan(mover,st);
-          return {hand,route:option.id,routeName:option.name,path,arrival:path.length?path.at(-1).pos:mover.pos,groupName:name(mover),skipped:false};
+          return {hand,route:option.id,routeName:option.name,path,arrival:path.length?path.at(-1).pos:mover.pos,origin:mover.pos,groupId:mover.id,groupName:name(mover),skipped:false};
         });
       });
     }
@@ -289,7 +289,7 @@
       if(next.score<next.target)masterPhase(next,events);
       const turnEnd={playerHp:g.ids.reduce((n,id)=>n+next.pieces[id].hp,0),playerMaxHp:g.ids.reduce((n,id)=>n+stats(next.pieces[id],next).maxHp,0),bossHp:battle?next.guards.find(b=>b.id===battle.bossId).hp:null,bossMaxHp:battle?stats(next.guards.find(b=>b.id===battle.bossId),next).maxHp:null,field:field(next).name};
       updateRecord(next);
-      return {turnEnd,revision:s.revision,next,groupId:gid,arrival:arriving,path,value,battle,events,weightBefore:beforeWeight,weightAfter:g.ids.length?weight(g,next):0,scoreGain:next.score-beforeScore,groupName:name(source),carrier:main?.id};
+      return {turnEnd,revision:s.revision,next,groupId:gid,origin:source.pos,arrival:arriving,path,value,battle,events,weightBefore:beforeWeight,weightAfter:g.ids.length?weight(g,next):0,scoreGain:next.score-beforeScore,groupName:name(source),carrier:main?.id};
     }
     function finishTurn(masterApplied=false) {
       if(!masterApplied&&s.score<s.target)masterPhase(s,[]);

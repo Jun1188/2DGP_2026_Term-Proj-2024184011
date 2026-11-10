@@ -267,3 +267,40 @@
 .box-ready-sticks { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
 .box-ready-sticks > span { display: inline-flex; align-items: center; gap: 2px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 4px; font-size: 11px; }
 .box-active-traits { margin-bottom: 8px; color: var(--gold); }
+
+/* Roll-and-move conventions: inspect first, then activate a route. */
+#boxingGame .box-preview-choice { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; min-height: 42px; text-align: left; }
+#boxingGame .box-previewing { outline: 2px solid var(--box-accent); outline-offset: 2px; background: var(--surface-2); }
+.box-route-option.box-previewing { border-color: var(--box-accent); border-width: 2px; }
+.box-route-option > .box-primary { width: 100%; margin-top: 12px; }
+.box-choice-path { fill: none; stroke: var(--box-accent); stroke-width: 5; stroke-dasharray: 8 6; stroke-linecap: round; stroke-linejoin: round; }
+.box-choice-path.alternative { stroke-width: 3; opacity: .55; }
+.box-choice-arrow { fill: none; stroke: var(--box-accent); stroke-width: 4; }
+.box-arrival-target { fill: none; stroke: var(--box-accent); stroke-width: 3; }
+.box-landing-ring.selected { stroke: var(--box-accent); stroke-width: 4; fill: var(--box-accent); }
+.box-map-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 10px; border-bottom: 1px solid var(--line); font-size: 12px; }
+.box-map-toolbar > b { margin-right: auto; }
+.box-map-toolbar details { flex-basis: 100%; }
+.box-map-toolbar p { margin: 8px 0 0; }
+.box-route-inspector { padding: 12px; border-block: 2px solid var(--box-accent); background: var(--surface-2); font-size: 12px; overflow-wrap: anywhere; min-height: 100px; }
+.box-route-inspector b { color: var(--box-accent); }
+.box-route-inspector p { margin: 7px 0; }
+.box-route-inspector > strong { display: block; }
+.box-path-itinerary { line-height: 1.9; }
+.box-map-space, .box-guard[role="button"] { cursor: help; }
+.box-map-space:focus .box-node, .box-map-space.inspected .box-node { stroke: var(--box-accent); stroke-width: 4; }
+.box-special:focus rect, .box-guard:focus rect { stroke: var(--gold); stroke-width: 4; }
+.box-piece.preview-piece > circle { stroke: var(--gold); stroke-width: 4; stroke-dasharray: 4 3; }
+#boxingGame.board-wide .box-layout { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
+#boxingGame.board-wide .box-board { grid-column: 1/-1; grid-row: 1; }
+#boxingGame.board-wide .box-score, #boxingGame.board-wide .box-intel { grid-column: auto; grid-row: 2; display: block; border-top: 1px solid var(--line); }
+#boxingGame.board-wide .box-map-viewport > svg { max-width: 900px; margin-inline: auto; }
+@media(max-width:580px) { #boxingGame.board-wide .box-layout { grid-template-columns: minmax(0,1fr); } #boxingGame.board-wide .box-intel { grid-row: 3; } .box-map-toolbar button { min-height: 42px; } }
+
+.box-map-viewport { max-width: 100%; overflow: auto; }
+#boxingGame .box-map-viewport > svg { touch-action: auto; }
+#boxingGame.editing .box-map-viewport > svg { touch-action: none; }
+#boxingGame.board-wide .box-map-viewport > svg { min-width: 540px; }
+.box-map-toolbar > small { flex-basis: 100%; color: var(--ink-2); }
+
+.box-route-inspector:empty { display: none; }

@@ -7,7 +7,7 @@
   const fix=v=>Number(v).toFixed(2).replace(/0+$/,'').replace(/\.$/,'');
   const labelPos=p=>p==null?'출발 0 · 수문장 옆':p==='END'?'완주':p==='G'?'완주 관문':p==='J'?'귀환 합류':p==='0'?'출발':p+'번';
   const button=(text,action,value='',off=false,css='')=>'<button type="button" class="'+css+'" data-action="'+action+'" data-value="'+esc(value)+'"'+(off?' disabled':'')+'>'+text+'</button>';
-  let D,core,nodes,edit=false,selection='frame:ui',message='',forced='',hover=null,drag=null,battle=null,timer=null;
+  let D,core,nodes,edit=false,selection='frame:ui',message='',forced='',hover=null,drag=null,battle=null,timer=null,previewChoice=null,inspectedPos=null,boardWide=false,refreshingPreview=false;
   const layout={scoreWidth:180,intelWidth:195,fontSize:14,accent:'#285d8f'};
   const layers={frame:true,pieces:true,guardians:true,threat:true,specials:true};
   const phaseNames={MENU:'메뉴·덱 특성',TRAIT:'리스크 선택',PREP:'출전 윷 편집',SELECT:'윷 선택',MOVE:'갈림길·이동',REWARD:'라운드 결과',CHOICE:'상점 / 추가 이자',SHOP:'상점·성장',WIN:'런 완주',LOSE:'런 종료'};
@@ -26,14 +26,81 @@
   const icons=(entry,label='')=>'<span class="box-icons" role="img" aria-label="'+esc(label||entry?.name||'능력')+'" title="'+esc(entry?.effect||label||entry?.name||'')+'">'+(entry?.icons||['star']).map(key=>'<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'+iconBody(key)+'</svg>').join('')+'</span>';
   const pieceIcon=id=>icons({icons:[D.presentation.pieceIcons[id]],name:'말 '+'ABCD'[id]},'말 '+'ABCD'[id]);
   const groupIcons=g=>g.ids.map(pieceIcon).join('');
-  function movementRows() {
-    const rows=core.movementForecast(),odds=s().selected.length===4?core.outcomes(s().selected):null;
+  const pathKey=r=>r.hand.id+':'+r.route;
+  const previewAttrs=(gid,key)=>' data-preview-group="'+gid+'" data-preview-key="'+esc(key)+'"';
+  const previewButton=(text,action,value,gid,key,off=false,css='')=>button(text,action,value,off,css).replace(' data-action=',previewAttrs(gid,key)+' data-action=');
+  function movementRows(g=core.activeGroup()) {
+    const rows=core.movementForecast(g),odds=s().selected.length===4?core.outcomes(s().selected):null;
     return rows.filter(r=>!odds||odds.rows.some(v=>v.hand.id===r.hand.id&&v.p>0));
+  }
+  function pathContext() {
+    if(edit||!['SELECT','MOVE'].includes(s().phase))return null;
+    const valid=previewChoice?.revision===s().revision&&previewChoice.phase===s().phase;
+    const g=valid?core.living().find(g=>g.id===previewChoice.groupId)||core.activeGroup():core.activeGroup();
+    if(!g)return null;
+    const rows=movementRows(g),key=valid?previewChoice.key:null;
+    const row=rows.find(r=>pathKey(r)===key)||null;
+    return {group:g,rows,row,projection:s().phase==='MOVE'&&row?core.preview(g.id,row.route):null};
+  }
+  function spaceInfo(pos) {
+    const boss=s().guards.find(b=>b.hp>0&&core.samePos(b.pos,pos)),tile=core.currentPlan()?.tiles.find(t=>core.samePos(t.pos,pos));
+    const effect=tile&&D.specialTiles.find(t=>t.id===tile.type);
+    const parts=[];
+    if(pos==null)parts.push('출발 대기. 1번 방향으로 나가 코스를 돌아야 합니다.');
+    if(pos==='0')parts.push('출발 0 / 귀환 J의 공용 위치. 미출발 말은 1번으로, 코스를 돌아온 말은 J에서 G로 갑니다.');
+    if(pos==='J')parts.push('귀환 지점. 다음은 완주 관문 G입니다.');
+    if(pos==='G')parts.push('강제 정지. 수문장을 처치한 뒤 완주 점수를 정산합니다.');
+    if(pos==='END')parts.push('완주한 말의 weight만 한 번 정산합니다.');
+    if(boss)parts.push(boss.name+' · HP '+num(boss.hp)+' / 공격 '+num(core.stats(boss).attack)+' · '+gimmickText(boss));
+    if(effect)parts.push(effect.symbol+' '+effect.name+' · '+effect.effect+' (도착할 때 발동)');
+    if(D.board.branchOnStop[pos])parts.push('갈림길. 이 칸에서 다음 이동을 시작할 때 길을 고릅니다.');
+    if(!parts.length)parts.push('일반 칸. 같은 칸의 아군과 합류하면 업기 효과를 받습니다.');
+    return parts.join(' ');
+  }
+  function arrivalNotes(r) {
+    const boss=s().guards.find(b=>b.hp>0&&core.samePos(b.pos,r.arrival));
+    const tile=core.currentPlan()?.tiles.find(t=>core.samePos(t.pos,r.arrival)),effect=tile&&D.specialTiles.find(t=>t.id===tile.type);
+    const pass=r.path.some(step=>s().guards.some(b=>b.hp>0&&core.samePos(b.pos,step.pos)))&&!boss;
+    const partner=core.living().find(g=>g.id!==r.groupId&&g.pos!=null&&core.samePos(g.pos,r.arrival));
+    return [boss?'⚔ 도착 시 '+boss.name+' 전투':pass?'경유 보스와 전투 없음':'전투 없음',effect?effect.symbol+' '+effect.name+' 도착 발동':'',partner?'업기 합류':'',r.arrival==='G'?'관문에서 강제 정지':''].filter(Boolean).join(' · ');
+  }
+  function routeInspector() {
+    const ctx=pathContext();
+    if(!ctx)return '';
+    if(inspectedPos!=null)return '<b>'+esc(labelPos(inspectedPos))+' · 칸 안내</b><p>'+esc(spaceInfo(inspectedPos))+'</p>'+button('이동 경로로 돌아가기','clear-preview');
+    const r=ctx.row,p=ctx.projection;
+    if(!r)return '<b>말 '+esc(core.name(ctx.group))+' 이동 후보 · 가리키거나 눌러 경로 보기</b><p>화살표는 방향, 점선은 이동 경로, 숫자는 지난 칸수, ◎는 도착입니다. 투척 전 예측은 해당 결과가 나올 경우의 후보입니다.</p>';
+    const route=r.path.map(step=>labelPos(step.pos)).join(' → '),origin=labelPos(r.origin);
+    return '<b>'+(s().phase==='SELECT'?'투척 전 가정':'확정된 윷 결과')+' · 말 '+esc(r.groupName)+' · '+esc(r.hand.name)+' / '+esc(r.routeName||'현재 길')+'</b><p class="box-path-itinerary">현재 '+esc(origin)+(r.skipped?' · 이동 없음':r.path.length?' → '+esc(route):' · 현재 칸 재교전')+'</p><strong>'+esc(r.skipped?'움직일 수 있는 말이 없습니다.':r.path.length+'칸 이동 · '+arrivalNotes(r))+'</strong>'+(p?.battle?'<p>확정 전투 · 아군 HP '+num(p.battle.playerHpBefore)+' → '+num(p.battle.playerHpAfter)+' / 보스 HP '+num(p.battle.bossHpBefore)+' → '+num(p.battle.bossHpAfter)+(p.battle.dead?' · 아군 사망 위험':'')+'</p>':'')+'<p class="box-muted">'+(s().phase==='SELECT'?'미리보기만으로 투척·이동하지 않습니다.':'경로 보기로 비교한 뒤 선택지의 이동 버튼을 누르세요.')+'</p>';
+  }
+  function mapTools() {
+    return '<div class="box-map-toolbar"><b>보드 살펴보기</b>'+button(boardWide?'기본 크기':'보드 크게 보기','map-size')+' '+button('후보 전체 보기','clear-preview')+(s().master?'<small>마스터 갱신 '+(s().master.cycle-s().turn%s().master.cycle)+'턴 뒤</small>':'')+'<details data-box-detail="map-help"><summary>칸 범례 · 조작</summary><p>● 내 말　■ 보스　◇ 특수칸　◎ 도착</p><p>→ 이동 방향　점선: 선택 경로　1·2·3: 이동 순서</p><p>칸을 누르면 효과를 확인합니다. Tab으로 초점 이동, Enter로 미리보기/선택, Esc로 후보 전체 보기. Space로 던지기는 보드·버튼 밖에서 동작합니다. 확대 시 좁은 화면은 좌우로 스크롤하세요.</p><p>특수칸·일반 보스는 도착할 때만 발동합니다. G는 반드시 멈춥니다.</p></details></div>';
+  }
+  function refreshPathPreview() {
+    if(refreshingPreview)return;refreshingPreview=true;
+    try {
+      const svg=root.querySelector('.box-map-viewport > svg'),focused=document.activeElement;
+      const restore=svg?.contains(focused)?{action:focused.dataset.action,value:focused.dataset.value}:null;
+      if(svg)svg.outerHTML=board();
+      const panel=root.querySelector('#boxRouteInspector');if(panel)panel.innerHTML=routeInspector();
+      const ctx=pathContext();
+      for(const el of root.querySelectorAll('[data-preview-key]')){
+        const selected=!!ctx?.row&&+el.dataset.previewGroup===ctx.group.id&&el.dataset.previewKey===pathKey(ctx.row);
+        el.classList.toggle('box-previewing',selected);
+        if(el.dataset.action==='preview-path')el.setAttribute('aria-pressed',String(selected));
+      }
+      if(restore)[...root.querySelectorAll('.box-board [data-action]')].find(el=>el.dataset.action===restore.action&&el.dataset.value===restore.value)?.focus({preventScroll:true});
+    }finally{refreshingPreview=false;}
+  }
+  function showPathPreview(gid,key) {
+    if(refreshingPreview||locked()||!['SELECT','MOVE'].includes(s().phase))return;
+    if(previewChoice?.revision===s().revision&&previewChoice.groupId===gid&&previewChoice.key===key&&inspectedPos==null)return;
+    previewChoice={groupId:gid,key,revision:s().revision,phase:s().phase};inspectedPos=null;refreshPathPreview();
   }
   function movementPanel() {
     if(s().phase!=='SELECT')return '';
-    const rows=movementRows();if(!rows.length)return '';
-    return '<section class="box-next-panel" aria-label="다음 칸 예측"><b>다음 칸 · '+esc(labelPos(core.activeGroup()?.pos))+'에서 출발</b><div class="box-landings">'+rows.map(r=>'<span><strong>'+esc(r.hand.name)+'</strong> → '+esc(r.skipped?'이동 없음':labelPos(r.arrival))+(r.groupName!==core.name(core.activeGroup())?' <small>말 '+esc(r.groupName)+'</small>':'')+(rows.some(o=>o.hand.id===r.hand.id&&o.route!==r.route)?' <small>'+esc(r.routeName)+'</small>':'')+'</span>').join('')+'</div><small>보드 화살표는 전진 첫 칸, 테두리는 도착 후보입니다. 확률은 위 결과표를 따릅니다.</small></section>';
+    const g=core.activeGroup(),rows=movementRows();if(!rows.length)return '';
+    return '<section class="box-next-panel" aria-label="다음 칸 예측"><b>다음 칸 · '+esc(labelPos(g.pos))+'에서 출발</b><div class="box-landings">'+rows.map(r=>previewButton('<strong>'+esc(r.hand.name)+'</strong> → '+esc(r.skipped?'이동 없음':labelPos(r.arrival))+(r.groupName!==core.name(g)?' <small>말 '+esc(r.groupName)+'</small>':'')+(rows.some(o=>o.hand.id===r.hand.id&&o.route!==r.route)?' <small>'+esc(r.routeName)+'</small>':''),'preview-path',pathKey(r),g.id,pathKey(r),locked(),'box-preview-choice')).join('')+'</div><small>후보를 가리키거나 눌러 점선·화살표로 경로를 확인하세요. 결과는 투척 후 확정됩니다.</small></section>';
   }
   function summary() {
     const st=s(),live=core.living().reduce((n,g)=>n+core.weight(g),0);
@@ -59,46 +126,61 @@
       const atk=g.ids.reduce((n,id)=>n+core.stats(st.pieces[id]).attack,0),p=st.pieces[core.carrier(g)];
       return '<b>'+groupIcons(g)+' 말 '+esc(core.name(g))+'</b><span>'+esc(labelPos(g.pos))+'</span><strong class="box-weight-number">'+num(core.weight(g))+' <small>점</small></strong><span class="box-mini-hp"><i style="width:'+Math.min(100,hp/max*100)+'%"></i></span><span>HP '+num(hp)+' / '+num(max)+'</span><small>공격 '+num(atk)+' · 이동속도 '+(p.moveSpeed+(p.moveBonus||0)+core.field().speedBonus)+'</small><span>'+g.ids.flatMap(id=>st.pieces[id].traits).map(id=>icons(core.pieceTraitById[id])).join('')+'</span>';
     };
-    return '<span class="box-eyebrow">ACTIVE PIECE</span><h4>이번에 움직일 말</h4><div class="box-active-traits">'+st.deckTraits.map(t=>icons(core.traitById[t.id])).join('')+'</div>'+(active?'<div class="box-active-piece">'+card(active)+'</div>':'<p>진행할 말이 없습니다.</p>')+'<p class="box-muted">던지면 이 말이 바로 이동합니다.<br>보유점수는 완주할 때 확정됩니다.</p><details data-box-detail="pieces"><summary>던지기 전 다른 말 선택</summary><div class="box-roster">'+core.living().map(g=>'<button type="button" data-action="active" data-value="'+g.id+'" aria-pressed="'+(g.id===active?.id)+'"'+(locked()||st.phase!=='SELECT'?' disabled':'')+'>'+card(g)+'</button>').join('')+'</div></details>'+st.pieces.filter(p=>p.dead).map(p=>'<p class="box-dead">말 '+'ABCD'[p.id]+' 사망</p>').join('');
+    return '<span class="box-eyebrow">ACTIVE PIECE</span><h4>이번에 움직일 말</h4><div class="box-active-traits">'+st.deckTraits.map(t=>icons(core.traitById[t.id])).join('')+'</div>'+(active?'<div class="box-active-piece">'+card(active)+'</div>':'<p>진행할 말이 없습니다.</p>')+'<p class="box-muted">던지면 이 말이 바로 이동합니다.<br>보유점수는 완주할 때 확정됩니다.</p><details data-box-detail="pieces"><summary>던지기 전 다른 말 선택</summary><div class="box-roster">'+core.living().map(g=>'<button type="button" data-action="active" data-value="'+g.id+'"'+previewAttrs(g.id,'')+' aria-pressed="'+(g.id===active?.id)+'"'+(locked()||st.phase!=='SELECT'?' disabled':'')+'>'+card(g)+'</button>').join('')+'</div></details>'+st.pieces.filter(p=>p.dead).map(p=>'<p class="box-dead">말 '+'ABCD'[p.id]+' 사망</p>').join('');
   }
   function board() {
-    const st=s(),active=core.activeGroup(),xy=id=>{const n=nodes[nodes[id]?.aliasOf||id];return n?[70+n.x*80,70+n.y*80]:[0,0];};
+    const st=s(),active=core.activeGroup(),ctx=pathContext(),xy=id=>{const n=nodes[nodes[id]?.aliasOf||id];return n?[70+n.x*80,70+n.y*80]:[0,0];};
     let base='',enemy='',units='',threat='',preview='',specials='',labels='';
-    const arrow=(from,to,css)=>{const [x,y]=xy(from),[a,b]=xy(to),length=Math.hypot(a-x,b-y);if(!length)return '';const dx=(a-x)/length,dy=(b-y)/length;return '<path d="M'+(x+dx*24)+' '+(y+dy*24)+' L'+(a-dx*25)+' '+(b-dy*25)+'" class="'+css+'" marker-end="url(#boxArrow)"/>';};
-    for(const [id,route] of Object.entries(D.board.drawPaths))base+='<polyline points="'+route.map(p=>xy(p).join(',')).join(' ')+'" class="box-route '+(id==='diagA'||id==='diagB'?'diagonal':'')+'"/>';
-    base+=arrow('0','1','box-course-arrow')+arrow('19','J','box-course-arrow')+arrow('J','G','box-course-return');
+    const arrow=(from,to,css)=>{const [x,y]=xy(from),[a,b]=xy(to),length=Math.hypot(a-x,b-y);if(length<45)return '';const dx=(a-x)/length,dy=(b-y)/length,start=css==='box-choice-arrow'?Math.max(24,length-43):24;return '<path d="M'+(x+dx*start)+' '+(y+dy*start)+' L'+(a-dx*25)+' '+(b-dy*25)+'" class="'+css+'" marker-end="url(#boxArrow)"/>';};
+    const edges=new Set();
+    for(const [id,route] of Object.entries(D.board.drawPaths)){
+      base+='<polyline points="'+route.map(p=>xy(p).join(',')).join(' ')+'" class="box-route '+(id==='diagA'||id==='diagB'?'diagonal':'')+'"/>';
+      for(let i=1;i<route.length;i++){const key=core.boardPos(route[i-1])+'>'+core.boardPos(route[i]);if(!edges.has(key)&&(i%3===1||id==='finish')){base+=arrow(route[i-1],route[i],'box-course-arrow');edges.add(key);}}
+    }
     for(const n of Object.values(nodes).filter(n=>!n.aliasOf)){
-      const [x,y]=xy(n.id);
-      base+='<circle data-edit-kind="node" data-edit-id="'+esc(n.id)+'" cx="'+x+'" cy="'+y+'" r="'+(n.tag?17:11)+'" class="box-node"/><text x="'+x+'" y="'+(y+30)+'" class="box-node-label">'+esc(n.id==='G'?'완주 관문':n.id==='0'?'출발 0 · 귀환 J':n.id==='END'?'완주':n.id)+'</text>';
+      const [x,y]=xy(n.id),info=labelPos(n.id)+' · '+spaceInfo(n.id);
+      base+='<g class="box-map-space '+(inspectedPos===n.id?'inspected':'')+'" role="button" tabindex="0" data-action="inspect-space" data-value="'+esc(n.id)+'" aria-label="'+esc(info)+'"><title>'+esc(info)+'</title><circle data-edit-kind="node" data-edit-id="'+esc(n.id)+'" cx="'+x+'" cy="'+y+'" r="'+(n.tag?17:11)+'" class="box-node"/><text x="'+x+'" y="'+(y+30)+'" class="box-node-label">'+esc(n.id==='G'?'완주 관문':n.id==='0'?'출발 0 · 귀환 J':n.id==='END'?'완주':n.id)+'</text></g>';
     }
     const [sx,sy]=xy('0');
     base+='<text x="'+(sx-90)+'" y="'+(sy+49)+'" class="box-start-note">수문장 옆에서 출발 ↗</text>';
-    for(const tile of core.currentPlan()?.tiles||[]){const [x,y]=xy(tile.pos),t=D.specialTiles.find(t=>t.id===tile.type);specials+='<g transform="translate('+x+','+y+')" class="box-special" data-edit-kind="tile" data-edit-id="'+tile.pos+'"><title>'+esc(t.name+' · '+t.effect)+'</title><rect x="-16" y="-16" width="32" height="32" rx="7"/><text y="4">'+esc(t.symbol)+'</text></g>';}
+    for(const tile of core.currentPlan()?.tiles||[]){const [x,y]=xy(tile.pos),t=D.specialTiles.find(t=>t.id===tile.type);specials+='<g transform="translate('+x+','+y+')" class="box-special" role="button" tabindex="0" data-action="inspect-space" data-value="'+tile.pos+'" aria-label="'+esc(labelPos(tile.pos)+' · '+t.name+' · '+t.effect)+'" data-edit-kind="tile" data-edit-id="'+tile.pos+'"><title>'+esc(t.name+' · '+t.effect)+'</title><rect x="-16" y="-16" width="32" height="32" rx="7"/><text y="4">'+esc(t.symbol)+'</text></g>';}
     for(const g of st.guards){const [x,y]=xy(g.pos);if(g.hp>0)threat+='<circle cx="'+x+'" cy="'+y+'" r="27" class="box-danger"/>';
-      enemy+='<g transform="translate('+x+','+y+')" data-edit-kind="boss" data-edit-id="'+g.id+'" class="box-guard '+(g.hp===0?'fallen':'')+'"><title>'+esc(g.name)+' · HP '+num(g.hp)+' · W '+num(g.weight)+' · '+esc(gimmickText(g))+'</title><rect x="-18" y="-18" width="36" height="36" rx="3"/><text y="5">'+(g.role==='gate'?'門':'鬼')+'</text><text y="-26" class="box-guard-hp">'+num(g.hp)+'</text></g>';
+      enemy+='<g transform="translate('+x+','+y+')" data-edit-kind="boss" data-edit-id="'+g.id+'" role="button" tabindex="0" data-action="inspect-space" data-value="'+g.pos+'" aria-label="'+esc(g.name+' · '+spaceInfo(g.pos))+'" class="box-guard '+(g.hp===0?'fallen':'')+'"><title>'+esc(g.name)+' · HP '+num(g.hp)+' · W '+num(g.weight)+' · '+esc(gimmickText(g))+'</title><rect x="-18" y="-18" width="36" height="36" rx="3"/><text y="5">'+(g.role==='gate'?'門':'鬼')+'</text><text y="-26" class="box-guard-hp">'+num(g.hp)+'</text></g>';
     }
     const counts={};
     for(const g of st.groups.filter(g=>g.pos!=='END')){
       const reserve=g.pos==null,[bx,by]=xy(g.pos||'0'),key=core.boardPos(g.pos||'0'),offset=(counts[key]||0)*-24,occupied=st.guards.some(b=>b.hp>0&&core.samePos(b.pos,g.pos));
       let x=bx+offset-(occupied?60:0),y=by;if(reserve&&g.id!==active?.id){x=sx-170+g.ids[0]*34;y=sy+82;}else counts[key]=(counts[key]||0)+1;
       const shape=D.presentation.pieceIcons[core.carrier(g)];
-      units+='<g transform="translate('+x+','+y+')" class="box-piece '+(g.id===active?.id?'active':'')+'" role="button" tabindex="0" data-action="active" data-value="'+g.id+'" data-edit-kind="unit" data-edit-id="'+core.carrier(g)+'" aria-label="말 '+esc(core.name(g))+' · '+esc(labelPos(g.pos))+'"><title>'+esc(labelPos(g.pos))+'</title><circle r="18"/><g transform="translate(-6,-13) scale(.5)" class="box-piece-symbol">'+iconBody(shape)+'</g><text y="12">'+esc(core.name(g))+'</text>'+(!reserve||g.id===active?.id?'<text y="-27" class="box-piece-weight">W '+num(core.weight(g))+'</text>':'')+'</g>';
+      units+='<g transform="translate('+x+','+y+')" class="box-piece '+(g.id===active?.id?'active':'')+' '+((ctx?.row?.groupId??ctx?.group.id)===g.id&&active?.id!==g.id?'preview-piece':'')+'" role="button" tabindex="0" data-action="active" data-value="'+g.id+'"'+previewAttrs(g.id,'')+' data-edit-kind="unit" data-edit-id="'+core.carrier(g)+'" aria-label="말 '+esc(core.name(g))+' · '+esc(labelPos(g.pos))+'"><title>'+esc(labelPos(g.pos))+'</title><circle r="18"/><g transform="translate(-6,-13) scale(.5)" class="box-piece-symbol">'+iconBody(shape)+'</g><text y="12">'+esc(core.name(g))+'</text>'+(!reserve||g.id===active?.id?'<text y="-27" class="box-piece-weight">W '+num(core.weight(g))+'</text>':'')+'</g>';
     }
-    if(active&&!edit&&['SELECT','MOVE'].includes(st.phase)){
-      const rows=movementRows(),resolved=battle?.projection,paths=resolved?[{path:resolved.path,arrival:resolved.arrival,hand:st.pending?.hand,routeName:'확정'}]:rows;
+    if(ctx){
+      const resolved=battle?.projection;
+      const paths=resolved?[{path:resolved.path,origin:resolved.origin,arrival:resolved.arrival,hand:st.pending?.hand,routeName:'확정',groupId:resolved.groupId}]:ctx.row?[ctx.row]:ctx.rows;
       const seen=new Map();
       for(const r of paths){if(r.skipped)continue;const id=r.arrival||'0',key=core.boardPos(id);if(!seen.has(key))seen.set(key,{id,names:[]});const entry=seen.get(key),name=st.phase==='MOVE'?(resolved?'도착':r.routeName):r.hand.name;if(!entry.names.includes(name))entry.names.push(name);}
-      for(const {id,names} of seen.values()){const [x,y]=xy(id);preview+='<circle cx="'+x+'" cy="'+y+'" r="28" class="box-landing-ring"/>';labels+='<text x="'+x+'" y="'+(y+44)+'" class="box-landing-label">'+esc(names.join(' / '))+'</text>';}
-      if(st.phase==='MOVE'){
-        for(const r of paths){const points=[xy(active.pos||'0'),...r.path.map(step=>xy(step.pos||'0'))];preview+='<polyline points="'+points.map(p=>p.join(',')).join(' ')+'" class="box-move-path"/>';r.path.forEach((step,i)=>{const [x,y]=xy(step.pos||'0');labels+='<g class="box-step-number"><circle cx="'+(x-21)+'" cy="'+(y-20)+'" r="10"/><text x="'+(x-21)+'" y="'+(y-16)+'">'+(i+1)+'</text></g>';});}
+      for(const {id,names} of seen.values()){
+        const [x,y]=xy(id),selected=!!ctx.row||!!resolved;
+        preview+='<circle cx="'+x+'" cy="'+y+'" r="'+(selected?30:28)+'" class="box-landing-ring '+(selected?'selected':'')+'"/>'+(selected?'<circle cx="'+x+'" cy="'+y+'" r="35" class="box-arrival-target"/>':'');
+        labels+='<text x="'+Math.min(465,Math.max(75,x))+'" y="'+(y+46)+'" class="box-landing-label">'+esc((selected?'◎ ':'')+names.join(' / '))+'</text>';
+      }
+      if(st.phase==='MOVE'||ctx.row){
+        for(const r of paths){
+          if(r.skipped)continue;
+          const ids=[r.origin||'0',...r.path.map(step=>step.pos||'0')],points=ids.map(xy);
+          preview+='<polyline points="'+points.map(p=>p.join(',')).join(' ')+'" class="box-choice-path '+(!ctx.row&&!resolved?'alternative':'')+'"/>';
+          for(let i=1;i<ids.length;i++)preview+=arrow(ids[i-1],ids[i],'box-choice-arrow');
+          r.path.forEach((step,i)=>{const [x,y]=xy(step.pos||'0');labels+='<g class="box-step-number"><circle cx="'+(x-21)+'" cy="'+(y-20)+'" r="10"/><text x="'+(x-21)+'" y="'+(y-16)+'">'+(i+1)+'</text></g>';});
+          const [x,y]=xy(r.origin||'0');labels+='<text x="'+Math.max(50,x-32)+'" y="'+(y-44)+'" class="box-next-label">현재</text>';
+        }
       }else{
-        const next=rows.find(r=>r.hand.move>0&&r.path.length)?.path[0]?.pos;
-        if(next){preview+=arrow(active.pos||'0',next,'box-next-arrow');const [x,y]=xy(next);labels+='<text x="'+(x-35)+'" y="'+(y-12)+'" class="box-next-label">다음 1칸</text>';}
+        const next=ctx.rows.find(r=>r.hand.move>0&&r.path.length)?.path[0]?.pos;
+        if(next){preview+=arrow(ctx.group.pos||'0',next,'box-next-arrow');const [x,y]=xy(next);labels+='<text x="'+(x-35)+'" y="'+(y-12)+'" class="box-next-label">다음 1칸</text>';}
         else labels+='<text x="270" y="610" class="box-next-label">현재 칸에서 재교전</text>';
       }
     }
     const layer=(id,body)=>'<g data-layer="'+id+'"'+(!layers[id]?' style="display:none"':'')+'>'+body+'</g>';
-    return '<svg viewBox="0 0 540 710" role="img" aria-label="수문장 옆 출발 0에서 한 바퀴 돌아 귀환 J, 관문 G, 완주로 이동. 다음 첫 칸 화살표와 결과별 도착 후보."><defs><marker id="boxArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="m0 0 10 5-10 5Z" fill="var(--box-accent)"/></marker></defs><g data-layer="board">'+base+'</g>'+layer('specials',specials)+layer('threat',threat)+'<g class="box-move-overlay">'+preview+'</g>'+layer('guardians',enemy)+layer('pieces',units)+'<g class="box-move-labels">'+labels+'</g>'+layer('frame','<path d="M15 48V15H48 M492 15H525V48 M525 662V695H492 M48 695H15V662" class="box-frame-line"/><text x="270" y="30" class="box-frame-title">출발 → 한 바퀴 → 귀환 → 수문장 → 완주</text>')+'</svg>';
+    return '<svg viewBox="0 0 540 710" role="group" aria-label="경로 미리보기 보드. 칸을 선택해 효과 확인. 화살표는 방향, 점선은 이동 경로, 숫자는 칸 순서, 이중 원은 도착."><defs><marker id="boxArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="m0 0 10 5-10 5Z" fill="var(--box-accent)"/></marker></defs><g data-layer="board">'+base+'</g>'+layer('specials',specials)+layer('threat',threat)+'<g class="box-move-overlay">'+preview+'</g>'+layer('guardians',enemy)+layer('pieces',units)+'<g class="box-move-labels">'+labels+'</g>'+layer('frame','<path d="M15 48V15H48 M492 15H525V48 M525 662V695H492 M48 695H15V662" class="box-frame-line"/><text x="270" y="30" class="box-frame-title">출발 → 한 바퀴 → 귀환 → 수문장 → 완주</text>')+'</svg>';
   }
   function gimmickText(g){return [({supportResonance:'단독 선공 ×0.6 / 업기 선공 ×1.25',gateArmor:'받는 피해 ×0.75 / 절반 HP 반격 ×1.5',lastStand:'HP 절반 이하 반격 ×1.5',chipShield:'선공 피해 10 경감',heavyStrike:'강한 공격 계수'}[g.gimmick]||''),({lastStand:'픽: 절반 이하 반격 강화',loneHunter:'픽: 단독 말 상대 반격 ×1.25',calm:'픽: HP·공격 완화'}[g.pickGimmick]||'')].filter(Boolean).join(' / ');}
   function intel() {
@@ -117,7 +199,7 @@
   function handPanel() {
     const st=s();if(!['SELECT','MOVE'].includes(st.phase))return '';
     const g=core.activeGroup(),options=st.phase==='MOVE'&&g?core.routeOptions(g):[];
-    if(st.phase==='MOVE')return turnResult()+(battle?'':options.length>1?'<div class="box-junction"><h4>갈림길 · 어느 길로 갈까요?</h4><div class="box-offers">'+options.map(o=>{const p=core.preview(g.id,o.id);return '<article>'+button(esc(o.name)+' → '+esc(labelPos(p.arrival)),'route',o.id,false,'box-primary')+'<p>'+p.path.length+'칸 이동'+(p.battle?' · 선공 '+num(p.battle.hit)+' / 반격 '+num(p.battle.counter):' · 전투 없음')+'</p>'+forecast(p)+'</article>';}).join('')+'</div></div>':button('확정 결과로 이동 계속','resume','','','box-primary'));
+    if(st.phase==='MOVE')return turnResult()+(battle?'':options.length>1?'<div class="box-junction"><h4>갈림길 · 경로를 비교한 뒤 고르세요.</h4><p>가리키거나 Tab으로 이동하면 보드에 해당 길만 강조합니다. 경로 보기는 이동하지 않습니다.</p><div class="box-offers">'+options.map(o=>{const p=core.preview(g.id,o.id),key=st.pending.hand.id+':'+o.id;return '<article class="box-route-option"'+previewAttrs(g.id,key)+'><h4>'+esc(o.name)+' → '+esc(labelPos(p.arrival))+'</h4>'+previewButton('↗ 경로 보기','preview-path',key,g.id,key,false,'box-preview-choice')+'<p>'+p.path.length+'칸 이동'+(p.battle?' · ⚔ 선공 '+num(p.battle.hit)+' / 반격 '+num(p.battle.counter):' · 전투 없음')+'</p>'+forecast(p)+button('이 길로 '+p.path.length+'칸 이동','route',o.id,false,'box-primary')+'</article>';}).join('')+'</div></div>':button('확정 결과로 이동 계속','resume','','','box-primary'));
     const odds=st.selected.length===4?core.outcomes(st.selected):null;
     return turnResult()+'<div class="box-hand-area"><div class="box-hand-heading"><div><h4>말 '+esc(g?core.name(g):'—')+' · 윷 '+st.selected.length+'/4개 준비</h4><small>기본 4개가 준비됩니다. 바꾸기는 선택입니다.</small></div>'+button('윷 던지기 → 바로 이동','toss','',locked()||st.selected.length!==4||!g,'box-primary')+'</div><p class="box-prob">'+(odds?odds.rows.map(v=>v.hand.name+' '+(v.p*100).toFixed(0)+'%').join(' · '):'윷을 4개 선택하세요.')+'</p><div class="box-ready-sticks" aria-label="이번에 던질 윷">'+st.selected.map(uid=>{const i=core.item(uid),b=core.stickById[i.type];return '<span>'+icons(b)+esc(b.name)+(i.level?' +'+i.level:'')+'</span>';}).join('')+'</div><details class="box-hand-edit" data-box-detail="hand"><summary>던질 윷 바꾸기 · 점수 범위 보기</summary><p>파란 윷 4개를 던집니다. 배/등 확률과 점수 재료를 조절하세요.</p>'+button('선택 윷 교체 · 남은 '+st.swaps,'swap','',locked()||!st.selected.length||st.swaps<=0)+'<div class="box-hand">'+st.hand.map((uid,i)=>{
       const v=core.item(uid),b=core.stickById[v.type],picked=st.selected.includes(uid);
@@ -172,7 +254,7 @@
   }
   function tossAndMove() {
     if(locked())return;
-    core.toss(s().practice&&s().turn<3?D.onboarding.firstThreeHands[s().turn]:forced);hover=null;
+    previewChoice=null;inspectedPos=null;core.toss(s().practice&&s().turn<3?D.onboarding.firstThreeHands[s().turn]:forced);hover=null;
     resolveRoll();
   }
   function resolveRoll() {
@@ -315,19 +397,19 @@
     const openDetails=new Set([...root.querySelectorAll('details[data-box-detail][open]')].map(el=>el.dataset.boxDetail));
     const focused=document.activeElement?.closest('[data-action]'),focusAction=focused?.dataset.action,focusValue=focused?.dataset.value;
     const st=s(),focus=root.contains(document.activeElement),play=['SELECT','MOVE'].includes(st.phase),showBoard=play||edit;
-    root.classList.toggle('editing',edit);root.style.setProperty('--box-score-width',layout.scoreWidth+'px');root.style.setProperty('--box-intel-width',layout.intelWidth+'px');root.style.setProperty('--box-accent',layout.accent);root.style.fontSize=layout.fontSize+'px';
+    root.classList.toggle('editing',edit);root.classList.toggle('board-wide',boardWide);root.style.setProperty('--box-score-width',layout.scoreWidth+'px');root.style.setProperty('--box-intel-width',layout.intelWidth+'px');root.style.setProperty('--box-accent',layout.accent);root.style.fontSize=layout.fontSize+'px';
     const toolbar='<div class="box-top"><div><span class="box-eyebrow">YUTOCHESS / WEIGHT × POWER</span><h3>윷토체스</h3><p>업고, 곱하고, 돌파한다.</p></div><details class="box-header-tools"><summary>시드·새 런</summary><label>런 시드<input id="boxSeed" type="number" min="0" max="4294967295" value="'+st.seed+'"></label>'+button('메뉴 / 새 런','reset','',!!battle)+'</details>'+button(edit?'편집 종료 → 플레이':'편집 모드','editor','',!!battle)+'</div>';
     const status=st.phase==='MENU'?'':'<div class="box-status" aria-live="polite"><b>'+core.row().act+'막 · '+core.row().id+'</b><span>'+phaseNames[st.phase]+'</span>'+(play?'<span>투척 '+st.tosses+' / 교체 '+st.swaps+'</span><span>출전 '+st.deck.length+'/'+st.capacity+'</span>':'')+(st.practice?'<b>연습 · 첫 3턴만 고정</b>':'')+'</div>';
     const loop=st.phase==='MENU'?'':'<div class="box-loop">'+['TRAIT','PREP','SELECT','REWARD','CHOICE','SHOP'].map((p,i)=>'<span>'+(i?' → ':'')+((st.phase===p||(p==='SELECT'&&st.phase==='MOVE'))?'<b>':'')+esc({TRAIT:'리스크 선택',PREP:'출전 편집',SELECT:'PvE',REWARD:'라운드 결과',CHOICE:'상점 / 추가 이자',SHOP:'상점'}[p])+((st.phase===p||(p==='SELECT'&&st.phase==='MOVE'))?'</b>':'')+'</span>').join('')+'</div>';
     const hints=['던지기 한 번으로 이동합니다. 작은 말을 큰 말에 업어 보세요.','업으면 보유점수와 다음 배율이 커집니다. 한 번 더 던져 보세요.','갈림길에서만 길을 고릅니다. 수문장에 멈추면 HP 전투!'];
     const hintIndex=Math.min(2,Math.max(0,st.phase==='MOVE'?st.turn-1:st.turn));
     const intro=play&&st.round===0&&(st.turn<3||st.phase==='MOVE'&&st.turn<=3)?'<div class="box-hook"><b>'+(st.practice?'체험 '+(hintIndex+1)+'/3 · '+D.hands.find(h=>h.id===D.onboarding.firstThreeHands[hintIndex]).name+' 고정 — ':'')+hints[hintIndex]+'</b>'+(st.practice?button('체험 종료 · 실제 런 시작','start-real'):'')+'</div>':st.practice?'<div class="box-hook"><b>3턴 체험 이후는 시드 난수입니다.</b>'+button('실제 런 시작','start-real','','','box-primary')+'</div>':'';
-    const game=showBoard?handPanel()+'<div class="box-layout"><aside class="box-score">'+roster()+'</aside><div class="box-board">'+board()+'<p class="box-board-key">→ 다음 칸　◎ 도착 후보　● 내 말　■ 보스　◇ 특수칸</p></div><aside class="box-intel">'+intel()+'</aside></div>':'';
+    const game=showBoard?handPanel()+'<div class="box-layout"><aside class="box-score">'+roster()+'</aside><div class="box-board">'+mapTools()+'<div class="box-map-viewport" tabindex="0" role="region" aria-label="윷판 지도">'+board()+'</div><section id="boxRouteInspector" class="box-route-inspector" aria-live="polite">'+routeInspector()+'</section><p class="box-board-key">→ 다음 칸　◎ 도착 후보　● 내 말　■ 보스　◇ 특수칸</p></div><aside class="box-intel">'+intel()+'</aside></div>':'';
     const compact=!showBoard&&st.phase!=='MENU'?'<div class="box-wallet"><div><small>현재 가진 금액</small><b>'+st.coins+'냥</b></div><div><small>다음 라운드 예상 이자</small><b>+'+core.interest()+'냥</b></div></div>':'';
     root.innerHTML=toolbar+loop+status+(play?summary():'')+intro+(!play&&st.phase==='LOSE'&&st.lastTurn?turnResult():'')+compact+(edit?editorPanel():'')+(showBoard?(st.master&&st.round===0&&st.turn<=3?'<details class="box-master-fold" data-box-detail="master"><summary>마스터 · '+esc(core.field().effect)+'</summary>'+masterPanel()+'</details>':masterPanel()):'')+game+'<div class="box-stage">'+stage()+'</div>'+
       (st.log.length&&st.phase!=='MENU'?'<p class="box-feedback" aria-live="polite">'+esc(st.log.at(-1).message)+'</p>':'')+machine()+'<details class="box-events"><summary>상세 사건 기록 · '+st.log.length+'건</summary><ol>'+st.log.slice(-50).reverse().map(e=>'<li><small>'+esc(e.round)+' / '+e.turn+'T</small> '+esc(e.message)+'</li>').join('')+'</ol></details>'+animationPanel();
     for(const el of root.querySelectorAll('details[data-box-detail]'))el.open=openDetails.has(el.dataset.boxDetail);
-    updateUpgradeInfo();
+    updateUpgradeInfo();refreshPathPreview();
     if(battle)root.querySelector('.box-battle-actions button')?.focus({preventScroll:true});else if(focus){const next=[...root.querySelectorAll('[data-action]')].find(el=>el.dataset.action===focusAction&&el.dataset.value===focusValue&&!el.disabled);(next||root).focus({preventScroll:true});}
   }
   function updateUpgradeInfo() {
@@ -340,12 +422,17 @@
     if(action==='skip-battle'){finishAnimation();return;}
     if(action==='close-battle'&&battle?.done){battle=null;render();return;}
     if(battle)return;
-    if(action==='editor'){edit=!edit;message='';if(!edit){core.reconcile();resolveRoll();}else render();return;}
+    if(action==='editor'){previewChoice=null;inspectedPos=null;edit=!edit;message='';if(!edit){core.reconcile();resolveRoll();}else render();return;}
     if(action==='save'){saveScene();return;}
+    if(action==='map-size'){boardWide=!boardWide;render();return;}
+    if(action==='clear-preview'){previewChoice=null;inspectedPos=null;refreshPathPreview();return;}
+    if(action==='inspect-space'&&!edit){inspectedPos=value;refreshPathPreview();return;}
+    if(action==='preview-path'){showPathPreview(+target.dataset.previewGroup,value);root.querySelector('.box-map-viewport')?.scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});return;}
     if(edit&&action==='add-tile'){const p=core.currentPlan(),free=Object.keys(nodes).find(id=>!['0','J','C','G','END'].includes(id)&&!p.tiles.some(t=>t.pos===id));if(free&&p.tiles.length<8){p.tiles.push({pos:free,type:'fortune'});core.touched();selection='tile:'+free;}render();return;}
     if(edit&&action==='delete-tile'){const p=core.currentPlan();p.tiles=p.tiles.filter(t=>t.pos!==value);selection='master:stage';core.touched();render();return;}
     if(action==='apply-edit'){applyEdit();return;}
     if(edit&&action!=='reset')return;
+    previewChoice=null;inspectedPos=null;
     switch(action){
       case 'reset':core.reset(Number(root.querySelector('#boxSeed').value)||0);edit=false;forced='';hover=null;break;
       case 'start-real':quickRun();break;
@@ -379,6 +466,11 @@
     }
     render();
   });
+  for(const type of ['pointerover','focusin'])root.addEventListener(type,event=>{
+    if(type==='pointerover'&&event.pointerType==='touch')return;
+    const el=event.target.closest('[data-preview-key]');
+    if(el&&!el.disabled)showPathPreview(+el.dataset.previewGroup,el.dataset.previewKey);
+  });
   root.addEventListener('change',async event=>{
     if(battle)return;
     const el=event.target;
@@ -392,8 +484,10 @@
     if(event.target.matches('input,select,textarea,summary'))return;
     if(battle){if(event.key==='Tab'){const buttons=[...root.querySelectorAll('.box-battle-actions button:not(:disabled)')];if(buttons.length){event.preventDefault();const at=buttons.indexOf(document.activeElement),next=(at+(event.shiftKey?-1:1)+buttons.length)%buttons.length;buttons[next].focus();}}if(event.key==='Escape'){if(battle.done){battle=null;render();}else finishAnimation();}return;}
     if(edit)return;
+    if(event.key==='Escape'){event.preventDefault();previewChoice=null;inspectedPos=null;refreshPathPreview();return;}
+    const mapNode=event.target.closest('[data-action="inspect-space"]');if(mapNode&&['Enter',' '].includes(event.key)){event.preventDefault();inspectedPos=mapNode.dataset.value;refreshPathPreview();return;}
     const token=event.target.closest('.box-piece');if(token&&['Enter',' '].includes(event.key)){event.preventDefault();core.setActive(+token.dataset.value);render();return;}
-    if(s().phase==='SELECT'&&event.key===' '){event.preventDefault();tossAndMove();}
+    if(s().phase==='SELECT'&&event.key===' '&&!event.target.closest('button,a,[role="button"],.box-map-viewport')){event.preventDefault();tossAndMove();}
     if(s().phase==='SELECT'&&event.key.toLowerCase()==='r'){core.swap();render();}
     if(s().phase==='SELECT'&&/^[1-6]$/.test(event.key)&&s().hand[+event.key-1]){core.select(s().hand[+event.key-1]);const panel=root.querySelector('.box-hand-edit');if(panel)panel.open=true;render();}
   });
@@ -415,6 +509,6 @@
   function endDrag(event){if(!drag||event.pointerId!==drag.pointer)return;if(root.hasPointerCapture(drag.pointer))root.releasePointerCapture(drag.pointer);if(drag.moved){core.log('[편집] '+selection+' 드래그 배치.');core.touched();}drag=null;render();}
   root.addEventListener('pointerup',endDrag);root.addEventListener('pointercancel',endDrag);
   window.YutoBoxing={icons,mount(data){
-    if(timer!=null)clearTimeout(timer);battle=null;D=data;core=window.YutoCore.create(data);nodes=Object.fromEntries(D.board.nodes.map(n=>[n.id,{...n}]));edit=false;forced='';hover=null;message='';render();
+    if(timer!=null)clearTimeout(timer);battle=null;D=data;previewChoice=null;inspectedPos=null;boardWide=false;core=window.YutoCore.create(data);nodes=Object.fromEntries(D.board.nodes.map(n=>[n.id,{...n}]));edit=false;forced='';hover=null;message='';render();
   }};
 })();
