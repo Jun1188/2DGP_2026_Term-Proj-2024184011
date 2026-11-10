@@ -66,7 +66,7 @@
     }
     const risk=st=>row(st).baseRisk+(st.trait?.risk||0);
     function bossUnits(st=s) {
-      const placements=[...row(st).bosses],count=Math.min(row(st).extraBossPosts.length,(row(st).extraBosses||0)+(st.trait?.extraBosses||0));
+      const placements=[...row(st).bosses],count=st.round===0?0:Math.min(row(st).extraBossPosts.length,(row(st).extraBosses||0)+(st.trait?.extraBosses||0));
       for(let i=0;i<count;i++)placements.push({role:'extra',id:row(st).extraBossKinds[i%row(st).extraBossKinds.length],post:row(st).extraBossPosts[i]});
       return placements.map((placement,index)=>{
         const b=D.guardians.find(b=>b.id===placement.id),r=risk(st),healthScale=(1+r*C.riskHealthStep)*(st.trait?.bossGimmick==='calm'?0.9:1),attackScale=(1+r*C.riskAttackStep)*(st.trait?.bossGimmick==='calm'?0.9:1);
@@ -84,6 +84,7 @@
       s.tosses=Math.max(1,R.tossesPerRound+delta+(s.charms.includes('lucky')?1:0)-(s.trait.id==='lastStand'?3:0));
       s.swaps=R.swapsPerRound;s.hand=[];s.draw=shuffle(s.deck);drawHand();
       s.pieces=s.templates.map(t=>{const p={...copy(t),weight:t.baseWeight+sumTrait('initialWeight'),healthFactor:1,attackFactor:1,hp:1,dead:false,settled:false,effects:[],moveBonus:0};p.hp=stats(p).maxHp;return p;});
+      // Reserve groups are drawn at start 0; null prevents a returning piece from carrying untravelled reserves into the finish.
       s.groups=s.pieces.map(p=>({id:p.id,ids:[p.id],pos:null,route:'outer',history:[]}));s.guards=bossUnits();s.master=makeMaster();
       touched();log(row().id+' 출전 · 수문장 2체 + 일반 보스 '+(s.guards.length-2)+'체 · 사용한 윷은 매 턴 덱으로 돌아가 셔플.');updateRecord(s);
     }
@@ -138,14 +139,15 @@
       if(forced){const h=D.hands.find(h=>h.id===forced);if(h){faces.fill('back');const order=items.map((_,i)=>i).sort((a,b)=>Number(!!stickById[item(items[a]).type].marked)-Number(!!stickById[item(items[b]).type].marked));if(forced==='backdo')faces[items.findIndex(uid=>stickById[item(uid).type].marked)]='flat';else order.slice(0,h.flats).forEach(i=>faces[i]='flat');}}
       const hand=handFor(items,faces);s.turn++;s.tosses--;s.pending={items,faces,hand,route:null};s.lastRoll={turn:s.turn,hand:hand.id,items:[...items],faces:[...faces]};s.selected=[];
       const active=activeGroup();
-      const fallback=hand.move<0&&active?.pos==null?[...living()].filter(g=>g.pos!=null).sort((a,b)=>weight(b)-weight(a)||a.id-b.id)[0]:null;
+      const canBack=g=>g.pos!=null&&g.history.length>0;
+      const fallback=hand.move<0&&!canBack(active||{pos:null})?[...living()].filter(canBack).sort((a,b)=>weight(b)-weight(a)||a.id-b.id)[0]:null;
       s.activeGroupId=(fallback||active)?.id??null;
       s.hand=s.hand.filter(uid=>!items.includes(uid));s.draw=shuffle([...s.draw,...items]);
       const fall=s.trait.id==='fall'&&random()<0.1;
       if(!fall&&R.extraTossOn.includes(hand.id))s.tosses++;
       log((forced?'[고정] ':'')+hand.name+' · '+calculate(s.pending).lines.join(' → '));touched();
       if(fall){s.lastTurn={turn:s.turn,hand:'fall',group:'',n:0,m:0,x:1,gain:0,weightBefore:0,weightAfter:0,scoreGain:0,arrival:null,skipped:true};log('낙: 이번 결과 무효. 투척 소모, 성장 없음.');finishTurn();return;}
-      if(hand.move<0&&!living().some(g=>g.pos!=null)){s.lastTurn={turn:s.turn,hand:hand.id,group:'',n:0,m:0,x:1,gain:0,weightBefore:0,weightAfter:0,scoreGain:0,arrival:null,skipped:true};log('움직일 말이 없는 빽도. 귀속 생략.');finishTurn();return;}
+      if(hand.move<0&&!living().some(canBack)){s.lastTurn={turn:s.turn,hand:hand.id,group:'',n:0,m:0,x:1,gain:0,weightBefore:0,weightAfter:0,scoreGain:0,arrival:null,skipped:true};log('움직일 말이 없는 빽도. 귀속 생략.');finishTurn();return;}
       s.phase='MOVE';
     }
     function routeOptions(g,st=s) {
@@ -159,12 +161,26 @@
       const currentBoss=st.guards.find(b=>b.hp>0&&samePos(b.pos,g.pos));
       if(currentBoss)return [];
       const raw=st.pending.hand.move,main=st.pieces[carrier(g,st)],count=raw<0?-1:Math.max(1,raw+main.moveSpeed-1+(main.moveBonus||0)+field(st).speedBonus);
-      if(count<0)return g.pos==null?[]:[g.history.at(-1)||{pos:null,route:'outer'}];
+      if(count<0)return g.pos==null||!g.history.length?[]:[g.history.at(-1)||{pos:null,route:'outer'}];
       let pos=g.pos??'0',route=g.pos==null?'outer':g.route;
       const options=routeOptions(g,st);if(options.some(o=>o.id===st.pending.route))route=st.pending.route;else if(options.length)route=options[0].id;
       const path=D.board.routes[route],out=[];let i=path.indexOf(pos);
       for(let step=0;step<count;step++){i++;pos=path[i]||'END';out.push({pos,route});if(pos==='G'||pos==='END')break;}
       return out;
+    }
+    function movementForecast(g=activeGroup()) {
+      if(!g||!['SELECT','MOVE'].includes(s.phase))return [];
+      const hands=s.pending?[s.pending.hand]:D.hands;
+      return hands.flatMap(hand=>{
+        const canBack=unit=>unit.pos!=null&&unit.history.length>0;
+        const mover=hand.move<0&&!canBack(g)?[...living()].filter(canBack).sort((a,b)=>weight(b)-weight(a)||a.id-b.id)[0]:g;
+        if(!mover)return [{hand,route:g.route,path:[],arrival:g.pos,groupName:name(g),skipped:true}];
+        const mock={...s,pending:{hand,route:null}};
+        return routeOptions(mover,mock).map(option=>{
+          const st={...mock,pending:{hand,route:option.id}},path=plan(mover,st);
+          return {hand,route:option.id,routeName:option.name,path,arrival:path.length?path.at(-1).pos:mover.pos,groupName:name(mover),skipped:false};
+        });
+      });
     }
     function updateRecord(st) {for(const p of st.pieces){const a=stats(p,st);st.record.maxWeight=Math.max(st.record.maxWeight,p.weight);st.record.maxHp=Math.max(st.record.maxHp,a.maxHp);st.record.maxAttack=Math.max(st.record.maxAttack,a.attack);}}
     function applyDamage(g,damage,st) {
@@ -216,7 +232,7 @@
 
     function preview(gid,routeId=null) {
       if(s.phase!=='MOVE')return null;
-      const source=s.groups.find(g=>g.id===gid);if(!source||source.pos==='END'||(source.pos==null&&s.pending.hand.move<0))return null;
+      const source=s.groups.find(g=>g.id===gid);if(!source||source.pos==='END'||(s.pending.hand.move<0&&(source.pos==null||!source.history.length)))return null;
       const next=copy(s),g=next.groups.find(g=>g.id===gid);
       if(routeId&&routeOptions(g,next).some(o=>o.id===routeId))next.pending.route=routeId;
       const path=plan(g,next),events=[],beforeWeight=weight(g,next),beforeScore=next.score;
@@ -244,13 +260,14 @@
       if(boss&&g.ids.length){
         const playerHp=g.ids.reduce((n,id)=>n+next.pieces[id].hp,0),playerMaxHp=g.ids.reduce((n,id)=>n+stats(next.pieces[id],next).maxHp,0),bossBefore=boss.hp,bossMaxHp=stats(boss,next).maxHp;
         let attack=g.ids.reduce((n,id)=>n+stats(next.pieces[id],next).attack,0);
-        if(boss.gimmick==='supportResonance'&&g.ids.length>=2)attack=Math.floor(attack*1.25);
+        if(boss.gimmick==='supportResonance')attack=Math.max(1,Math.floor(attack*(g.ids.length>=2?1.25:C.shortcutSoloDamageX)));
+        if(boss.gimmick==='gateArmor')attack=Math.max(1,Math.floor(attack*C.gateDamageX));
         if(boss.gimmick==='chipShield')attack=Math.max(1,attack-10);
         const hit=Math.min(boss.hp,attack);
         boss.hp-=hit;next.record.maxHit=Math.max(next.record.maxHit,hit);
         events.push({type:'strike',side:'player',title:name(g)+' 선공',message:'공격 '+attack+' → '+boss.name+' HP '+bossBefore+' → '+boss.hp});
         let counter=0;
-        if(boss.hp>0){counter=stats(boss,next).attack;if((boss.gimmick==='lastStand'||boss.pickGimmick==='lastStand')&&boss.hp<=stats(boss,next).maxHp/2)counter=Math.floor(counter*1.5);if(boss.pickGimmick==='loneHunter'&&g.ids.length===1)counter=Math.floor(counter*1.25);applyDamage(g,counter,next);events.push({type:'strike',side:'boss',title:boss.name+' 반격',message:'반격 '+counter+' → 아군 HP '+playerHp+' → '+Math.max(0,playerHp-counter)});}
+        if(boss.hp>0){counter=stats(boss,next).attack;if((['lastStand','gateArmor'].includes(boss.gimmick)||boss.pickGimmick==='lastStand')&&boss.hp<=stats(boss,next).maxHp/2)counter=Math.floor(counter*1.5);if(boss.pickGimmick==='loneHunter'&&g.ids.length===1)counter=Math.floor(counter*1.25);applyDamage(g,counter,next);events.push({type:'strike',side:'boss',title:boss.name+' 반격',message:'반격 '+counter+' → 아군 HP '+playerHp+' → '+Math.max(0,playerHp-counter)});}
         else {
           next.tosses+=R.captureExtraToss;next.record.bosses++;
           const multiplier=C.bossVictoryX+risk(next)*C.bossVictoryRiskStep+(next.trait.id==='hunt'?0.5:0);
@@ -291,8 +308,19 @@
       s.shop=[{kind:'stick',ref:choose(D.shopPool.sticks)},{kind:'deckTrait',ref:choose(D.shopPool.deckTraits)},
         {kind:third,ref:choose(third==='pieceTrait'?D.shopPool.pieceTraits:D.shopPool.charms)}].map((o,index)=>({...o,index,sold:false}));s.rerolls=0;
     }
-    function claimReward() {if(s.phase!=='REWARD')return;s.coins+=s.reward.sum;s.total+=s.score;log('보상 '+s.reward.sum+'냥 1회 수령.');if(s.round===allRounds.length-1)s.phase='WIN';else{s.phase='SHOP';rollShop();}touched();}
-    function nextRound() {if(s.phase!=='SHOP')return;s.round++;s.phase='TRAIT';s.trait=null;s.score=0;s.target=row().target;s.groups=[];s.pieces=[];s.guards=[];s.master=null;s.hand=[];s.draw=[];s.lastRoll=null;s.lastTurn=null;s.activeGroupId=null;offerRisks();touched();}
+    function claimReward() {
+      if(s.phase!=='REWARD')return;
+      s.coins+=s.reward.sum;s.total+=s.score;s.hand=[];s.draw=[];s.selected=[];
+      s.phase=s.round===allRounds.length-1?'WIN':'CHOICE';
+      log('라운드 결과 보상 '+s.reward.sum+'냥 1회 수령.');touched();
+    }
+    function enterShop() {if(s.phase!=='CHOICE')return;s.phase='SHOP';rollShop();log('상점 입장 · 현재 잔액으로 구매와 성장을 선택하세요.');touched();}
+    function skipShop() {if(s.phase!=='CHOICE')return;const bonus=interest();s.coins+=bonus;log('상점 건너뛰기 · 추가 이자 +'+bonus+'냥 1회 지급.');advanceRound();}
+    function advanceRound() {
+      s.round++;s.phase='TRAIT';s.trait=null;s.score=0;s.target=row().target;s.groups=[];s.pieces=[];s.guards=[];s.master=null;s.hand=[];s.draw=[];s.lastRoll=null;s.lastTurn=null;s.activeGroupId=null;
+      offerRisks();touched();
+    }
+    function nextRound() {if(s.phase==='SHOP')advanceRound();}
     function product(o) {if(o.kind==='stick')return stickById[o.ref];if(o.kind==='deckTrait')return traitById[o.ref];if(o.kind==='pieceTrait')return pieceTraitById[o.ref];return D.charms.find(c=>c.id===o.ref);}
     function buy(index,targetPiece=0,replaceUid=0) {
       if(s.phase!=='SHOP')return;const o=s.shop[index];if(!o||o.sold)return;const data=product(o),cost=price(data.price);if(s.coins<cost){log('엽전이 부족합니다.');return;}
@@ -310,7 +338,7 @@
       s.coins-=cost;o.sold=true;log(data.name+' 구매 -'+cost+'냥'+(o.kind==='stick'?' · 다음 출전 편집에서 선택.':''));touched();
     }
     function reroll() {if(s.phase!=='SHOP')return;const cost=D.economy.rerollBase+s.rerolls*D.economy.rerollStep;if(s.coins<cost)return;const n=s.rerolls+1;s.coins-=cost;rollShop();s.rerolls=n;log('상점 재진열 -'+cost+'냥.');touched();}
-    function toggleDeck(uid) {if(s.phase!=='PREP')return;if(s.deck.includes(uid))s.deck=s.deck.filter(id=>id!==uid);else if(item(uid)&&s.deck.length<s.capacity)s.deck.push(uid);else log('출전 슬롯이 가득 찼습니다.');touched();}
+    function toggleDeck(uid) {if(!['PREP','SHOP'].includes(s.phase))return;if(s.deck.includes(uid))s.deck=s.deck.filter(id=>id!==uid);else if(item(uid)&&s.deck.length<s.capacity)s.deck.push(uid);else log('출전 슬롯이 가득 찼습니다.');touched();}
     function removeItem(uid,sell=false) {if(!['SHOP','PREP'].includes(s.phase)||s.collection.length<=R.minDeckSize)return;const old=item(uid);if(!old)return;const cost=sell?0:price(D.economy.removeStickCost);if(s.coins<cost)return;s.coins+=sell?Math.floor(stickById[old.type].price*D.economy.sellRatio):-cost;s.collection=s.collection.filter(i=>i!==old);s.deck=s.deck.filter(id=>id!==uid);log(stickById[old.type].name+(sell?' 판매.':' 삭제.'));touched();}
     function upgradeStick(uid) {if(s.phase!=='SHOP')return;const i=item(uid),l=i&&D.stickUpgrade.levels.find(l=>l.level===i.level+1);if(!l||s.coins<price(l.cost))return;s.coins-=price(l.cost);if(random()<l.success){i.level++;log(stickById[i.type].name+' 강화 +'+i.level);}else {if(l.onFail!=='keep')i.level=Math.max(0,i.level-1);log('강화 실패 · 현재 +'+i.level+' (박싱은 파괴 대신 하락).');}touched();}
     function capacity() {const cost=price(C.deckCapacityCost);if(s.phase!=='SHOP'||s.capacity>=C.deckCapacityMax||s.coins<cost)return;s.coins-=cost;s.capacity++;log('출전 윷 상한 '+s.capacity+'개로 확장.');touched();}
@@ -321,16 +349,17 @@
     function scenario(kind) {
       reset(C.defaultSeed);chooseDeck('woodcutter');s.riskOffers=['standard','safe','rush'];chooseRisk('standard');startRound();
       const g=s.groups[0];
-      if(kind==='finish'){g.pos='J';g.history=[{pos:'19',route:'outer'}];grow(s.pieces[0],s.target+C.overflowStep);}
+      if(kind==='finish'){g.pos='J';g.history=[{pos:'19',route:'outer'}];grow(s.pieces[0],Math.max(s.target+C.overflowStep,Math.ceil(stats(s.guards.find(b=>b.role==='gate')).maxHp/(C.pieceAttackWeightCoeff*C.gateDamageX))*2));}
       if(kind==='combat'){g.pos='a2';g.route='diagA';g.history=[{pos:'a1',route:'diagA'}];grow(s.pieces[0],100);}
       if(kind==='stack'){g.pos='4';g.history=[{pos:'3',route:'outer'}];const b=s.groups[1];b.pos='5';b.history=[{pos:'4',route:'outer'}];grow(s.pieces[1],400);}
       if(kind==='failure')s.tosses=1;
+      if(['reward','choice','shop'].includes(kind)){s.score=s.target+C.overflowStep;finishTurn(true);if(kind!=='reward')claimReward();if(kind==='shop')enterShop();}
       log('[장면] '+kind+' · 고정 도로 확인할 수 있습니다.');touched();
     }
     function replaceState(next) {s=next;if(s.phase==='SELECT'&&!s.selected.length)s.selected=s.hand.slice(0,R.sticksPerToss);touched();}
     function reconcile() {if(['SELECT','MOVE'].includes(s.phase)&&(s.score>=s.target||!living().length||(s.phase==='SELECT'&&s.tosses<=0)))finishTurn(true);}
     reset(C.defaultSeed);
-    return {get state(){return s;},rounds:allRounds,stickById,traitById,pieceTraitById,row,item,weight,boardPos,samePos,living,activeGroup,setActive,routeOptions,carrier,name,stats,field,currentPlan,sumTrait,calculate,outcomes,interest,price,bossUnits,risk,
-      reset,chooseDeck,chooseRisk,startRound,select,swap,toss,plan,preview,commitMove,claimReward,nextRound,product,buy,reroll,toggleDeck,removeItem,upgradeStick,capacity,upgradeDeckTrait,removeDeckTrait,upgradePiece,removePieceTrait,scenario,replaceState,reconcile,log,touched,sync,updateRecord};
+    return {get state(){return s;},rounds:allRounds,stickById,traitById,pieceTraitById,row,item,weight,boardPos,samePos,living,activeGroup,setActive,routeOptions,movementForecast,carrier,name,stats,field,currentPlan,sumTrait,calculate,outcomes,interest,price,bossUnits,risk,
+      reset,chooseDeck,chooseRisk,startRound,select,swap,toss,plan,preview,commitMove,claimReward,enterShop,skipShop,nextRound,product,buy,reroll,toggleDeck,removeItem,upgradeStick,capacity,upgradeDeckTrait,removeDeckTrait,upgradePiece,removePieceTrait,scenario,replaceState,reconcile,log,touched,sync,updateRecord};
   }};
 })();

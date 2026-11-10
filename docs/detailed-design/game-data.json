@@ -1,11 +1,11 @@
 ﻿{
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "id": "yutochess-game-data",
-  "version": "1.5.0-draft",
+  "version": "1.6.0-draft",
   "source": {
     "design": "docs/2dgp_1차기획서-제출용.pptx (변준영, 2026-11)",
     "reference": "Notion '윷토체스 | 상세 기획명세 v0.2 제안' (AI 작성, 참고만)",
-    "note": "2026-11-09 개정. 점수 weight와 전투 HP/공격력을 분리하되 기본 능력치·weight 계수·윷 배율로 연동한다. 3막 9라운드 박싱과 편집기를 위한 초깃값이며 실제 균형·3·3·3 달성은 미검증이다. 리스크 선택·덱 카드·마스터 판 전체 특성은 별도 데이터 부류다. 기본 이동속도, 특수 수문장과 추가 보스, 특수칸·마스터 주기 갱신을 포함한다. 1.5: 투척 후 기본 이동 자동 확정, 갈림길만 선택. 전투 HP 박스·이펙트·결과 수동 닫기. 정사각 본판과 아래 관문·완주 분리."
+    "note": "2026-11-09 개정. 점수 weight와 전투 HP/공격력을 분리하되 기본 능력치·weight 계수·윷 배율로 연동한다. 3막 9라운드 박싱과 편집기를 위한 초깃값이며 실제 균형·3·3·3 달성은 미검증이다. 리스크 선택·덱 카드·마스터 판 전체 특성은 별도 데이터 부류다. 기본 이동속도, 특수 수문장과 추가 보스, 특수칸·마스터 주기 갱신을 포함한다. 1.5: 투척 후 기본 이동 자동 확정, 갈림길만 선택. 전투 HP 박스·이펙트·결과 수동 닫기. 정사각 본판과 아래 관문·완주 분리. 1.6: 수문장 옆 출발과 한 바퀴 귀환, 항상 보이는 다음 칸 예측, 수문장 강화와 라운드별 일반 보스 증가. 결과→상점/추가 이자 선택. 상점 영역 분리·말별 관리·조합 아이콘."
   },
   "rules": {
     "piecesPerPlayer": 4,
@@ -41,7 +41,7 @@
       "gatePost": "G",
       "gateStopsBeforeFinish": true,
       "respawn": false,
-      "comment": "C·G 수문장 2체 유지. 플레이어 리스크 픽이 추가 일반 보스 수·능력치·기믹을 바꾼다. 최종 도착 칸에서만 교전하며 관문 G는 정지 후 돌파한다.",
+      "comment": "C·G 수문장 2체 유지. 플레이어 리스크 픽이 추가 일반 보스 수·능력치·기믹을 바꾼다. 최종 도착 칸에서만 교전하며 관문 G는 정지 후 돌파한다. 첫 라운드는 리스크 픽과 관계없이 일반 보스 0체. 둘째 라운드부터 기본 일반 보스와 픽 추가를 합산한다.",
       "gatekeepersPerRound": 2
     },
     "startingDeckMax": 8,
@@ -60,9 +60,9 @@
     "pieceHealthWeightCoeff": 0.25,
     "pieceAttackWeightCoeff": 0.18,
     "bossBaseHealth": 35,
-    "bossBaseAttack": 6,
+    "bossBaseAttack": 14,
     "bossHealthWeightCoeff": 0.35,
-    "bossAttackWeightCoeff": 0.15,
+    "bossAttackWeightCoeff": 0.18,
     "riskHealthStep": 0.35,
     "riskAttackStep": 0.25,
     "bossVictoryX": 1.5,
@@ -81,7 +81,9 @@
     "maxWeight": 1000000000000,
     "comment": "HPmax=floor((baseHP + weight*hpCoeff)*윷HP배율*말특성). 공격=floor((baseATK + weight*atkCoeff)*윷공격배율*말특성*판전체공격배율). 최대 HP 증가분만 현재 HP에 보충해 이전 피해를 보존한다. 이동은 윷 이동+기본속도-1+말/판 전체 보너스. 전투는 도착 칸 선공→생존 보스 반격. 특수칸·마스터 턴말 효과도 예측과 확정에 공통 적용.",
     "pieceMoveSpeed": 1,
-    "moveAnimationMs": 650
+    "moveAnimationMs": 1100,
+    "shortcutSoloDamageX": 0.6,
+    "gateDamageX": 0.75
   },
   "hands": [
     {
@@ -236,7 +238,11 @@
       "addMult": 0,
       "xMult": 1,
       "trigger": "always",
-      "effect": "기본 윷가락."
+      "effect": "기본 윷가락.",
+      "icons": [
+        "tree",
+        "plus"
+      ]
     },
     {
       "id": "marked",
@@ -250,7 +256,11 @@
       "xMult": 1,
       "trigger": "always",
       "marked": true,
-      "effect": "이 윷만 배가 나오면 빽도. 빽도일 때 Mult +4."
+      "effect": "이 윷만 배가 나오면 빽도. 빽도일 때 Mult +4.",
+      "icons": [
+        "mark",
+        "reverse"
+      ]
     },
     {
       "id": "bamboo",
@@ -263,7 +273,11 @@
       "addMult": 2,
       "xMult": 1,
       "trigger": "back",
-      "effect": "등이 나오면 Mult +2."
+      "effect": "등이 나오면 Mult +2.",
+      "icons": [
+        "bamboo",
+        "multiply"
+      ]
     },
     {
       "id": "flame",
@@ -276,7 +290,11 @@
       "addMult": 0,
       "xMult": 1,
       "trigger": "always",
-      "effect": "Chips +10."
+      "effect": "Chips +10.",
+      "icons": [
+        "flame",
+        "plus"
+      ]
     },
     {
       "id": "lead",
@@ -289,7 +307,11 @@
       "addMult": 0,
       "xMult": 1,
       "trigger": "always",
-      "effect": "무거워서 등이 잘 나온다. 모 확률이 오른다."
+      "effect": "무거워서 등이 잘 나온다. 모 확률이 오른다.",
+      "icons": [
+        "iron",
+        "moon"
+      ]
     },
     {
       "id": "feather",
@@ -302,7 +324,11 @@
       "addMult": 1,
       "xMult": 1,
       "trigger": "always",
-      "effect": "가벼워서 배가 잘 나온다. 윷 확률이 오른다."
+      "effect": "가벼워서 배가 잘 나온다. 윷 확률이 오른다.",
+      "icons": [
+        "feather",
+        "multiply"
+      ]
     },
     {
       "id": "twin",
@@ -317,7 +343,11 @@
       "trigger": "always",
       "special": "sameFaceChips",
       "specialValue": 10,
-      "effect": "같은 면이 나온 다른 윷가락 하나당 Chips +10."
+      "effect": "같은 면이 나온 다른 윷가락 하나당 Chips +10.",
+      "icons": [
+        "twin",
+        "plus"
+      ]
     },
     {
       "id": "pouch",
@@ -332,7 +362,11 @@
       "trigger": "flat",
       "special": "coin",
       "specialValue": 1,
-      "effect": "배가 나오면 엽전 +1 (라운드당 최대 3)."
+      "effect": "배가 나오면 엽전 +1 (라운드당 최대 3).",
+      "icons": [
+        "coin",
+        "plus"
+      ]
     },
     {
       "id": "anvil",
@@ -345,7 +379,11 @@
       "addMult": 0,
       "xMult": 1,
       "trigger": "back",
-      "effect": "등이 나오면 Chips +20. 강화 실패 시 하락하지 않는다."
+      "effect": "등이 나오면 Chips +20. 강화 실패 시 하락하지 않는다.",
+      "icons": [
+        "anvil",
+        "shield"
+      ]
     },
     {
       "id": "dragon",
@@ -358,7 +396,12 @@
       "addMult": 1,
       "xMult": 1,
       "trigger": "always",
-      "effect": "Chips +15, Mult +1."
+      "effect": "Chips +15, Mult +1.",
+      "icons": [
+        "dragon",
+        "plus",
+        "multiply"
+      ]
     },
     {
       "id": "galaxy",
@@ -371,7 +414,11 @@
       "addMult": 0,
       "xMult": 3,
       "trigger": "flat",
-      "effect": "배가 나오면 최종 Mult ×3."
+      "effect": "배가 나오면 최종 Mult ×3.",
+      "icons": [
+        "star",
+        "multiply"
+      ]
     }
   ],
   "stickUpgrade": {
@@ -489,67 +536,100 @@
       "id": "magpie",
       "name": "까치 부적",
       "price": 4,
-      "effect": "개가 나오면 Mult +3."
+      "effect": "개가 나오면 Mult +3.",
+      "icons": [
+        "feather"
+      ]
     },
     {
       "id": "tortoise",
       "name": "거북 부적",
       "price": 5,
-      "effect": "완주 시 말 하나당 Chips +100 추가."
+      "effect": "완주 시 말 하나당 Chips +100 추가.",
+      "icons": [
+        "shield"
+      ]
     },
     {
       "id": "piggy",
       "name": "업보 부적",
       "price": 6,
-      "effect": "업기 배율에 ×1 추가 (특수 룰 배수)."
+      "effect": "업기 배율에 ×1 추가 (특수 룰 배수).",
+      "icons": [
+        "star"
+      ]
     },
     {
       "id": "tiger",
       "name": "호랑이 부적",
       "price": 6,
-      "effect": "잡을 때마다 이 부적의 Mult +1 (런 동안 누적)."
+      "effect": "잡을 때마다 이 부적의 Mult +1 (런 동안 누적).",
+      "icons": [
+        "star"
+      ]
     },
     {
       "id": "goblin",
       "name": "도깨비 방망이",
       "price": 7,
-      "effect": "모가 나오면 선택한 말의 이번 weight 증가량 ×2."
+      "effect": "모가 나오면 선택한 말의 이번 weight 증가량 ×2.",
+      "icons": [
+        "star"
+      ]
     },
     {
       "id": "taegeuk",
       "name": "태극 부적",
       "price": 4,
-      "effect": "중앙(방)에 멈추면 Chips +60."
+      "effect": "중앙(방)에 멈추면 Chips +60.",
+      "icons": [
+        "star"
+      ]
     },
     {
       "id": "lucky",
       "name": "복주머니",
       "price": 5,
-      "effect": "라운드 시작 시 투척 +1."
+      "effect": "라운드 시작 시 투척 +1.",
+      "icons": [
+        "coin"
+      ]
     },
     {
       "id": "coins",
       "name": "엽전 꾸러미",
       "price": 4,
-      "effect": "이자 상한 +3냥."
+      "effect": "이자 상한 +3냥.",
+      "icons": [
+        "star"
+      ]
     },
     {
       "id": "knot",
       "name": "매듭 부적",
       "price": 4,
-      "effect": "윷가락 강화 비용 -1냥 (최소 1)."
+      "effect": "윷가락 강화 비용 -1냥 (최소 1).",
+      "icons": [
+        "star"
+      ]
     },
     {
       "id": "guard",
       "name": "수호 부적",
       "price": 5,
-      "effect": "강화 실패로 윷가락이 파괴될 때 한 번 막고 사라진다."
+      "effect": "강화 실패로 윷가락이 파괴될 때 한 번 막고 사라진다.",
+      "icons": [
+        "star"
+      ]
     },
     {
       "id": "jangseung",
       "name": "장승 부적",
       "price": 5,
-      "effect": "라운드마다 처음 한 번은 수문장에게 잡히지 않는다."
+      "effect": "라운드마다 처음 한 번은 수문장에게 잡히지 않는다.",
+      "icons": [
+        "star"
+      ]
     }
   ],
   "riskLevels": [
@@ -683,9 +763,9 @@
         0
       ],
       "direction": "none",
-      "weight": 130,
-      "attackX": 1.0,
-      "healthX": 1.0,
+      "weight": 500,
+      "attackX": 1.15,
+      "healthX": 1.15,
       "effect": "추가 일반 보스. 선공 피해 10 감소(최소 1).",
       "gimmick": "chipShield"
     },
@@ -698,9 +778,9 @@
         0
       ],
       "direction": "none",
-      "weight": 170,
-      "attackX": 1.2,
-      "healthX": 1.0,
+      "weight": 700,
+      "attackX": 1.45,
+      "healthX": 1.2,
       "effect": "추가 일반 보스. 강한 기본 공격 계수.",
       "gimmick": "heavyStrike"
     },
@@ -713,9 +793,9 @@
         0
       ],
       "direction": "none",
-      "weight": 180,
-      "attackX": 1.0,
-      "healthX": 1.15,
+      "weight": 850,
+      "attackX": 1.3,
+      "healthX": 1.3,
       "effect": "추가 일반 보스. HP 절반 이하에서 반격 ×1.5.",
       "gimmick": "lastStand"
     },
@@ -728,11 +808,11 @@
         0
       ],
       "direction": "none",
-      "weight": 130,
-      "attackX": 1,
-      "healthX": 1,
+      "weight": 900,
+      "attackX": 1.3,
+      "healthX": 1.25,
       "gimmick": "supportResonance",
-      "effect": "특수 수문장. 업힌 말 2개 이상으로 도착하면 아군 선공 ×1.25."
+      "effect": "단독 말의 선공 피해 ×0.6. 2개 이상 업힌 묶음은 선공 ×1.25. 도착 칸에서 교전."
     },
     {
       "id": "finishKeeper",
@@ -743,11 +823,11 @@
         0
       ],
       "direction": "none",
-      "weight": 180,
-      "attackX": 1,
-      "healthX": 1.15,
-      "gimmick": "lastStand",
-      "effect": "특수 수문장. 피격 후 HP 절반 이하면 반격 ×1.5. 처치 후 완주 정산."
+      "weight": 2400,
+      "attackX": 1.4,
+      "healthX": 1.4,
+      "gimmick": "gateArmor",
+      "effect": "받는 선공 피해 ×0.75. 피격 후 HP 절반 이하면 반격 ×1.5. 관문에 정지하고 처치 후 완주 정산."
     }
   ],
   "run": {
@@ -772,7 +852,7 @@
                 "post": "G"
               }
             ],
-            "bossScale": 1.0,
+            "bossScale": 1,
             "baseRisk": 0,
             "extraBosses": 0,
             "extraBossPosts": [
@@ -803,7 +883,7 @@
                 "post": "G"
               }
             ],
-            "bossScale": 1.15,
+            "bossScale": 1.35,
             "baseRisk": 0,
             "extraBosses": 1,
             "extraBossPosts": [
@@ -834,9 +914,9 @@
                 "post": "G"
               }
             ],
-            "bossScale": 1.3,
+            "bossScale": 1.7,
             "baseRisk": 1,
-            "extraBosses": 1,
+            "extraBosses": 2,
             "extraBossPosts": [
               "5",
               "10",
@@ -870,9 +950,9 @@
                 "post": "G"
               }
             ],
-            "bossScale": 1.65,
-            "baseRisk": 0,
-            "extraBosses": 0,
+            "bossScale": 2.1,
+            "baseRisk": 1,
+            "extraBosses": 1,
             "extraBossPosts": [
               "5",
               "10",
@@ -901,9 +981,9 @@
                 "post": "G"
               }
             ],
-            "bossScale": 1.9,
-            "baseRisk": 0,
-            "extraBosses": 1,
+            "bossScale": 2.6,
+            "baseRisk": 1,
+            "extraBosses": 2,
             "extraBossPosts": [
               "5",
               "10",
@@ -932,9 +1012,9 @@
                 "post": "G"
               }
             ],
-            "bossScale": 2.15,
-            "baseRisk": 1,
-            "extraBosses": 1,
+            "bossScale": 3.2,
+            "baseRisk": 2,
+            "extraBosses": 2,
             "extraBossPosts": [
               "5",
               "10",
@@ -968,9 +1048,9 @@
                 "post": "G"
               }
             ],
-            "bossScale": 2.3,
-            "baseRisk": 0,
-            "extraBosses": 0,
+            "bossScale": 4,
+            "baseRisk": 2,
+            "extraBosses": 2,
             "extraBossPosts": [
               "5",
               "10",
@@ -999,9 +1079,9 @@
                 "post": "G"
               }
             ],
-            "bossScale": 2.64,
-            "baseRisk": 0,
-            "extraBosses": 1,
+            "bossScale": 5,
+            "baseRisk": 2,
+            "extraBosses": 2,
             "extraBossPosts": [
               "5",
               "10",
@@ -1030,9 +1110,9 @@
                 "post": "G"
               }
             ],
-            "bossScale": 2.99,
-            "baseRisk": 1,
-            "extraBosses": 1,
+            "bossScale": 6.2,
+            "baseRisk": 3,
+            "extraBosses": 3,
             "extraBossPosts": [
               "5",
               "10",
@@ -1115,7 +1195,8 @@
     "deckCapacityCost": 5,
     "traitSlots": 3,
     "pieceTraitSlots": 2,
-    "shopOfferCount": 3
+    "shopOfferCount": 3,
+    "skipShopRule": "라운드 결과에서 기본 보상·이번 이자를 한 번 받은 뒤 선택한다. 상점 건너뛰기는 보상 수령 후 잔액 기준 이자(기본 상한+덱 특성 적용)를 추가 1회 지급하고 다음 라운드로 이동한다. 마지막 라운드는 선택 없이 런 결과로 간다."
   },
   "starterDecks": [
     {
@@ -1443,7 +1524,8 @@
         "G",
         "END"
       ]
-    }
+    },
+    "startRule": "모든 말은 완주 수문장 G 바로 위 0에서 시작한다. 0→1 방향으로 출발하고, 외곽 또는 허용된 지름길을 돌아 귀환 J를 거친 뒤 G로 간다. 시작 0과 귀환 J는 같은 좌표지만 다른 이동 상태다. 출발에서 G로 바로 이동하거나 빽도로 완주할 수 없다."
   },
   "deckTraits": [
     {
@@ -1451,14 +1533,22 @@
       "name": "단단한 출발",
       "price": 4,
       "effect": "말의 라운드 시작 weight +40/레벨.",
-      "initialWeight": 40
+      "initialWeight": 40,
+      "icons": [
+        "shield",
+        "plus"
+      ]
     },
     {
       "id": "featherMind",
       "name": "한 번의 큰 판",
       "price": 4,
       "effect": "weight ×(1+0.2×레벨). 디메리트는 재화·슬롯의 기회비용.",
-      "growthPerLevel": 0.2
+      "growthPerLevel": 0.2,
+      "icons": [
+        "star",
+        "multiply"
+      ]
     },
     {
       "id": "merchant",
@@ -1466,28 +1556,44 @@
       "price": 4,
       "effect": "이자 상한 +2/레벨, 상점 가격 -1/레벨(최소 1).",
       "interestCapPerLevel": 2,
-      "discountPerLevel": 1
+      "discountPerLevel": 1,
+      "icons": [
+        "coin",
+        "plus"
+      ]
     },
     {
       "id": "stackArt",
       "name": "작은 말의 지원",
       "price": 5,
       "effect": "업기 지원 계수 +0.15/레벨.",
-      "supportPerLevel": 0.15
+      "supportPerLevel": 0.15,
+      "icons": [
+        "stack",
+        "plus"
+      ]
     },
     {
       "id": "hotHand",
       "name": "윷·모 연쇄",
       "price": 5,
       "effect": "윷·모의 weight ×(1+0.5×레벨).",
-      "bigHandXPerLevel": 0.5
+      "bigHandXPerLevel": 0.5,
+      "icons": [
+        "flame",
+        "multiply"
+      ]
     },
     {
       "id": "spark",
       "name": "곱하기 전에",
       "price": 4,
       "effect": "족보 +Mult 2/레벨.",
-      "addMultPerLevel": 2
+      "addMultPerLevel": 2,
+      "icons": [
+        "plus",
+        "multiply"
+      ]
     }
   ],
   "pieceTraits": [
@@ -1496,21 +1602,33 @@
       "name": "큰 그릇",
       "price": 4,
       "effect": "이 말의 최대 HP ×1.25.",
-      "healthX": 1.25
+      "healthX": 1.25,
+      "icons": [
+        "heart",
+        "multiply"
+      ]
     },
     {
       "id": "fury",
       "name": "강한 한 수",
       "price": 4,
       "effect": "이 말의 공격 ×1.25.",
-      "attackX": 1.25
+      "attackX": 1.25,
+      "icons": [
+        "sword",
+        "multiply"
+      ]
     },
     {
       "id": "echo",
       "name": "증폭 체질",
       "price": 4,
       "effect": "이 말에 귀속되는 weight 증가 ×1.25.",
-      "growthX": 1.25
+      "growthX": 1.25,
+      "icons": [
+        "star",
+        "multiply"
+      ]
     }
   ],
   "shopPool": {
@@ -1561,7 +1679,10 @@
       "rewardX": 1.0,
       "effect": "변형 없음. 보스 추가 0체.",
       "extraBosses": 0,
-      "bossGimmick": "none"
+      "bossGimmick": "none",
+      "icons": [
+        "circle"
+      ]
     },
     {
       "id": "safe",
@@ -1571,7 +1692,10 @@
       "rewardX": 0.5,
       "effect": "보스 위험도 증가 없음. 목표 ×0.9, 보상 ×0.5. 보스 추가 0체.",
       "extraBosses": 0,
-      "bossGimmick": "calm"
+      "bossGimmick": "calm",
+      "icons": [
+        "shield"
+      ]
     },
     {
       "id": "shortcut",
@@ -1581,7 +1705,10 @@
       "rewardX": 1.5,
       "effect": "대각선 지름길을 쓸 수 없다. 보스 2체 배치는 유지. 보스 추가 1체.",
       "extraBosses": 1,
-      "bossGimmick": "none"
+      "bossGimmick": "none",
+      "icons": [
+        "gate"
+      ]
     },
     {
       "id": "piggyback",
@@ -1591,7 +1718,10 @@
       "rewardX": 1.5,
       "effect": "업기 지원 계수 +0.25. 보스 위험도 1. 보스 추가 1체.",
       "extraBosses": 1,
-      "bossGimmick": "loneHunter"
+      "bossGimmick": "loneHunter",
+      "icons": [
+        "stack"
+      ]
     },
     {
       "id": "hunt",
@@ -1601,7 +1731,11 @@
       "rewardX": 1.5,
       "effect": "보스 처치 시 weight 배율 +0.5. 보스 weight·공격 계수는 위험도에 따라 증가. 보스 추가 1체.",
       "extraBosses": 1,
-      "bossGimmick": "lastStand"
+      "bossGimmick": "lastStand",
+      "icons": [
+        "sword",
+        "star"
+      ]
     },
     {
       "id": "backdoFest",
@@ -1611,7 +1745,11 @@
       "rewardX": 1.5,
       "effect": "빽도 N ×5. 빽도로 보스 칸에 도착해도 전투 가능. 보스 추가 1체.",
       "extraBosses": 1,
-      "bossGimmick": "none"
+      "bossGimmick": "none",
+      "icons": [
+        "reverse",
+        "multiply"
+      ]
     },
     {
       "id": "rush",
@@ -1621,7 +1759,10 @@
       "rewardX": 1.5,
       "effect": "완주 Chips ×2. 보스 추가 1체.",
       "extraBosses": 1,
-      "bossGimmick": "none"
+      "bossGimmick": "none",
+      "icons": [
+        "speed"
+      ]
     },
     {
       "id": "fall",
@@ -1631,7 +1772,10 @@
       "rewardX": 2.0,
       "effect": "투척마다 10% 확률로 낙(결과 무효, 투척 소모). 보스 추가 1체.",
       "extraBosses": 1,
-      "bossGimmick": "loneHunter"
+      "bossGimmick": "loneHunter",
+      "icons": [
+        "reverse"
+      ]
     },
     {
       "id": "allOrNothing",
@@ -1641,7 +1785,11 @@
       "rewardX": 2.0,
       "effect": "개·걸의 weight 증가량 0. 도·윷·모 weight ×2. 보스 추가 2체.",
       "extraBosses": 2,
-      "bossGimmick": "lastStand"
+      "bossGimmick": "lastStand",
+      "icons": [
+        "plus",
+        "reverse"
+      ]
     },
     {
       "id": "lastStand",
@@ -1651,7 +1799,11 @@
       "rewardX": 2.0,
       "effect": "투척 -3. 교체 0. 보스 추가 2체.",
       "extraBosses": 2,
-      "bossGimmick": "none"
+      "bossGimmick": "none",
+      "icons": [
+        "heart",
+        "sword"
+      ]
     },
     {
       "id": "tightHand",
@@ -1661,7 +1813,10 @@
       "rewardX": 2.0,
       "effect": "손패 4개. 고를 윷의 선택 폭이 줄어든다. 보스 추가 1체.",
       "extraBosses": 1,
-      "bossGimmick": "none"
+      "bossGimmick": "none",
+      "icons": [
+        "square"
+      ]
     },
     {
       "id": "feast",
@@ -1671,7 +1826,11 @@
       "rewardX": 2.5,
       "effect": "모든 +Mult +2. 목표 ×1.5. 보스 추가 2체.",
       "extraBosses": 2,
-      "bossGimmick": "lastStand"
+      "bossGimmick": "lastStand",
+      "icons": [
+        "plus",
+        "star"
+      ]
     }
   ],
   "roundTraits": [
@@ -1681,7 +1840,10 @@
       "weightDrain": 0,
       "speedBonus": 0,
       "attackX": 1,
-      "effect": "판 전체 변형 없음."
+      "effect": "판 전체 변형 없음.",
+      "icons": [
+        "wave"
+      ]
     },
     {
       "id": "bloodMarch",
@@ -1689,7 +1851,13 @@
       "weightDrain": 12,
       "speedBonus": 1,
       "attackX": 1.15,
-      "effect": "매 턴 생존 말·보스 weight -12. 말 이동 +1, 모든 공격 ×1.15."
+      "effect": "매 턴 생존 말·보스 weight -12. 말 이동 +1, 모든 공격 ×1.15.",
+      "icons": [
+        "heart",
+        "reverse",
+        "speed",
+        "sword"
+      ]
     },
     {
       "id": "leanWind",
@@ -1697,7 +1865,11 @@
       "weightDrain": 6,
       "speedBonus": 1,
       "attackX": 1.05,
-      "effect": "매 턴 생존 말·보스 weight -6. 말 이동 +1, 모든 공격 ×1.05."
+      "effect": "매 턴 생존 말·보스 weight -6. 말 이동 +1, 모든 공격 ×1.05.",
+      "icons": [
+        "feather",
+        "speed"
+      ]
     },
     {
       "id": "hotBoard",
@@ -1705,7 +1877,11 @@
       "weightDrain": 8,
       "speedBonus": 0,
       "attackX": 1.2,
-      "effect": "매 턴 생존 말·보스 weight -8. 모든 공격 ×1.2."
+      "effect": "매 턴 생존 말·보스 weight -8. 모든 공격 ×1.2.",
+      "icons": [
+        "flame",
+        "sword"
+      ]
     }
   ],
   "specialTiles": [
@@ -1766,12 +1942,23 @@
       "mo"
     ],
     "quickStart": "첫 런은 기본 덱·정석·8개 출전 기본값으로 즉시 시작한다. 시작 설정은 펼쳐서 변경 가능. 다음 라운드 리스크·출전 편집은 유지.",
-    "firstThreeUI": "보유점수·완주 확정점수·이동 칸수 강조. 마스터/보스 수식/미래 배치/성장 상세는 접되 현재 패널티는 항상 공개."
+    "firstThreeUI": "보유점수·완주 확정점수·이동 칸수 강조. 마스터/보스 수식/미래 배치/성장 상세는 접되 현재 패널티는 항상 공개. 다음 칸과 도착 후보, 아이콘은 첫 턴부터 표시한다."
   },
   "modifierHierarchy": {
     "riskChoices": "플레이어의 초기 리스크 픽. 가장 큰 메리트/디메리트, 목표·보스 능력치·기믹·수·보상 변화.",
     "roundTraits": "마스터의 판 전체 특성. 초기 픽보다 변화 폭은 작고 구매 카드보다 직접 디메리트는 큼.",
     "deckTraits": "플레이어 구매·편집 카드. 이익 중심이며 재화·슬롯 기회비용으로 제한.",
     "note": "상대 스케일은 설계 기준이며 수치 균형은 사용자 플레이로 확인한다. 첫 라운드 고요한 판은 학습 예외."
+  },
+  "presentation": {
+    "pieceIcons": [
+      "circle",
+      "diamond",
+      "triangle",
+      "square"
+    ],
+    "movementPreview": "투척 전 다음 1칸 화살표와 결과별 도착 후보·확률, 투척 후 확정 경로·칸 순번·도착 강조. 갈림길은 외곽/지름길을 구분한다.",
+    "shopLayout": "상단 현재 금액/다음 라운드 예상 이자만 표시. 윷 구매·덱 편집과 특성 구매 영역 분리. 윷 강화는 덱 편집 토글 안 아래. 말 강화와 특성 삭제는 각 말 카드에 종속.",
+    "iconRule": "고정 SVG 기호 + 이름/툴팁. 복합 능력은 여러 아이콘 조합. 색 없이도 형태로 구분."
   }
 }

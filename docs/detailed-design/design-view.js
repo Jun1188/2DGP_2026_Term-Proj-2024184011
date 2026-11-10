@@ -6,11 +6,13 @@
   function table(id,head,rows){const el=$(id);if(el)el.innerHTML='<tr>'+head.map(v=>'<th>'+esc(v)+'</th>').join('')+'</tr>'+rows.map(row=>'<tr>'+row.map(v=>'<td>'+esc(v)+'</td>').join('')+'</tr>').join('');}
   $('themeBtn').addEventListener('click',()=>{const root=document.documentElement,dark=root.dataset.theme?root.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;root.dataset.theme=dark?'light':'dark';});
   function render(D){
-    if(D.schemaVersion!==5||!D.boxing||!D.deckTraits||!D.riskChoices||!D.gameMaster||!D.specialTiles)throw new Error('1.5 기획 데이터가 필요합니다.');
+    if(D.schemaVersion!==6||!D.boxing||!D.deckTraits||!D.riskChoices||!D.gameMaster||!D.specialTiles)throw new Error('1.6 기획 데이터가 필요합니다.');
     window.YutoBoxing.mount(D);
+    const icon=window.YutoBoxing.icons;
+    $('iconLegend').innerHTML=[...D.presentation.pieceIcons.map((key,i)=>({name:'말 '+'ABCD'[i],icons:[key]})),...D.sticks,...D.deckTraits,...D.pieceTraits].map(entry=>'<span>'+icon(entry)+esc(entry.name)+'</span>').join('');
     const C=D.boxing,R=D.rules,engine=window.YutoCore.create(D),all=engine.rounds;
     table('tblRules',['자원','값','설명'],[
-      ['말',R.piecesPerPlayer,'원형의 시작 weight·기본 HP·공격으로 매 라운드 출전'],['시작 출전 상한',R.startingDeckMax,'보유함과 출전 덱 분리. 상점 확장 가능'],['최소 출전 윷',R.minDeckSize,'매 라운드 직전 구성'],['손패',R.handSize,'출전 윷 수 이내. 투척 후 사용 윷 반환·셔플'],['한 번에 투척',R.sticksPerToss,'선택 4개'],['투척',R.tossesPerRound,'윷·모·보스 처치로 추가'],['교체',R.swapsPerRound,'선택 윷 반환·셔플·보충'],['덱/말 특성 슬롯',R.deckTraitSlots+' / '+R.pieceTraitSlots,'상점 편집'],['수문장',2,'지름길 C / 완주 관문 G 고정 + 리스크 픽의 일반 보스']]);
+      ['말',R.piecesPerPlayer,'원형의 시작 weight·기본 HP·공격으로 매 라운드 출전'],['시작 출전 상한',R.startingDeckMax,'보유함과 출전 덱 분리. 상점 확장 가능'],['최소 출전 윷',R.minDeckSize,'매 라운드 직전 구성'],['손패',R.handSize,'출전 윷 수 이내. 투척 후 사용 윷 반환·셔플'],['한 번에 투척',R.sticksPerToss,'선택 4개'],['투척',R.tossesPerRound,'윷·모·보스 처치로 추가'],['교체',R.swapsPerRound,'선택 윷 반환·셔플·보충'],['덱/말 특성 슬롯',R.deckTraitSlots+' / '+R.pieceTraitSlots,'상점 편집'],['수문장',2,'C / G 고정. 1라운드 일반 0체, 2라운드부터 기본+픽 추가']]);
     const sample=[{uid:1,type:'marked',level:0},...Array.from({length:3},(_,i)=>({uid:i+2,type:'wood',level:0}))];
     engine.state.collection=sample;engine.state.trait=D.riskChoices.find(t=>t.id==='standard');
     const baseline=engine.outcomes(sample.map(i=>i.uid));
@@ -20,7 +22,7 @@
     for(const route of Object.values(D.board.drawPaths))svg+='<polyline points="'+route.map(id=>xy(id).join(',')).join(' ')+'" fill="none" stroke="var(--line)" stroke-width="2"/>';
     for(const n of D.board.nodes.filter(n=>!n.aliasOf)){const [x,y]=xy(n.id);svg+='<circle cx="'+x+'" cy="'+y+'" r="'+(n.tag?12:8)+'" fill="var(--surface)" stroke="'+(['C','G'].includes(n.id)?'var(--red)':'var(--ink-2)')+'"/><text x="'+x+'" y="'+(y+23)+'" font-size="10" text-anchor="middle" fill="var(--ink)">'+esc(n.id==='G'?'관문 G':n.id==='0'?'출발·귀환':n.id==='END'?'완주':n.id)+'</text>';}
     $('boardSvg').innerHTML=svg+'</svg>';
-    table('tblPathCases',['시작','결과','도착과 전투'],[['5','도','외곽 6 / 지름길 a1 중 실제 갈림길 선택'],['5','걸 · 지름길 선택','C · 지름길 보스 교전'],['a1','걸','a3 · C는 경유이므로 교전 없음'],['C · 생존 보스','도/개 등','현재 칸에서 자동 재공격'],['19','도','J · 출발 모서리와 같은 귀환 합류'],['J','도','G · 관문 보스 교전 → 처치 시 아래 END'],['C · 처치 후','윷 · 중앙 지름길','G · 관문 정지·전투'],['1','빽도','출발 대기']]);
+    table('tblPathCases',['시작','결과','도착과 전투'],[['5','도','외곽 6 / 지름길 a1 중 실제 갈림길 선택'],['5','걸 · 지름길 선택','C · 지름길 보스 교전'],['a1','걸','a3 · C는 경유이므로 교전 없음'],['C · 생존 보스','도/개 등','현재 칸에서 자동 재공격'],['19','도','J · 출발 모서리와 같은 귀환 합류'],['J','도','G · 관문 보스 교전 → 처치 시 아래 END'],['C · 처치 후','윷 · 중앙 지름길','G · 관문 정지·전투'],['출발 0','도','1번. G로 바로 가지 않고 코스를 돌아 J로 귀환'],['1','빽도','출발 대기. 관문으로 역진입 불가']]);
     table('tblEvents',['사건','효과'],[['윷 효과','N·M·×M과 HP/공격 배율 귀속'],['업기','최고 weight 주말 증폭, 이후 투척 지원 배율'],['보스 처치','주말 weight ×처치 배율 + 추가 투척'],['HP 0','말 사망, 미정산 weight 0'],['완주','완주 보너스 적용 후 weight 합계 1회 정산']]);
     $('scoreExample').innerHTML='<p>시작 weight 100에 <b>N 100 × M 3 × X 2 = 600</b>을 더하면 weight 700이다. 기본 HP 40·HP 계수 0.25·윷 HP ×1.25이면 최대 HP는 <b>268</b>이다. 기본 공격 8·공격 계수 0.18·윷 공격 ×1.4이면 공격은 <b>187</b>이다.</p><p>이후 weight 100인 말이 합류하고 지원 계수가 0.5면 주말에 350 weight를 더한다. 묶음 weight는 1,150이 되고 HP·공격은 각 식으로 다시 계산한다. 미완주 상태의 정산 점수는 여전히 변하지 않는다. 실제 초깃값 변경과 구분한 수식 설명용 예시다.</p>';
     const init=['marked','wood','wood','wood'];
@@ -35,14 +37,14 @@
     table('tblMasterTraits',['부류','이름','효과'],[...D.roundTraits.map(t=>['판 전체',t.name,t.effect]),...D.specialTiles.map(t=>['특수칸',t.name,t.effect])]);
     table('tblGuardians',['보스','기본 weight','HP 배율','공격 배율','효과'],D.guardians.map(b=>[b.name,b.weight,b.healthX,b.attackX,b.effect]));
     table('tblDecks',['덱','출전 구성','엽전','효과 카드'],D.starterDecks.map(d=>[d.name,Object.entries(d.sticks).map(([id,n])=>engine.stickById[id].name+' '+n).join(' / '),d.coins,engine.traitById[d.trait].name]));
-    table('tblRounds',['라운드','유형','기본 목표','보스 배치','보스 성장 계수','기본 보상'],all.map(r=>[r.id,{normal:'일반',elite:'엘리트',boss:'막 보스'}[r.type],num(r.target),r.bosses.map(b=>D.guardians.find(g=>g.id===b.id).name+' / '+b.post).join(', ')+' + 일반 '+r.extraBosses+' + 픽 추가',r.bossScale,r.baseReward]));
+    table('tblRounds',['라운드','유형','기본 목표','보스 배치','보스 성장 계수','기본 보상'],all.map(r=>[r.id,{normal:'일반',elite:'엘리트',boss:'막 보스'}[r.type],num(r.target),r.bosses.map(b=>D.guardians.find(g=>g.id===b.id).name+' / '+b.post).join(', ')+' + 일반 '+r.extraBosses+(r===all[0]?' (첫 판 추가 없음)':' + 픽 추가'),r.bossScale,r.baseReward]));
     const max=Math.max(...all.map(r=>r.target)),w=850,h=230,bottom=195,bw=75;
     $('targetChart').innerHTML='<svg viewBox="0 0 '+w+' '+h+'" role="img" aria-label="9라운드 기본 목표">'+all.map((r,i)=>{const bh=Math.sqrt(r.target/max)*150,x=45+i*85;return '<rect x="'+x+'" y="'+(bottom-bh)+'" width="'+bw+'" height="'+bh+'" fill="'+(r.type==='boss'?'var(--red)':'var(--blue)')+'"/><text x="'+(x+bw/2)+'" y="'+(bottom-bh-6)+'" text-anchor="middle" font-size="12" fill="var(--ink)">'+num(r.target)+'</text><text x="'+(x+bw/2)+'" y="215" text-anchor="middle" font-size="12" fill="var(--ink)">'+r.id+'</text>';}).join('')+'</svg>';
-    table('tblEconomy',['항목','규칙'],[['시작 출전 상한',R.startingDeckMax+'개'],['이자',D.economy.interestPer+'냥당 1냥, 상한 '+D.economy.interestCap+' + 특성'],['기본 재진열',D.economy.rerollBase+'냥, 누를 때마다 +'+D.economy.rerollStep],['출전 상한 +1',C.deckCapacityCost+'냥'],['말 강화',C.pieceUpgradeCost+' × (현재 레벨+1)냥'],['덱 특성 강화',C.traitUpgradeCost+' × 현재 레벨 냥'],['초과 보너스',C.overflowStep+'점당 '+C.overflowCoins+'냥']]);
+    table('tblEconomy',['항목','규칙'],[['시작 출전 상한',R.startingDeckMax+'개'],['이자',D.economy.interestPer+'냥당 1냥, 상한 '+D.economy.interestCap+' + 특성'],['상점 건너뛰기','보상 수령 후 잔액 기준 추가 이자 1회. 다음 라운드 직행'],['기본 재진열',D.economy.rerollBase+'냥, 누를 때마다 +'+D.economy.rerollStep],['출전 상한 +1',C.deckCapacityCost+'냥'],['말 강화',C.pieceUpgradeCost+' × (현재 레벨+1)냥'],['덱 특성 강화',C.traitUpgradeCost+' × 현재 레벨 냥'],['초과 보너스',C.overflowStep+'점당 '+C.overflowCoins+'냥']]);
     table('tblShopOdds',['칸','추첨 방식'],[['윷 1칸','허용 윷 '+D.shopPool.sticks.length+'종 중 균등'],['덱 특성 1칸','특성 '+D.deckTraits.length+'종 중 균등'],['말 특성/부적 1칸','종류 각각 50%, 해당 풀 내 균등']]);
     table('tblUpgrade',['도전','비용','성공','박싱 실패'],D.stickUpgrade.levels.map(l=>['+'+l.level,l.cost,pct(l.success),l.onFail==='keep'?'유지':'1단계 하락']));
   }
-  function fail(error){$('loader').classList.add('show');const root=$('boxingGame');if(root)root.innerHTML='<p class="note">데이터를 읽지 못했습니다. 문서 상단에서 1.5 game-data.json을 선택하세요. '+esc(error?.message||'')+'</p>';}
+  function fail(error){$('loader').classList.add('show');const root=$('boxingGame');if(root)root.innerHTML='<p class="note">데이터를 읽지 못했습니다. 문서 상단에서 1.6 game-data.json을 선택하세요. '+esc(error?.message||'')+'</p>';}
   $('jsonFile').addEventListener('change',async e=>{if(!e.target.files[0])return;try{render(JSON.parse((await e.target.files[0].text()).replace(/^\uFEFF/,'')));$('loader').classList.remove('show');}catch(error){fail(error);}});
   fetch('game-data.json',{cache:'no-cache'}).then(r=>r.ok?r.json():Promise.reject()).then(render).catch(()=>{try{render(JSON.parse($('embeddedGameData').textContent));}catch(error){fail(error);}});
 })();
