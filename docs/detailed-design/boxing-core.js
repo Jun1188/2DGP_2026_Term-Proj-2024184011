@@ -219,7 +219,7 @@
       for(const g of st.groups)g.ids=g.ids.filter(id=>!st.pieces[id].dead);
       st.groups=st.groups.filter(g=>g.ids.length);
     }
-    function feedback(st,source,delta,label) {st.lastFeedback??=[];st.lastFeedback.push({source,delta,label});}
+    function feedback(st,source,delta,label,metric='live') {st.lastFeedback??=[];st.lastFeedback.push({source,delta,label,metric});}
     function normalTile(pos,st=s) {
       if(pos==null||['0','J','C','G','END'].includes(pos)||currentPlan(st)?.tiles.some(t=>samePos(t.pos,pos))||st.guards.some(b=>b.hp>0&&samePos(b.pos,pos)))return null;
       return {weight:D.normalTiles.lossNodes.includes(pos)?D.normalTiles.loss:D.normalTiles.gain};
@@ -377,6 +377,7 @@
         const finishBefore=main.weight;grow(main,finished.gain-base.gain,next);feedback(next,'완주',main.weight-finishBefore,'완주 추가 성장');g.pos='END';
         const sum=g.ids.reduce((n,id)=>n+(next.pieces[id].settled?0:next.pieces[id].weight),0);
         for(const id of g.ids)next.pieces[id].settled=true;next.score+=sum;
+        feedback(next,'완주 정산',sum,name(g)+' 완주 확정','settled');
         events.push({type:'settle',title:'완주 정산',message:'+'+sum+'점 · 현재 '+next.score+' / 목표 '+next.target});log(name(g)+' 완주 +'+sum+'점. 중복 정산 없음.',next);
       }
       const enemyTurns=next.score<next.target?enemyPhase(next,events):[];

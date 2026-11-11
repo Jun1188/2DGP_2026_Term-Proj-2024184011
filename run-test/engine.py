@@ -49,7 +49,7 @@ class Game:
 
     def touch(self): self.state['revision'] += 1
     def log(self, message): self.state['log'].append(message)
-    def change(self, source, delta, label=''): self.state['feedback'].append(dict(source=source, delta=delta, label=label))
+    def change(self, source, delta, label='', metric='live'): self.state['feedback'].append(dict(source=source, delta=delta, label=label, metric=metric))
     def sum_trait(self, key): return sum(self.traits[t['id']].get(key, 0) * t['level'] for t in self.state['deck_traits'])
 
     def plan_now(self):
@@ -410,7 +410,8 @@ class Game:
             p = s['pieces'][self.carrier(g)]
             base, finish = self.calculate(s['pending'], p, len(g['ids'])), self.calculate(s['pending'], p, len(g['ids']), len(g['ids']))
             old = p['weight']; self.grow(p, finish['gain'] - base['gain']); self.change('완주', p['weight'] - old)
-            s['score'] += sum(s['pieces'][i]['weight'] for i in g['ids'] if not s['pieces'][i]['settled'])
+            settled = sum(s['pieces'][i]['weight'] for i in g['ids'] if not s['pieces'][i]['settled'])
+            s['score'] += settled; self.change('완주 정산', settled, self.name(g) + ' 완주 확정', 'settled')
             for i in g['ids']: s['pieces'][i]['settled'] = True
             g['pos'] = 'END'
         self.finish_turn()

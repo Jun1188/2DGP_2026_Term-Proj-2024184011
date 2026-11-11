@@ -21,7 +21,7 @@ class App:
         self.shop_services = False; self.edit = False; self.edit_index = 0; self.target = 0; self.inventory_page = 0
         self.message = '장면 선택 후 드로우 → 공개 → 윷 4개 선택 → 투척'
         self.reduced = False; self.effects = True; self.fx_start = 0; self.fx_rows = []; self.drawing_until = 0
-        self.metric_before = 0; self.metric_after = 0; self.metric_start = 0; self.sprite = None
+        self.metric_start = 0; self.sprite = None; self.reset_score_feedback()
 
     def find_font(self):
         candidates = [self.font_path] if self.font_path else []
@@ -57,12 +57,28 @@ class App:
 
     def scene(self, key):
         load_scene(self.game, key); self.edit = False; self.hover_path = None
-        self.inventory_page = 0; self.fx_rows = []; self.metric_before = self.metric_after = sum(self.game.weight(g) for g in self.game.living())
+        self.inventory_page = 0; self.reset_score_feedback()
         self.message = dict(self.rows)[key]; self.drawing_until = 0
 
+    def reset_score_feedback(self):
+        self.fx_rows = []; self.metric_round = self.game.state['round']
+        self.metric_before = self.metric_after = sum(self.game.weight(g) for g in self.game.living())
+        self.settled_before = self.settled_after = self.game.state['score']
+
+    def score_event(self):
+        if self.reduced: return None
+        now = time.monotonic()
+        return next((r for r in self.fx_rows if 0 <= now - r['start'] < .6), None)
+
     def feedback(self):
-        self.fx_rows = list(self.game.state['feedback']); self.fx_start = time.monotonic()
+        self.fx_start = time.monotonic()
+        self.fx_rows = [r for r in self.fx_rows if self.fx_start < r['start'] + .6]
+        start = max(self.fx_start, self.fx_rows[-1]['start'] + .65 if self.fx_rows else self.fx_start)
+        for row in self.game.state['feedback']:
+            if not row['delta']: continue
+            self.fx_rows.append(dict(row, start=start)); start += .65
         self.metric_before = self.metric_after
+        self.settled_before, self.settled_after = self.settled_after, self.game.state['score']
         self.metric_after = sum(self.game.weight(g) for g in self.game.living()); self.metric_start = self.fx_start
         events = self.game.state['events']
         if events:
@@ -150,7 +166,7 @@ class App:
     def adjust(self, key, delta):
         unit = self.edit_unit(); value = unit.get(key, 0) + delta
         self.game.edit_unit(unit, **{key: round(value, 3)})
-        self.metric_before = self.metric_after = sum(self.game.weight(g) for g in self.game.living())
+        self.reset_score_feedback()
 
     def editor_panel(self):
         unit = self.edit_unit()
@@ -294,20 +310,34 @@ class App:
     def metrics(self):
         s = self.game.state; live = sum(self.game.weight(g) for g in self.game.living()); t = time.monotonic() - self.metric_start
         anim = not self.reduced and 0 <= t < .6 and self.metric_after == live
-        shown = round(self.metric_before + (live - self.metric_before) * (1 - (1 - t / .6) ** 3)) if anim else live
-        delta = self.metric_after - self.metric_before; lift = math.sin(t / .6 * math.pi) * (-6 if delta < 0 else 6) if anim else 0
+        progress = 1 - (1 - t / .6) ** 3 if anim else 1
+        shown = round(self.metric_before + (live - self.metric_before) * progress) if anim else live
+        settled = round(self.settled_before + (s['score'] - self.settled_before) * progress) if anim else s['score']
+        event = self.score_event(); lift = shake = 0; color = GREEN
+        if event:
+            phase = (time.monotonic() - event['start']) / .6; wave = math.sin(phase * math.pi)
+            color = RED if event['delta'] < 0 else GREEN
+            lift = wave * (-6 if event['delta'] < 0 else 6)
+            shake = math.sin(phase * math.pi * 4) * 3 if event['source'] == '전투' else 0
+            x, width = (840, 425) if event.get('metric') == 'settled' else (550, 285)
+            for inset in range(3): self.box(x + inset, 832 + inset, width - inset * 2, 55 - inset * 2, color, False)
+            self.text(560, 838, event['source'] + ' ' + format(event['delta'], '+,'), color)
         self.text(275, 862, '윷토체스 pico2d · ' + self.game.row['id'], GOLD)
-        self.text(560, 862 + lift, '보유 ' + format(shown, ','), RED if anim and delta < 0 else GREEN, True)
-        self.text(850, 868, '완주 ' + str(s['score']) + ' / 목표 ' + str(s['target']))
+        live_event = event and event.get('metric', 'live') == 'live'
+        settled_event = event and event.get('metric') == 'settled'
+        self.text(560 + (shake if live_event else 0), 862 + (lift if live_event else 0), '보유 ' + format(shown, ','), color if live_event else GREEN, True)
+        self.text(850 + (shake if settled_event else 0), 868 + (lift if settled_event else 0), '완주 ' + str(settled) + ' / 목표 ' + str(s['target']), color if settled_event else INK)
         self.text(850, 844, '투척 ' + str(s['tosses']) + ' / 교체 ' + str(s['swaps']) + ' / ' + str(s['coins']) + '냥 / 이자 ' + str(self.game.interest()))
 
     def draw_score_effect(self):
-        t = time.monotonic() - self.metric_start; delta = self.metric_after - self.metric_before
-        if self.reduced or not self.effects or not self.sprite or not 0 <= t < .6 or not delta: return
+        event = self.score_event()
+        if not self.effects or not self.sprite or not event: return
+        t = time.monotonic() - event['start']; delta = event['delta']
         power = 3 if abs(delta) >= 1000 else 2 if abs(delta) >= 100 else 1
         lift = math.sin(t / .6 * math.pi) * (-3 * power if delta < 0 else 3 * power)
         self.sprite.opacify(max(0, math.sin(t / .6 * math.pi) * .6)); size = 50 + 30 * power * t / .6
-        self.sprite.composite_draw(t * (-1 if delta < 0 else 1), '', 650, 855 + lift, size, size)
+        x = 1010 if event.get('metric') == 'settled' else 650
+        self.sprite.composite_draw(t * (-1 if delta < 0 else 1), '', x, 855 + lift, size, size)
 
     def save(self):
         payload = dict(kind='yutochess-pico2d-diagnostic', dataVersion=self.game.data['version'], layers=self.layers, state=self.game.state)
@@ -315,6 +345,7 @@ class App:
         self.message = 'saved-scene.json 저장 완료 (pico2d 전용 진단 스냅샷)'
 
     def render(self):
+        if self.metric_round != self.game.state['round']: self.reset_score_feedback()
         self.buttons = []; self.hover_path = None
         self.p.clear_canvas(); self.box(0, 0, W, H, (20, 25, 36))
         self.sidebar(); self.right_panel()

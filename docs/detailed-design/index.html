@@ -127,12 +127,12 @@ select, input[type=number] { font: inherit; font-size: 13.5px; padding: 4px 6px;
 <div class="layout">
 <nav class="toc" aria-label="목차">
   <b>목차</b>
+  <a href="#boxing">게임 테스트베드 · 플레이 / 편집</a>
   <a href="#overview">1. 게임 개요</a>
   <a href="#reference">2. 기존 사례와 설계 의도</a>
   <a href="#fun">3. 핵심 재미와 설계 원칙</a>
   <a href="#loop">4. 코어 루프</a>
   <a href="#round">5. 라운드 규칙</a>
-  <a href="#boxing">박싱 게임 · 플레이 / 편집</a>
   <a href="#board">6. 윷판과 말 이동</a>
   <a href="#score">7. 점수 시스템</a>
   <a href="#calc">8. 투척 계산기</a>
@@ -149,6 +149,12 @@ select, input[type=number] { font: inherit; font-size: 13.5px; padding: 4px 6px;
 </nav>
 
 <main>
+<section id="boxing">
+  <h2>게임 테스트베드 · 플레이 / 편집</h2><p class="lead">선택형 첫 3턴 체험 또는 기본값으로 바로 시작 → 실제 3막 9라운드 코어 루프. 덱 특성 → 리스크 선택 → 출전 윷 편집 → 투척·업기·보스 전투 → 완주 정산 → 라운드 결과 → 상점 / 추가 이자.</p>
+  <div id="boxingGame" tabindex="0" aria-label="윷토체스 게임 및 장면 편집기"><p class="note">게임 데이터를 불러오는 중입니다. 실패하면 아래 문서의 데이터 선택 도구에서 game-data.json을 선택하세요.</p></div>
+  <p class="note">편집 모드는 기본 weight·HP·공격과 추가 배율만 입력합니다. 현재 HP·최대 HP·공격은 공통 계산 결과이며 적용 예정 수치를 먼저 보여줍니다. 전투와 연출은 작성 상태이며 빌드·브라우저 실행·플레이 테스트는 사용자에게 맡깁니다.</p>
+</section>
+
 <header class="cover">
   <div class="eyebrow">2D 게임 프로그래밍 · 상세 기획서</div>
   <h1>윷토체스 YUTOCHESS</h1>
@@ -219,14 +225,10 @@ select, input[type=number] { font: inherit; font-size: 13.5px; padding: 4px 6px;
 
 <!-- 6 -->
 <section id="board">
-  <h2><span class="no">6</span>윷판과 이동</h2><p class="lead">외곽 20칸과 대각선을 정사각형으로 유지한다. 완주 수문장 바로 옆의 출발 0에서 1번 방향으로 출발한다. 외곽 또는 선택한 지름길로 코스를 돌아 귀환 J에 도달해야 아래 G로 진입한다. 출발 0과 귀환 J는 같은 위치를 쓰되 이동 상태를 구분한다. G 아래 END는 수직으로 잇는다. 이동 경로와 그림 연결을 분리해 모서리가 눌리는 현상을 막는다.</p><div class="grid2"><div class="diagram" id="boardSvg"></div><div><ul><li>출발에서 G로 바로 가지 않는다. 빽도로 출발에 돌아와도 완주하지 않는다. 다음 칸은 보드 상단 토글로 열며 보드 옆에서 후보 하나만 표시한다. Previous / Next로 넘기고, 후보 호버 또는 경로 보기를 실행할 때만 점선과 최종 도착점 화살촉 하나를 표시한다.</li><li>5·10·중앙에서 이동을 시작하고 남은 길이 다를 때만 현재 길/지름길을 선택한다. 이동 중 경유만 하면 현재 경로를 따른다.</li><li>전진은 윷 이동 + 주말 기본 속도 -1 + 말·판 전체 보너스(최소 1칸)다. 기본 속도 1은 전통 윷 이동과 같다. 빽도는 -1로 그 묶음의 실제 이전 위치를 되짚는다. 판에 말이 없으면 이동·귀속을 생략한다.</li><li>자기 말 도착 칸에서 업는다. 분리할 수 없고 최고 weight 말이 주말이 된다.</li><li>G에 도달하면 남은 이동을 멈춘다. 보스를 격파했거나 이미 격파된 관문이면 END로 완주 정산한다.</li><li>지름길 C를 지나쳐 다른 칸에 도착하면 전투하지 않는다. C에 정확히 도착하면 전투를 예측·확정한다.</li></ul></div></div><h3>롤앤무브 사용성 보강</h3><p>기본 보드에는 방향 화살표·도착 후보 원·칸 순번·강조 경로를 표시하지 않는다. 현재 위치는 기물 자체로 표시한다. 기물은 노드 중앙에 반경 20으로 놓아 일반/특수 노드(반경 11/17)를 덮되, 이웃 노드를 가리지 않는다. 전투 중에도 기물을 옆으로 밀지 않는다. 같은 물리 칸의 표시는 하나로 합치되 실제 말의 상태·업기 규칙은 바꾸지 않는다.</p><p>다음 칸 예측은 상단 토글로 열고 보드 옆 상단에서 후보 하나만 Previous / Next로 넘긴다. 후보 넘기기는 경로를 자동 표시하거나 이동하지 않는다. 다음 칸 선택지에 커서를 올린 동안만 얇은 중립색 점선 경로를 표시한다. 화살촉은 최종 도착 노드 앞에 하나만 두며 중간 노드의 화살표·순번·도착 원을 추가하지 않는다. 선택지에서 커서가 벗어나면 지운다. Tab으로 초점만 옮기거나 말을 선택하거나 자동 이동할 때는 화살표를 표시하지 않는다. 키보드·터치는 경로 보기 버튼을 명시적으로 실행하고, 이동 버튼으로 별도 확정한다. 보드 확대·칸 안내·입력 오작동 방지는 유지한다.</p><p><a href="https://www.nintendo.com/eu/media/downloads/games_8/emanuals/nintendo_8/Manual_Nintendo64_MarioParty2_EN.pdf">Mario Party 2 공식 설명서</a>의 갈림길 방향 선택·지도 보기, <a href="https://cdn02.nintendo-europe.com/media/downloads/games_8/emanuals/nintendo_ds_21/Manual_NintendoDS_MarioPartyDS_EN.pdf">Mario Party DS 공식 설명서</a>의 전체 지도, <a href="https://play.nintendo.com/news-tips/tips-tricks/mario-party-superstars-tips-5-boards/">Nintendo Superstars 안내</a>의 방향 표지와 위험 카운터를 참고했다. 필요할 때만 표시하는 경로 미리보기는 이 원칙을 윷토체스에 적용한 설계이며, 원작의 동일 UI를 확인했다는 뜻은 아니다.</p><h3>사용자 확인용 경로 예시</h3><div class="table-wrap"><table id="tblPathCases"></table></div>
+  <h2><span class="no">6</span>윷판과 이동</h2><p class="lead">외곽 20칸과 대각선을 정사각형으로 유지한다. 완주 수문장 바로 옆의 출발 0에서 1번 방향으로 출발한다. 외곽 또는 선택한 지름길로 코스를 돌아 귀환 J에 도달해야 아래 G로 진입한다. 출발 0과 귀환 J는 같은 위치를 쓰되 이동 상태를 구분한다. G 아래 END는 수직으로 잇는다. 이동 경로와 그림 연결을 분리해 모서리가 눌리는 현상을 막는다.</p><div class="grid2"><div class="diagram" id="boardSvg"></div><div><ul><li>출발에서 G로 바로 가지 않는다. 빽도로 출발에 돌아와도 완주하지 않는다. 다음 칸은 보드 상단 토글로 열며 보드 옆에서 후보 하나만 표시한다. Previous / Next로 넘기고, 후보 호버 또는 경로 보기를 실행할 때만 점선과 최종 도착점 화살촉 하나를 표시한다.</li><li>5·10·중앙에서 이동을 시작하고 남은 길이 다를 때만 현재 길/지름길을 선택한다. 이동 중 경유만 하면 현재 경로를 따른다.</li><li>전진은 윷 이동 + 주말 기본 속도 -1 + 말·판 전체 보너스(최소 1칸)다. 기본 속도 1은 전통 윷 이동과 같다. 빽도는 -1로 그 묶음의 실제 이전 위치를 되짚는다. 판에 말이 없으면 이동·귀속을 생략한다.</li><li>자기 말 도착 칸에서 업는다. 분리할 수 없고 최고 weight 말이 주말이 된다.</li><li>G에 도달하면 남은 이동을 멈춘다. 보스를 격파했거나 이미 격파된 관문이면 END로 완주 정산한다.</li><li>지름길 C를 지나쳐 다른 칸에 도착하면 전투하지 않는다. C에 정확히 도착하면 전투를 예측·확정한다.</li></ul></div></div><h3>롤앤무브 사용성 보강</h3><p>기본 보드에는 방향 화살표·도착 후보 원·칸 순번·강조 경로를 표시하지 않는다. 현재 위치는 기물 자체로 표시한다. 기물은 노드 중앙에 반경 20으로 놓아 일반/특수 노드(반경 11/17)를 덮되, 이웃 노드를 가리지 않는다. 전투 중에도 기물을 옆으로 밀지 않는다. 같은 물리 칸의 표시는 하나로 합치되 실제 말의 상태·업기 규칙은 바꾸지 않는다.</p><p>다음 칸 예측은 상단 토글로 열고 보드 옆 상단에서 후보 하나만 Previous / Next로 넘긴다. 후보 넘기기는 경로를 자동 표시하거나 이동하지 않는다. 다음 칸 선택지에 커서를 올린 동안만 굵은 파란색 점선 경로를 표시한다. 화살촉은 최종 도착 노드 앞에 하나만 두며 중간 노드의 화살표·순번·도착 원을 추가하지 않는다. 선택지에서 커서가 벗어나면 지운다. Tab으로 초점만 옮기거나 말을 선택하거나 자동 이동할 때는 화살표를 표시하지 않는다. 키보드·터치는 경로 보기 버튼을 명시적으로 실행하고, 이동 버튼으로 별도 확정한다. 보드 확대·칸 안내·입력 오작동 방지는 유지한다.</p><p><a href="https://www.nintendo.com/eu/media/downloads/games_8/emanuals/nintendo_8/Manual_Nintendo64_MarioParty2_EN.pdf">Mario Party 2 공식 설명서</a>의 갈림길 방향 선택·지도 보기, <a href="https://cdn02.nintendo-europe.com/media/downloads/games_8/emanuals/nintendo_ds_21/Manual_NintendoDS_MarioPartyDS_EN.pdf">Mario Party DS 공식 설명서</a>의 전체 지도, <a href="https://play.nintendo.com/news-tips/tips-tricks/mario-party-superstars-tips-5-boards/">Nintendo Superstars 안내</a>의 방향 표지와 위험 카운터를 참고했다. 필요할 때만 표시하는 경로 미리보기는 이 원칙을 윷토체스에 적용한 설계이며, 원작의 동일 UI를 확인했다는 뜻은 아니다.</p><h3>사용자 확인용 경로 예시</h3><div class="table-wrap"><table id="tblPathCases"></table></div>
 </section>
 
-<section id="boxing">
-  <h2>박싱 게임 · 플레이 / 편집</h2><p class="lead">선택형 첫 3턴 체험 또는 기본값으로 바로 시작 → 실제 3막 9라운드 코어 루프. 덱 특성 → 리스크 선택 → 출전 윷 편집 → 투척·업기·보스 전투 → 완주 정산 → 라운드 결과 → 상점 / 추가 이자.</p>
-  <div id="boxingGame" tabindex="0" aria-label="윷토체스 게임 및 장면 편집기"><p class="note">게임 데이터를 불러오는 중입니다. 실패하면 문서 상단에서 game-data.json을 선택하세요.</p></div>
-  <p class="note">편집 모드는 기본 weight·HP·공격과 추가 배율만 입력합니다. 현재 HP·최대 HP·공격은 공통 계산 결과이며 적용 예정 수치를 먼저 보여줍니다. 전투와 연출은 작성 상태이며 빌드·브라우저 실행·플레이 테스트는 사용자에게 맡깁니다.</p>
-</section>
+
 
 <!-- 7 -->
 <section id="score">

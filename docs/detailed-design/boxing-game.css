@@ -254,14 +254,14 @@
 
 /* Roll-and-move conventions: inspect first, then activate a route. */
 #boxingGame .box-preview-choice { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; min-height: 42px; text-align: left; }
-#boxingGame .box-previewing { border-color: var(--ink-2); }
-.box-route-option.box-previewing { border-color: var(--ink-2); }
+#boxingGame .box-previewing { border: 3px solid var(--blue); background: color-mix(in srgb,var(--blue) 14%,var(--surface)); }
+.box-route-option.box-previewing { border-color: var(--blue); }
 .box-route-option > .box-primary { width: 100%; margin-top: 12px; }
 .box-map-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 10px; border-bottom: 1px solid var(--line); font-size: 12px; }
 .box-map-toolbar > b { margin-right: auto; }
 .box-map-toolbar details { flex-basis: 100%; }
 .box-map-toolbar p { margin: 8px 0 0; }
-.box-route-inspector { padding: 12px; border-block: 1px solid var(--line); background: var(--surface-2); font-size: 12px; overflow-wrap: anywhere; min-height: 100px; }
+.box-route-inspector { padding: 16px; margin: 10px; border: 4px solid var(--blue); border-radius: 6px; background: color-mix(in srgb,var(--blue) 12%,var(--surface)); color: var(--ink); box-shadow: 0 0 0 2px var(--surface); font-size: 14px; overflow-wrap: anywhere; min-height: 100px; }
 .box-route-inspector b { color: var(--ink); }
 .box-route-inspector p { margin: 7px 0; }
 .box-route-inspector > strong { display: block; }
@@ -283,7 +283,7 @@
 
 .box-route-inspector:empty { display: none; }
 
-.box-hover-route { fill: none; stroke: var(--ink-2); stroke-width: 2; stroke-dasharray: 5 5; stroke-linecap: round; stroke-linejoin: round; }
+.box-hover-route { fill: none; stroke: var(--blue); stroke-width: 4; stroke-dasharray: 5 5; stroke-linecap: round; stroke-linejoin: round; }
 .box-move-overlay { pointer-events: none; }
 
 /* The hand is always visible when selecting; derived stats have one editable source. */
@@ -415,3 +415,13 @@
 .box-temp-score-fx.gain { filter: hue-rotate(65deg) saturate(1.1); }
 .box-temp-score-fx.kind-stack, .box-temp-score-fx.kind-finish { filter: saturate(1.2) brightness(1.15); }
 @media(prefers-reduced-motion:reduce) { .box-temp-score-fx { display: none; } }
+
+/* Each committed source pulses at the scoreboard, even when the net delta is zero. */
+.box-metric-events { display: flex; flex-wrap: wrap; gap: 5px; }
+.box-metric-events:empty { display: none; }
+.box-metrics .box-metric-events > span { display: inline-block; padding: 4px 6px; border: 2px solid currentColor; border-radius: 4px; font-weight: bold; transform-origin: center; }
+.box-metrics .box-metric-events .gain { color: var(--green); }
+.box-metrics .box-metric-events .loss { color: var(--red); }
+.box-metric-events .score-source-combat { border-left-width: 5px; }
+.box-metric-events .score-source-special { border-style: dashed; }
+.box-metric-events .score-source-stack, .box-metric-events .score-source-finish { background: color-mix(in srgb,var(--gold) 15%,var(--surface)); }

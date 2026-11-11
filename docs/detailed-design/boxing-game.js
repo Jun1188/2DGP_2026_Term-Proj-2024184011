@@ -13,17 +13,20 @@
   const phaseNames={MENU:'메뉴·덱 특성',TRAIT:'리스크 선택',PREP:'출전 윷 편집',DRAW:'윷 드로우',REVEAL:'손패 공개 대기',SELECT:'던질 윷 선택',MOVE:'갈림길·이동',REWARD:'라운드 결과',CHOICE:'상점 / 추가 이자',SHOP:'상점·성장',WIN:'런 완주',LOSE:'런 종료'};
   const s=()=>core.state;
   const locked=()=>edit||!!battle||drawing;
-  let boardKind='',scoreSnapshot=null,feedbackKey='',scoreFrames=[],tempFxEnabled=true;
+  let boardKind='',scoreSnapshot=null,feedbackKey='',scoreFrames=[],scoreEvents=[],tempFxEnabled=true;
+  const scoreKind=source=>({'윷가락':'roll','일반 칸':'tile','특수칸':'special','업기':'stack','전투':'combat','판 전체':'field','빅 기믹':'field','완주':'finish','완주 정산':'finish'})[source]||'field';
+  const signedScore=n=>(n>=0?'+':'−')+num(Math.abs(n));
   const tempFxImage=new Image();
   tempFxImage.src=new URL('assets/temp-score-fx/score-burst.png',document.currentScript.src).href;
-  function tempScoreBurst(el,power,loss,kind) {
+  function tempScoreBurst(el,power,loss,kind,elapsed=0) {
     if(!tempFxEnabled||!tempFxImage.complete||!tempFxImage.naturalWidth)return;
     const host=el.parentElement,fx=tempFxImage.cloneNode();
     host.classList.add('box-temp-fx-anchor');
     fx.className='box-temp-score-fx '+(loss?'loss':'gain')+' kind-'+kind;
     fx.alt='';fx.setAttribute('aria-hidden','true');host.append(fx);
     const distance=(loss?1:-1)*(4+power*3),scale=kind==='finish'?1.2:1;
-    fx.animate([{opacity:0,transform:'translateY(0) scale(.35)'},{opacity:.65,transform:'translateY('+distance/2+'px) scale('+scale+')',offset:.3},{opacity:0,transform:'translateY('+distance+'px) scale('+(scale+.15*power)+')'}],{duration:300+power*120,easing:'ease-out'}).finished.catch(()=>{}).finally(()=>fx.remove());
+    const animation=fx.animate([{opacity:0,transform:'translateY(0) scale(.35)'},{opacity:.65,transform:'translateY('+distance/2+'px) scale('+scale+')',offset:.3},{opacity:0,transform:'translateY('+distance+'px) scale('+(scale+.15*power)+')'}],{duration:600,easing:'ease-out'});
+    animation.currentTime=elapsed;animation.finished.catch(()=>{}).finally(()=>fx.remove());
   }
   function syncBoard() {
     const kind=core.row()?.type==='boss'?'expanded':'standard';
@@ -124,32 +127,53 @@
     const r=rows[nextPreviewIndex],key=pathKey(r),off=locked();
     return '<section id="boxNextPanel" class="box-next-panel" aria-label="다음 칸 예측"><h4>다음 칸</h4><div class="box-preview-pager">'+button('Previous','previous-next','',off||nextPreviewIndex===0)+'<span aria-live="polite">'+(nextPreviewIndex+1)+' / '+rows.length+'</span>'+button('Next','next-next','',off||nextPreviewIndex===rows.length-1)+'</div><article class="box-next-candidate"'+previewAttrs(g.id,key)+'><b>'+esc(r.hand.name)+' · '+esc(r.routeName||'현재 길')+'</b><p>말 '+esc(r.groupName)+' · '+esc(labelPos(r.origin))+'에서</p><strong>'+esc(r.skipped?'이동 없음':labelPos(r.arrival))+'</strong><p>'+esc(r.skipped?'움직일 수 있는 말이 없습니다.':r.path.length+'칸 이동 · '+arrivalNotes(r))+'</p>'+previewButton('경로 보기','preview-path',key,g.id,key,off,'box-preview-choice')+'</article><small>후보 위에 커서를 올리면 경로를 표시합니다. 후보 넘기기는 이동하지 않습니다.</small></section>';
   }
+  function captureScoreEvents() {
+    const st=s(),time=performance.now(),rows=st.lastFeedback||[];
+    const key=st.seed+':'+st.round+':'+st.turn+':'+JSON.stringify(rows);
+    const sameRun=scoreSnapshot&&scoreSnapshot.seed===st.seed&&scoreSnapshot.round===st.round;
+    if(!sameRun)scoreEvents=[];
+    if(feedbackKey===key&&sameRun)return;
+    feedbackKey=key;
+    if(!sameRun)return;
+    scoreEvents=scoreEvents.filter(e=>time<e.start+600);
+    let start=Math.max(time,scoreEvents.length?scoreEvents.at(-1).start+650:time);
+    for(const row of rows.filter(r=>Number.isFinite(r.delta)&&r.delta!==0)){
+      const metric=row.metric||'live',amount=Math.abs(row.delta),ratio=amount/Math.max(1,scoreSnapshot[metric]);
+      const power=amount>=1000||ratio>=.5?3:amount>=100||ratio>=.15?2:1;
+      scoreEvents.push({...row,metric,power,start});start+=650;
+    }
+  }
+  function metricEvents(metric) {
+    return '<div class="box-metric-events" aria-live="polite">'+scoreEvents.map((r,i)=>r.metric===metric?'<span data-score-event="'+i+'" class="'+(r.delta<0?'loss':'gain')+' score-source-'+scoreKind(r.source)+'" title="'+esc(r.label||'')+'">'+esc(r.source)+' '+signedScore(r.delta)+'</span>':'').join('')+'</div>';
+  }
   function animateScores() {
     const st=s(),now={seed:st.seed,round:st.round,live:core.living().reduce((n,g)=>n+core.weight(g),0),settled:st.score,needed:Math.max(0,st.target-st.score)};
     const previous=scoreSnapshot;scoreSnapshot=now;
-    const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const rows=battle?.projection.next.lastFeedback||st.lastFeedback||[],key=st.seed+':'+st.round+':'+st.turn+':'+JSON.stringify(rows);
-    if(feedbackKey!==key){feedbackKey=key;root.querySelector('.box-score-feedback')?.classList.add('score-changed');}
     if(!previous||previous.seed!==now.seed||previous.round!==now.round)return;
+    const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,time=performance.now();
+    for(const [index,row] of scoreEvents.entries()){
+      const elapsed=time-row.start;if(elapsed>=600)continue;
+      const metrics=[...root.querySelectorAll('[data-score-metric="'+row.metric+'"]')],badges=[...root.querySelectorAll('[data-score-event="'+index+'"]')];
+      if(!metrics.length||reduced)continue;
+      const power=row.power,kind=scoreKind(row.source);
+      const lift=(row.delta>0?-1:1)*power*3,shake=kind==='combat'?power*3:0,scale=1+power*(kind==='finish'||kind==='stack'?0.12:0.06);
+      const color=row.delta<0?'var(--red)':'var(--green)',tilt=kind==='special'?power:0;
+      const frames=[{transform:'translate(0,0) scale(1) rotate(0deg)'},{color,transform:'translate('+shake+'px,'+lift+'px) scale('+scale+') rotate('+tilt+'deg)',offset:.35},{color,transform:'translate('+(-shake)+'px,0) scale(1.03) rotate('+(-tilt)+'deg)',offset:.65},{transform:'translate(0,0) scale(1) rotate(0deg)'}];
+      for(const el of metrics){el.classList.add('box-score-number-change');tempScoreBurst(el,power,row.delta<0,kind,elapsed);}
+      for(const target of [...metrics,...badges])target.animate(frames,{duration:600,easing:'ease-out'}).currentTime=elapsed;
+    }
     for(const el of root.querySelectorAll('[data-score-metric]')){
       const metric=el.dataset.scoreMetric,delta=now[metric]-previous[metric];if(!Number.isFinite(delta)||delta===0)continue;
-      const amount=Math.abs(delta),ratio=amount/Math.max(1,previous[metric]),power=amount>=1000||ratio>=.5?3:amount>=100||ratio>=.15?2:1;
-      const source=[...rows].reverse().find(r=>r.delta!==0&&(r.delta<0)===(delta<0));
-      const kind=({'윷가락':'roll','일반 칸':'tile','특수칸':'special','업기':'stack','전투':'combat','판 전체':'field','빅 기믹':'field','완주':'finish'})[source?.source]||'finish';
-      el.classList.add('box-score-number-change',delta>0?'score-up':'score-down','score-kind-'+kind,'score-power-'+power);
-      const badge=document.createElement('small');badge.className='box-score-delta';badge.textContent=(delta>0?'↑ +':'↓ −')+num(amount);badge.setAttribute('aria-label',(delta>0?'증가 ':'감소 ')+num(amount));el.after(badge);
+      const badge=document.createElement('small');badge.className='box-score-delta';badge.textContent=(delta>0?'↑ +':'↓ −')+num(Math.abs(delta));el.after(badge);
       if(reduced)continue;
-      tempScoreBurst(el,power,delta<0,kind);
-      const duration=220+power*110,start=performance.now(),from=previous[metric];
-      const scale=1+power*(kind==='finish' ? 0.12 : kind==='stack' ? 0.1 : kind==='tile' ? 0.03 : 0.07),tilt=kind==='special'?power:0,shake=kind==='combat'?power*2:0;
-      el.animate([{transform:'translate(0,0) scale(1) rotate(0deg)'},{transform:'translate('+shake+'px,'+(delta>0?-2*power:2*power)+'px) scale('+scale+') rotate('+tilt+'deg)',offset:.35},{transform:'translate('+(-shake)+'px,0) scale('+(1+(scale-1)/3)+') rotate('+(-tilt)+'deg)',offset:.65},{transform:'translate(0,0) scale(1) rotate(0deg)'}],{duration,easing:'cubic-bezier(.2,.7,.3,1)'});
+      const duration=550,start=performance.now(),from=previous[metric];
       function tick(time){const t=Math.min(1,(time-start)/duration),ease=1-Math.pow(1-t,3);el.textContent=num(from+delta*ease);if(t<1)scoreFrames.push(requestAnimationFrame(tick));else el.textContent=num(now[metric]);}
       scoreFrames.push(requestAnimationFrame(tick));
     }
   }
   function summary() {
     const st=s(),live=core.living().reduce((n,g)=>n+core.weight(g),0);
-    return '<div class="box-metrics simple"><div><small>보유점수 · 말 합계</small><b data-score-metric="live">'+num(live)+'</b><span>완주 확정 <strong data-score-metric="settled">'+num(st.score)+'</strong></span></div><div><small>남은 필요 점수</small><b data-score-metric="needed">'+num(Math.max(0,st.target-st.score))+'</b><span>목표 '+num(st.target)+'</span></div><div><small>재화 / 이번 예상 이자</small><b>'+st.coins+' <em>+'+core.interest()+'</em></b><span>다음 기본 목표 '+(core.rounds[st.round+1]?num(core.rounds[st.round+1].target):'최종 라운드')+'</span></div></div><details class="box-metric-details"><summary>완주 가정 점수 보기</summary><p>정산+현재 말 '+num(st.score+live)+' / 전원 완주 가정 부족 '+num(Math.max(0,st.target-st.score-live))+'. 승리 판정은 실제 완주 정산으로 합니다.</p></details>';
+    return '<div class="box-metrics simple"><div><small>보유점수 · 말 합계</small><b data-score-metric="live">'+num(live)+'</b><span>완주 확정 <strong data-score-metric="settled">'+num(st.score)+'</strong></span>'+metricEvents('live')+metricEvents('settled')+'</div><div><small>남은 필요 점수</small><b data-score-metric="needed">'+num(Math.max(0,st.target-st.score))+'</b><span>목표 '+num(st.target)+'</span></div><div><small>재화 / 이번 예상 이자</small><b>'+st.coins+' <em>+'+core.interest()+'</em></b><span>다음 기본 목표 '+(core.rounds[st.round+1]?num(core.rounds[st.round+1].target):'최종 라운드')+'</span></div></div><details class="box-metric-details"><summary>완주 가정 점수 보기</summary><p>정산+현재 말 '+num(st.score+live)+' / 전원 완주 가정 부족 '+num(Math.max(0,st.target-st.score-live))+'. 승리 판정은 실제 완주 정산으로 합니다.</p></details>';
   }
   function masterPanel() {
     const st=s();if(!st.master)return '';
@@ -212,7 +236,7 @@
       }
     }
     const layer=(id,body)=>'<g data-layer="'+id+'"'+(!layers[id]?' style="display:none"':'')+'>'+body+'</g>';
-    return '<svg viewBox="0 0 '+(core.row()?.type==='boss'?'700 870':'540 710')+'" role="group" aria-label="경로 미리보기 보드. 칸을 선택해 효과 확인. 기물이 현재 칸을 덮으며, 선택지 미리보기의 화살촉은 최종 도착점에만 표시합니다."><defs><marker id="boxArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="m0 0 10 5-10 5Z" fill="var(--ink-2)"/></marker></defs><g data-layer="board">'+base+'</g>'+layer('specials',specials)+layer('threat',threat)+'<g class="box-move-overlay">'+preview+'</g>'+layer('guardians',enemy)+layer('pieces',units)+layer('frame','<path d="M15 48V15H48 M492 15H525V48 M525 662V695H492 M48 695H15V662" class="box-frame-line"/><text x="270" y="30" class="box-frame-title">출발 · 귀환 · 완주</text>')+'</svg>';
+    return '<svg viewBox="0 0 '+(core.row()?.type==='boss'?'700 870':'540 710')+'" role="group" aria-label="경로 미리보기 보드. 칸을 선택해 효과 확인. 기물이 현재 칸을 덮으며, 선택지 미리보기의 화살촉은 최종 도착점에만 표시합니다."><defs><marker id="boxArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="m0 0 10 5-10 5Z" fill="var(--blue)"/></marker></defs><g data-layer="board">'+base+'</g>'+layer('specials',specials)+layer('threat',threat)+'<g class="box-move-overlay">'+preview+'</g>'+layer('guardians',enemy)+layer('pieces',units)+layer('frame','<path d="M15 48V15H48 M492 15H525V48 M525 662V695H492 M48 695H15V662" class="box-frame-line"/><text x="270" y="30" class="box-frame-title">출발 · 귀환 · 완주</text>')+'</svg>';
   }
   function gimmickText(g){return [({supportResonance:'단독 선공 ×0.6 / 업기 선공 ×1.25',gateArmor:'받는 피해 ×0.75 / 절반 HP 반격 ×1.5',lastStand:'HP 절반 이하 반격 ×1.5',chipShield:'선공 피해 10 경감',heavyStrike:'강한 공격 계수'}[g.gimmick]||''),({lastStand:'픽: 절반 이하 반격 강화',loneHunter:'픽: 단독 말 상대 반격 ×1.25',calm:'픽: HP·공격 완화'}[g.pickGimmick]||'')].filter(Boolean).join(' / ');}
   function intel() {
@@ -222,8 +246,8 @@
   }
   function scoreFeedback() {
     const rows=battle?.projection.next.lastFeedback||s().lastFeedback;if(!rows?.length)return '';
-    const signed=n=>(n>=0?'+':'−')+num(Math.abs(n));
-    return '<section class="box-score-feedback" aria-live="polite" aria-label="이번 턴 보유점수 변화"><b>'+(battle&&!battle.done?'이번 행동 변화 · 적용 예정':'이번 턴 보유점수 변화')+'</b><div>'+rows.map(r=>'<span class="'+(r.delta<0?'loss':'gain')+' score-source-'+({'윷가락':'roll','일반 칸':'tile','특수칸':'special','업기':'stack','전투':'combat','판 전체':'field','완주':'finish'}[r.source]||'field')+' score-power-'+(Math.abs(r.delta)>=1000?3:Math.abs(r.delta)>=100?2:1)+'" title="'+esc(r.label)+'"><small>'+esc(r.source)+'</small><strong>'+signed(r.delta)+'</strong><small>'+esc(r.label)+'</small></span>').join('')+'</div><p>이번 변화 합계 <strong>'+signed(rows.reduce((n,r)=>n+r.delta,0))+'</strong> · 말에 쌓인 점수는 완주할 때 목표 점수로 정산합니다.</p></section>';
+    const signed=signedScore;
+    return '<section class="box-score-feedback" aria-live="polite" aria-label="이번 턴 보유점수 변화"><b>'+(battle&&!battle.done?'이번 행동 변화 · 적용 예정':'이번 턴 보유점수 변화')+'</b><div>'+rows.map(r=>'<span class="'+(r.delta<0?'loss':'gain')+' score-source-'+scoreKind(r.source)+' score-power-'+(Math.abs(r.delta)>=1000?3:Math.abs(r.delta)>=100?2:1)+'" title="'+esc(r.label)+'"><small>'+esc(r.source)+'</small><strong>'+signed(r.delta)+'</strong><small>'+esc(r.label)+'</small></span>').join('')+'</div><p>이번 변화 합계 <strong>'+signed(rows.filter(r=>r.metric!=='settled').reduce((n,r)=>n+r.delta,0))+'</strong> · 말에 쌓인 점수는 완주할 때 목표 점수로 정산합니다.</p></section>';
   }
   function turnResult() {
     const st=s(),r=st.pending?{hand:st.pending.hand.id}:st.lastTurn||st.lastRoll;
@@ -341,14 +365,14 @@
     if(!battle.projection.battle){
       if(!battle.projection.enemyTurns?.length)return '';
       const p=battle.projection,done=battle.done,event=p.events[battle.step];
-      return '<div class="box-battle-scrim"><section class="box-battle-panel" role="dialog" aria-modal="true" aria-label="일반 보스 턴">'+scoreFeedback()+'<h4>'+esc(done?'일반 보스 턴 완료':event?.title||'일반 보스 턴')+'</h4><p aria-live="polite">'+esc(done?'결과 확인 후 다음 턴으로 진행합니다.':event?.message||'')+'</p>'+(done?enemySummary(p.enemyTurns):'<ol class="box-battle-timeline">'+p.events.map((e,i)=>'<li class="'+(i<=battle.step?'active':'')+'">'+esc(e.title)+'</li>').join('')+'</ol>')+'<div class="box-battle-actions">'+(done?button('결과 확인 · 계속','close-battle','','','box-primary'):button('연출 생략 → 결과 보기','skip-battle'))+'</div></section></div>';
+      return '<div class="box-battle-scrim"><section class="box-battle-panel" role="dialog" aria-modal="true" aria-label="일반 보스 턴">'+scoreFeedback()+(done?summary():'')+'<h4>'+esc(done?'일반 보스 턴 완료':event?.title||'일반 보스 턴')+'</h4><p aria-live="polite">'+esc(done?'결과 확인 후 다음 턴으로 진행합니다.':event?.message||'')+'</p>'+(done?enemySummary(p.enemyTurns):'<ol class="box-battle-timeline">'+p.events.map((e,i)=>'<li class="'+(i<=battle.step?'active':'')+'">'+esc(e.title)+'</li>').join('')+'</ol>')+'<div class="box-battle-actions">'+(done?button('결과 확인 · 계속','close-battle','','','box-primary'):button('연출 생략 → 결과 보기','skip-battle'))+'</div></section></div>';
     }
     const p=battle.projection,b=p.battle,done=battle.done,event=p.events[battle.step],actor=done||event?.enemy?'':event?.side;
     const hitStep=p.events.findIndex(e=>e.type==='strike'&&e.side==='player'),counterStep=p.events.findIndex(e=>e.type==='strike'&&e.side==='boss');
     const hpPlayer=done?p.turnEnd.playerHp:counterStep>=0&&battle.step>=counterStep?b.playerHpAfter:b.playerHpBefore;
     const hpBoss=done?p.turnEnd.bossHp:hitStep>=0&&battle.step>=hitStep?b.bossHpAfter:b.bossHpBefore;
     const fighter=(side,title,hp,max)=>'<div class="box-fighter '+side+' '+(actor===side?'attacking':'')+' '+(actor&&actor!==side?'hit':'')+'"><strong>'+esc(title)+'</strong>'+hpBox(hp,Math.max(max,hp))+'<div class="box-avatar"><i class="box-avatar-head"></i><i class="box-avatar-body"></i><i class="box-glove left"></i><i class="box-glove right"></i>'+(actor&&actor!==side?'<b class="box-damage">−'+num(actor==='player'?b.hit:b.counter)+'</b>':'')+'</div><small>'+ (side==='player'?'선공 피해 '+num(b.hit):'생존 시 반격 '+num(b.counter))+'</small></div>';
-    return '<div class="box-battle-scrim"><section class="box-battle-panel" role="dialog" aria-modal="true" aria-label="HP 전투 결과">'+scoreFeedback()+'<small>'+(done?'RESULT · 확인할 때까지 유지':'BOXING · '+(battle.step+1)+' / '+p.events.length)+'</small><h4>'+(done?p.turnEnd.playerHp===0?'아군 쓰러짐':p.turnEnd.bossHp===0?'수문장 돌파!':'양쪽 생존 · 다음 턴 재교전':esc(event?.title||'전투'))+'</h4><div class="box-battle-actors">'+fighter('player','말 '+p.groupName,hpPlayer,done?(p.turnEnd.playerMaxHp||b.playerMaxHp):b.playerMaxHp)+'<b>VS</b>'+fighter('boss',b.bossName,hpBoss,done?p.turnEnd.bossMaxHp:b.bossMaxHp)+'</div><p class="box-burst-number" aria-live="polite">'+(done?'보유점수 '+num(p.weightBefore)+' → '+num(p.weightAfter)+' · 완주 +'+num(p.scoreGain):esc(event?.message||''))+'</p><p class="box-combat-prediction">확정 전투: 아군 HP '+num(b.playerHpBefore)+' → '+num(b.playerHpAfter)+' / 보스 HP '+num(b.bossHpBefore)+' → '+num(b.bossHpAfter)+'</p><ol class="box-battle-timeline">'+p.events.map((e,i)=>'<li class="'+(done||i<=battle.step?'active':'')+'">'+esc(e.title)+'</li>').join('')+'</ol>'+(done?enemySummary(p.enemyTurns):'')+'<div class="box-battle-actions">'+(done?button('결과 확인 · 계속','close-battle','','','box-primary'):button('연출 생략 → 결과 보기','skip-battle'))+'</div></section></div>';
+    return '<div class="box-battle-scrim"><section class="box-battle-panel" role="dialog" aria-modal="true" aria-label="HP 전투 결과">'+scoreFeedback()+(done?summary():'')+'<small>'+(done?'RESULT · 확인할 때까지 유지':'BOXING · '+(battle.step+1)+' / '+p.events.length)+'</small><h4>'+(done?p.turnEnd.playerHp===0?'아군 쓰러짐':p.turnEnd.bossHp===0?'수문장 돌파!':'양쪽 생존 · 다음 턴 재교전':esc(event?.title||'전투'))+'</h4><div class="box-battle-actors">'+fighter('player','말 '+p.groupName,hpPlayer,done?(p.turnEnd.playerMaxHp||b.playerMaxHp):b.playerMaxHp)+'<b>VS</b>'+fighter('boss',b.bossName,hpBoss,done?p.turnEnd.bossMaxHp:b.bossMaxHp)+'</div><p class="box-burst-number" aria-live="polite">'+(done?'보유점수 '+num(p.weightBefore)+' → '+num(p.weightAfter)+' · 완주 +'+num(p.scoreGain):esc(event?.message||''))+'</p><p class="box-combat-prediction">확정 전투: 아군 HP '+num(b.playerHpBefore)+' → '+num(b.playerHpAfter)+' / 보스 HP '+num(b.bossHpBefore)+' → '+num(b.bossHpAfter)+'</p><ol class="box-battle-timeline">'+p.events.map((e,i)=>'<li class="'+(done||i<=battle.step?'active':'')+'">'+esc(e.title)+'</li>').join('')+'</ol>'+(done?enemySummary(p.enemyTurns):'')+'<div class="box-battle-actions">'+(done?button('결과 확인 · 계속','close-battle','','','box-primary'):button('연출 생략 → 결과 보기','skip-battle'))+'</div></section></div>';
   }
   function quickRun() {
     scoreSnapshot=null;feedbackKey='';
@@ -519,7 +543,7 @@
   }
   function render() {
     for(const frame of scoreFrames)cancelAnimationFrame(frame);scoreFrames=[];
-    syncBoard();
+    captureScoreEvents();syncBoard();
     const openDetails=new Set([...root.querySelectorAll('details[data-box-detail][open]')].map(el=>el.dataset.boxDetail));
     const focused=document.activeElement?.closest('[data-action]'),focusAction=focused?.dataset.action,focusValue=focused?.dataset.value;
     const st=s(),focus=root.contains(document.activeElement),play=['DRAW','REVEAL','SELECT','MOVE'].includes(st.phase),showBoard=play||edit;
@@ -532,7 +556,7 @@
     const intro=st.practice?practicePanel():play&&st.round===0&&st.turn<3?'<div class="box-hook"><b>'+hints[hintIndex]+'</b></div>':'';
     const game=showBoard?turnResult()+(!battle?enemySummary(st.lastEnemyTurns):'')+'<div class="box-layout"><aside class="box-score">'+roster()+'</aside><div class="box-board">'+mapTools()+'<div class="box-map-and-route"><div class="box-map-viewport" tabindex="0" role="region" aria-label="윷판 지도">'+board()+'</div>'+routePanel()+'</div><section id="boxRouteInspector" class="box-route-inspector" aria-live="polite">'+routeInspector()+'</section><p class="box-board-key">● 내 말　■ 보스　◇ 특수칸</p></div><aside class="box-intel">'+movementPanel()+intel()+'</aside></div><div class="box-play-controls" aria-label="하단 덱과 손패 조작">'+handPanel()+'</div>':'';
     const compact=!showBoard&&st.phase!=='MENU'?'<div class="box-wallet"><div><small>현재 가진 금액</small><b>'+st.coins+'냥</b></div><div><small>다음 라운드 예상 이자</small><b>+'+core.interest()+'냥</b></div></div>':'';
-    root.innerHTML=toolbar+loop+status+(play?summary():'')+intro+(!play&&st.phase==='LOSE'&&st.lastTurn?turnResult():'')+compact+(edit?editorPanel():'')+(showBoard?(st.master&&st.round===0&&st.turn<=3?'<details class="box-master-fold" data-box-detail="master"><summary>마스터 · '+esc(core.field().effect)+'</summary>'+masterPanel()+'</details>':masterPanel()):'')+game+'<div class="box-stage">'+stage()+'</div>'+
+    root.innerHTML=toolbar+loop+status+(st.phase!=='MENU'?summary():'')+intro+(!play&&st.phase==='LOSE'&&st.lastTurn?turnResult():'')+compact+(edit?editorPanel():'')+(showBoard?(st.master&&st.round===0&&st.turn<=3?'<details class="box-master-fold" data-box-detail="master"><summary>마스터 · '+esc(core.field().effect)+'</summary>'+masterPanel()+'</details>':masterPanel()):'')+game+'<div class="box-stage">'+stage()+'</div>'+
       (st.log.length&&st.phase!=='MENU'?'<p class="box-feedback" aria-live="polite">'+esc(st.log.at(-1).message)+'</p>':'')+machine()+'<details class="box-events"><summary>상세 사건 기록 · '+st.log.length+'건</summary><ol>'+st.log.slice(-50).reverse().map(e=>'<li><small>'+esc(e.round)+' / '+e.turn+'T</small> '+esc(e.message)+'</li>').join('')+'</ol></details>'+animationPanel();
     for(const el of root.querySelectorAll('details[data-box-detail]'))el.open=openDetails.has(el.dataset.boxDetail);
     updateUpgradeInfo();updateUnitNumbers();refreshPathPreview();animateScores();
