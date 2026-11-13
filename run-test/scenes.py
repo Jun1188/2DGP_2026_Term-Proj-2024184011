@@ -1,4 +1,4 @@
-﻿"""Deterministic scene setup, shared by the visual runner and diagnostics."""
+"""Deterministic scene setup, shared by the visual runner and diagnostics."""
 from engine import Game
 
 
@@ -19,13 +19,25 @@ def catalog(data):
     return rows
 
 
+def next_player_hand(game: Game):
+    s = game.state
+    if s.get('practice_fixed') and s['round'] == 0:
+        hands = game.data['onboarding']['firstThreeHands']
+        if s['turn'] < len(hands):
+            return hands[s['turn']]
+    return s.get('forced')
+
+
 def load_scene(game: Game, key='stack', seed=None):
     if key not in dict(catalog(game.data)): raise ValueError('알 수 없는 장면: ' + key)
     parts = key.split(':'); category = parts[0]; value = parts[1] if len(parts) > 1 else ''
     index = int(value) if category == 'round' else 1 if category == 'boss' else 3 if category == 'field' else 0
-    game.start(seed=seed, round_index=index, risk=value if category == 'risk' else 'standard', starter=value if category == 'starter' else 'woodcutter')
+    game.start(seed=seed, round_index=index, risk=value if category == 'risk' else 'standard',
+               starter=value if category == 'starter' else 'woodcutter', practice=key != 'play')
     s = game.state; g = s['groups'][0]
-    s['scene'] = key; s['forced'] = None if key == 'play' else value if category == 'hand' else 'do'
+    s['scene'] = key
+    s['practice_fixed'] = key == 'stack'
+    s['forced'] = None if key in ('play', 'stack') else value if category == 'hand' else 'do'
     if key == 'stack': game.place(g, '4'); game.place(s['groups'][1], '5'); game.grow(s['pieces'][1], 400)
     if key == 'combat': game.place(g, 'a2', 'diagA'); game.grow(s['pieces'][0], 100)
     if key == 'finish':

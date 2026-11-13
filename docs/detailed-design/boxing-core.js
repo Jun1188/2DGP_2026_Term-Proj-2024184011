@@ -290,7 +290,7 @@
         log(boss.name+' 처치 · weight ×'+multiplier.toFixed(2)+' · 추가 투척.',st);
       }
       const result={bossId:boss.id,bossName:boss.name,groupName:name(g),gimmick:boss.gimmick,pickGimmick:boss.pickGimmick,attack,hit,counter,playerMaxHp,bossMaxHp,playerHpBefore:playerHp,playerHpAfter:g.ids.reduce((n,id)=>n+st.pieces[id].hp,0),bossHpBefore:bossBefore,bossHpAfter:boss.hp,win:boss.hp===0,dead:!g.ids.length,bossFirst};
-      if(weight(g,st)!==beforeWeight)feedback(st,'전투',weight(g,st)-beforeWeight,boss.name+' · '+(g.ids.length?'처치 증폭':'말 사망'));
+      if(weight(g,st)!==beforeWeight)feedback(st,'전투',weight(g,st)-beforeWeight,boss.name+' · '+(result.win?'처치 증폭':'쓰러진 말의 보유점수 소멸'));
       log((bossFirst?'보스 턴 ':'')+boss.name+' 전투 · 말 HP '+result.playerHpAfter+' / 보스 HP '+boss.hp+'.',st);
       return result;
     }
@@ -396,7 +396,7 @@
       else{s.phase='DRAW';s.lastDraw=[];log('다음 턴 · 사용 윷은 덱에 반환됨. 부족한 손패를 드로우하세요.');}
       touched();
     }
-    function commitMove(projection) {if(s.phase!=='MOVE'||!projection||projection.revision!==s.revision)return false;const p=projection;s=p.next;s.lastTurn={turn:s.turn,hand:s.pending.hand.id,group:p.groupName,n:p.value.n,m:p.value.m,x:p.value.x,gain:p.value.gain,weightBefore:p.weightBefore,weightAfter:p.weightAfter,scoreGain:p.scoreGain,arrival:p.arrival,steps:p.path.length,events:p.events.map(e=>({type:e.type,title:e.title,message:e.message}))};finishTurn(true);return true;}
+    function commitMove(projection) {if(s.phase!=='MOVE'||!projection||projection.revision!==s.revision)return false;const p=projection;s=p.next;s.lastTurn={turn:s.turn,hand:s.pending.hand.id,group:p.groupName,n:p.value.n,m:p.value.m,x:p.value.x,gain:p.value.gain,weightBefore:p.weightBefore,weightAfter:p.weightAfter,scoreGain:p.scoreGain,arrival:p.arrival,steps:p.path.length,stationaryFight:!p.path.length&&!!p.battle,events:p.events.map(e=>({type:e.type,title:e.title,message:e.message}))};finishTurn(true);return true;}
     function rollShop() {
       const choose=pool=>pool[Math.floor(random()*pool.length)];
       const third=choose(['pieceTrait','charm']);

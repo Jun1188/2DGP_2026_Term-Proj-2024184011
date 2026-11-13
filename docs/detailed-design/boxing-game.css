@@ -1,4 +1,4 @@
-﻿#boxingGame { --box-score-width: 170px; --box-intel-width: 180px; --box-accent: #285d8f; font-size: 14px; background: var(--surface); border: 2px solid var(--ink); border-radius: 4px; overflow: clip; outline-offset: 4px; }
+#boxingGame { --box-score-width: 170px; --box-intel-width: 180px; --box-accent: #285d8f; font-size: 14px; background: var(--surface); border: 2px solid var(--ink); border-radius: 4px; overflow: clip; outline-offset: 4px; }
 #boxingGame * { box-sizing: border-box; }
 #boxingGame h3 { margin: 4px 0; font-family: Georgia, 'Malgun Gothic', serif; font-size: 22px; }
 #boxingGame h4 { margin: 14px 0 8px; }
@@ -99,8 +99,11 @@
 .box-forecast-versus > div { display: grid; gap: 3px; }
 .box-forecast-versus span { font: 11px Consolas,monospace; }
 .box-dead { color: var(--red); font-size: 12px; }
-.box-faces { display: flex; flex-wrap: wrap; gap: 8px; }
-.box-faces span { padding: 6px; border: 1px solid var(--line); font-size: 12px; }
+.box-faces { display: flex; align-items: center; gap: 5px; }
+.box-faces span { position: relative; display: grid; place-items: center; width: 28px; height: 48px; border: 1px solid var(--gold); border-radius: 12px 12px 5px 5px; font-size: 12px; font-weight: bold; }
+.box-faces .flat { background: var(--surface); color: var(--ink); }
+.box-faces .back { background: var(--ink); color: var(--surface); }
+.box-faces small { position: absolute; bottom: 2px; font-size: 9px; }
 .box-traits, .box-loadout { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
 .box-trait-card, .box-shop-card { display: grid; gap: 6px; padding: 12px; border: 1px solid var(--line); border-top: 3px solid var(--gold); border-radius: 4px; background: var(--bg); min-width: 0; }
 .box-trait-card { flex: 1 1 160px; max-width: 280px; }
@@ -192,16 +195,9 @@
 .box-hp-box small { font: 12px/1.2 Consolas,monospace; color: var(--ink-2); }
 .box-hp-track { height: 15px; }
 .box-fighter.boss .box-hp-track i { background: var(--red); }
-.box-avatar { position: relative; height: 100px; width: 110px; margin: auto; color: var(--box-accent); }
-.boss .box-avatar { color: var(--red); transform: scaleX(-1); }
-.box-avatar i { display: block; position: absolute; background: currentColor; }
-.box-avatar-head { width: 34px; height: 34px; border-radius: 50%; left: 38px; top: 2px; }
-.box-avatar-body { width: 52px; height: 56px; border-radius: 20px 20px 9px 9px; left: 29px; top: 40px; }
-.box-avatar .box-glove { width: 27px; height: 27px; border-radius: 40%; background: var(--gold); border: 3px solid var(--surface); }
-.box-glove.left { left: 7px; top: 47px; transform: rotate(-25deg); }
-.box-glove.right { right: 0; top: 30px; transform: rotate(15deg); }
+.box-avatar { position: relative; width: 102px; max-width: 100%; aspect-ratio: 1; margin: auto; image-rendering: pixelated; background: url('assets/yut-combat.png') left center / 200% 100% no-repeat; }
+.boss .box-avatar { background-position: right center; }
 .box-damage { position: absolute; z-index: 2; inset: 20px -35px auto; font: bold 34px/1.3 Consolas,monospace; color: var(--red); text-shadow: 2px 2px var(--surface); animation: box-damage .9s ease-out both; }
-.boss .box-damage { transform: scaleX(-1); }
 .box-fighter.hit { animation: box-hit .5s ease-out; }
 .box-combat-prediction { font: 12px/1.7 Consolas,'Malgun Gothic',monospace; color: var(--ink-2); }
 .box-battle-panel .box-burst-number { font-size: 18px; overflow-wrap: anywhere; }
@@ -254,7 +250,7 @@
 
 /* Roll-and-move conventions: inspect first, then activate a route. */
 #boxingGame .box-preview-choice { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; min-height: 42px; text-align: left; }
-#boxingGame .box-previewing { border: 3px solid var(--blue); background: color-mix(in srgb,var(--blue) 14%,var(--surface)); }
+#boxingGame .box-previewing { outline: 2px solid var(--blue); outline-offset: -2px; background: color-mix(in srgb,var(--blue) 14%,var(--surface)); }
 .box-route-option.box-previewing { border-color: var(--blue); }
 .box-route-option > .box-primary { width: 100%; margin-top: 12px; }
 .box-map-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 10px; border-bottom: 1px solid var(--line); font-size: 12px; }
@@ -282,6 +278,11 @@
 .box-map-toolbar > small { flex-basis: 100%; color: var(--ink-2); }
 
 .box-route-inspector:empty { display: none; }
+/* The hover inspector grows below the buttons. Keep document anchoring from
+   scrolling the hovered route out from under a stationary pointer. */
+html:has(#boxingGame.choosing-route) { overflow-anchor: none; scroll-behavior: auto; }
+.choosing-route .box-route-inspector { display: block; height: 12rem; overflow-y: auto; box-sizing: border-box; }
+.choosing-route .box-route-inspector:empty::before { content: "갈림길에 커서를 올리거나 경로 보기를 누르면 도착 칸과 전투 예측이 표시됩니다."; }
 
 .box-hover-route { fill: none; stroke: var(--blue); stroke-width: 4; stroke-dasharray: 5 5; stroke-linecap: round; stroke-linejoin: round; }
 .box-move-overlay { pointer-events: none; }
@@ -298,20 +299,32 @@
 .box-draw-layout > .box-deck-pane { grid-column: 2; grid-row: 1; }
 .box-draw-layout > div { grid-column: 1; grid-row: 1; }
 .box-draw-layout > div { min-width: 0; }
-.box-deck-pane { padding: 10px 0; text-align: center; }
-.box-deck-pane p { font-size: 11px; color: var(--ink-2); line-height: 1.8; }
-.box-deck-stack { width: 86px; min-height: 126px; margin: 0 auto; padding: 12px 6px; display: grid; align-content: center; gap: 5px; border: 2px solid var(--ink-2); border-radius: 5px; background: var(--surface-2); box-shadow: 3px 3px 0 var(--surface),4px 4px 0 var(--line),6px 6px 0 var(--surface),7px 7px 0 var(--line); }
-.box-deck-stack span, .box-deck-stack small { font-size: 11px; }
-.box-deck-stack b { font: bold 28px Consolas,monospace; }
+.box-deck-pane { align-self: end; justify-self: end; padding: 0 8px 30px 0; text-align: center; }
+#boxingGame .box-deck-stack { position: relative; display: block; padding: 0; width: 84px; aspect-ratio: 2 / 3; border: 1px solid #cfb779; border-radius: 5px; background: #183e3c url('assets/yut-card-back.png') center / 100% 100%; image-rendering: pixelated; box-shadow: 2px 2px #233e3a,3px 3px #cdb98d,5px 5px #233e3a,6px 6px #cdb98d; }
+.box-deck-stack span { position: absolute; top: calc(100% + 9px); left: -5px; right: -9px; color: #f7dfa8; font-weight: bold; font-size: 13px; white-space: nowrap; }
+#boxingGame button.box-deck-stack:hover, #boxingGame button.box-deck-stack:focus-visible { outline: 3px solid #ffdb72; outline-offset: 2px; }
 #boxingGame .box-hidden-stick { min-height: 144px; }
-@media(max-width:580px) { .box-draw-layout { grid-template-columns: minmax(0,1fr) 76px; gap: 10px; } .box-deck-stack { width: 66px; min-height: 100px; } }
+@media(max-width:580px) { .box-draw-layout { grid-template-columns: minmax(0,1fr); gap: 10px; } .box-draw-layout > .box-deck-pane { grid-column: 1; grid-row: 2; } #boxingGame .box-deck-stack { width: 60px; } }
 
 
 .box-play-controls { background: var(--surface); border-top: 2px solid var(--ink); scroll-margin-block: 12px; }
 .box-play-controls:empty { display: none; }
 .box-play-controls .box-hand-area { border-top: 0; }
+.box-draw-layout { background: #193b38; color: #f7ebd1; padding: 14px; border-radius: 5px; }
+.box-draw-layout .box-prob { color: #d0eadd; }
+.box-draw-layout details { margin-top: 8px; }
 .box-play-controls .box-hand { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: 22px 9px; padding: 16px 4px 8px; margin-top: 0; }
-#boxingGame .box-play-controls .box-hand > .box-card { min-width: 0; min-height: 144px; overflow-wrap: anywhere; transition: transform .15s ease-out; }
+#boxingGame .box-play-controls .box-hand > .box-card { min-width: 0; min-height: 155px; padding: 7px; gap: 3px; overflow-wrap: anywhere; background: #f5e8cd; color: #332e28; border: 1px solid #ac976e; box-shadow: 2px 3px #102b29; border-radius: 5px; transition: transform .15s ease-out; transform: translateY(var(--hand-y,0px)); }
+.box-hand > :is(:first-child,:nth-child(6)) { --hand-y: 5px; }
+.box-hand > :is(:nth-child(2),:nth-child(5)) { --hand-y: 2px; }
+#boxingGame .box-play-controls .box-hand > .chosen { transform: translateY(calc(var(--hand-y,0px) - 12px)); outline: 3px solid #f0c76d; }
+#boxingGame .box-play-controls .box-card:disabled { opacity: .86; }
+.box-play-controls .box-card :is(small,span) { font-size: 12px; line-height: 1.35; }
+.box-card .box-card-index { align-self: stretch; font-weight: bold; color: #37514a; }
+.box-card.chosen .box-card-index { color: #09604c; }
+.box-yut-art { align-self: center; width: 54px; height: 54px; background: url('assets/yut-sticks.png') left center / 200% 100%; image-rendering: pixelated; }
+.box-yut-art.marked { background-position: right center; }
+#boxingGame .box-play-controls .box-hand > .box-hidden-stick, .box-draw-ghost.box-hidden-stick { background: #183e3c url('assets/yut-card-back.png') center / 100% 100%; image-rendering: pixelated; }
 .box-play-controls .box-hand-heading { padding: 6px 0; }
 .box-draw-ghost { position: fixed; z-index: 30; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; padding: 8px; box-sizing: border-box; border: 1px solid var(--line); border-radius: 4px; color: var(--ink-2); background: var(--surface-2); pointer-events: none; overflow: hidden; }
 .box-draw-ghost small { font-size: 10px; }

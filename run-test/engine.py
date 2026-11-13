@@ -1,4 +1,4 @@
-﻿"""Pure Python rules. Importing this module does not open pico2d or SDL."""
+"""Pure Python rules. Importing this module does not open pico2d or SDL."""
 from __future__ import annotations
 from copy import deepcopy
 from collections import deque
@@ -25,7 +25,7 @@ class Game:
     def reset(self, seed):
         self.state = dict(seed=seed & 0xffffffff, rng=seed & 0xffffffff, revision=0,
             round=0, phase='DRAW', turn=0, score=0, total=0, coins=0, pieces=[], groups=[], guards=[],
-            collection=[], deck=[], hand=[], draw=[], selected=[], pending=None, last_roll=None,
+            collection=[], deck=[], hand=[], draw=[], selected=[], pending=None, last_roll=None, roll_detail=None,
             feedback=[], enemies=[], events=[], log=[], master=None, deck_traits=[], charms=[],
             templates=[], reward=None, shop=[], rerolls=0, active=0, serial=0, last_draw=[])
 
@@ -96,7 +96,7 @@ class Game:
         uid = self.state['serial']; self.state['collection'].append(dict(uid=uid, type=kind, level=0))
         return uid
 
-    def start(self, seed=None, round_index=0, risk='standard', starter='woodcutter'):
+    def start(self, seed=None, round_index=0, risk='standard', starter='woodcutter', practice=False):
         self.reset(self.state['seed'] if seed is None else seed)
         s, c = self.state, self.config; s['round'] = round_index
         deck = next(d for d in self.data['starterDecks'] if d['id'] == starter)
@@ -105,7 +105,18 @@ class Game:
         for kind, count in deck['sticks'].items():
             for _ in range(count): s['deck'].append(self.add_item(kind))
         s['templates'] = [dict(id=i, level=0, baseWeight=c['pieceBaseWeight'], baseHealth=c['pieceBaseHealth'], baseAttack=c['pieceBaseAttack'], healthCoeff=c['pieceHealthWeightCoeff'], attackCoeff=c['pieceAttackWeightCoeff'], healthScale=1, attackScale=1, moveSpeed=c['pieceMoveSpeed'], traits=[]) for i in range(4)]
+        if not practice:
+            self.offer_risks()
         self.set_risk(risk); self.start_round()
+
+    def offer_risks(self):
+        allowed = ('standard', 'safe', 'rush') if self.state['round'] == 0 else (
+            'standard', 'safe', 'shortcut', 'rush', 'fall', 'hunt', 'piggyback', 'feast', 'tightHand', 'allOrNothing')
+        pool = [r for r in self.data['riskChoices'] if r['id'] in allowed]
+        offers = self.shuffle(pool)[:3]
+        if all(r['risk'] for r in offers):
+            offers[0] = next(r for r in pool if r['id'] == 'standard')
+        self.state['risk_offers'] = [r['id'] for r in offers]
 
     def set_risk(self, key):
         self.state['risk'] = deepcopy(next(t for t in self.data['riskChoices'] if t['id'] == key))
@@ -117,7 +128,7 @@ class Game:
         if not self.rules['minDeckSize'] <= len(s['deck']) <= s['capacity']: raise ValueError('출전 덱 개수를 확인하세요.')
         delta = sum(self.traits[t['id']].get('tossDelta', 0) for t in s['deck_traits'])
         s.update(phase='DRAW', turn=0, score=0, pending=None, selected=[], hand=[], active=0,
-            feedback=[], enemies=[], events=[], last_draw=[], last_roll=None, reward=None,
+            feedback=[], enemies=[], events=[], last_draw=[], last_roll=None, roll_detail=None, reward=None,
             tosses=max(1, self.rules['tossesPerRound'] + delta + ('lucky' in s['charms']) - (3 if s['risk']['id'] == 'lastStand' else 0)),
             swaps=0 if s['risk']['id'] == 'lastStand' else self.rules['swapsPerRound'], master=None)
         s['draw'] = self.shuffle(s['deck']); s['pieces'] = []
@@ -170,7 +181,7 @@ class Game:
         s = self.state
         if s['phase'] != 'SELECT' or not s['selected'] or s['swaps'] <= 0: return
         out = list(s['selected']); s['hand'] = [i for i in s['hand'] if i not in out]
-        s['draw'] = self.shuffle(s['draw'] + out); s.update(selected=[], phase='DRAW', swaps=s['swaps'] - 1); self.touch()
+        s['draw'] = self.shuffle(s['draw'] + out); s.update(selected=[], last_draw=[], phase='DRAW', swaps=s['swaps'] - 1); self.touch()
 
     def hand_for(self, items, faces):
         count = faces.count('flat')
@@ -220,6 +231,7 @@ class Game:
         hand = self.hand_for(items, faces)
         s.update(turn=s['turn'] + 1, tosses=s['tosses'] - 1, selected=[], feedback=[], enemies=[], events=[], last_draw=[])
         s['pending'] = dict(items=items, faces=faces, hand=hand, route=None); s['last_roll'] = hand['id']
+        s['roll_detail'] = dict(turn=s['turn'], items=items, faces=faces)
         s['hand'] = [i for i in s['hand'] if i not in items]; s['draw'] = self.shuffle(s['draw'] + items)
         fall = s['risk']['id'] == 'fall' and self.random() < .1
         if not fall and hand['id'] in self.rules['extraTossOn']: s['tosses'] += 1
@@ -228,7 +240,9 @@ class Game:
             fallback = sorted(filter(can_back, self.living()), key=lambda g: (-self.weight(g), g['id']))
             if fallback: s['active'] = fallback[0]['id']
         if fall or (hand['move'] < 0 and not any(can_back(g) for g in self.living())):
-            self.change('윷가락', 0, '낙 / 이동할 말 없음'); self.finish_turn()
+            reason = '낙 · 투척 무효' if fall else '돌아갈 말 없음'
+            s['roll_detail'].update(skipped=reason, fall=fall)
+            self.change('윷가락', 0, reason); self.finish_turn()
         else: s['phase'] = 'MOVE'
         self.touch(); return True
 
@@ -330,7 +344,9 @@ class Game:
             self.grow(p, math.floor(p['weight'] * (multiplier - 1)))
         delta = self.weight(group) - before_w
         if delta: self.change('전투', delta, boss['name'])
-        result = dict(group=group_name, boss=boss['name'], boss_first=boss_first, player_before=before_hp, player_after=sum(s['pieces'][i]['hp'] for i in group['ids']), boss_before=before_b, boss_after=boss['hp'], events=events)
+        result = dict(group=group_name, survivors=self.name(group), boss=boss['name'], boss_first=boss_first,
+                      player_before=before_hp, player_after=sum(s['pieces'][i]['hp'] for i in group['ids']),
+                      boss_before=before_b, boss_after=boss['hp'], events=events)
         s['events'].append(result); self.log(('보스 선공 ' if boss_first else '플레이어 선공 ') + boss['name']); return result
 
     def enemy_phase(self):
@@ -414,6 +430,10 @@ class Game:
             s['score'] += settled; self.change('완주 정산', settled, self.name(g) + ' 완주 확정', 'settled')
             for i in g['ids']: s['pieces'][i]['settled'] = True
             g['pos'] = 'END'
+        if s.get('roll_detail') is not None:
+            s['roll_detail'].update(arrival=g['pos'] if s['score'] > before_score else arrival,
+                                    group=group_name, value=value, steps=len(path),
+                                    stationary_fight=not path and any(not e['boss_first'] for e in s['events']))
         self.finish_turn()
         return dict(path=path, arrival=arrival, before=before, after=self.weight(g), score_gain=s['score'] - before_score, group=group_name, value=value)
 
@@ -427,8 +447,12 @@ class Game:
         s.update(selected=[], pending=None)
         if s['score'] >= s['target']:
             e = self.data['economy']; base = math.floor(self.row['baseReward'] * s['risk']['rewardX'] + .5); overflow = s['score'] - s['target']
-            total = base + s['tosses'] * e['perRemainingToss'] + self.interest() + overflow // self.config['overflowStep'] * self.config['overflowCoins']
-            s['reward'] = dict(total=total, overflow=overflow); s['phase'] = 'REWARD'
+            remaining = s['tosses'] * e['perRemainingToss']
+            interest = self.interest()
+            bonus = overflow // self.config['overflowStep'] * self.config['overflowCoins']
+            s['reward'] = dict(base=base, remaining=remaining, interest=interest, bonus=bonus,
+                               total=base + remaining + interest + bonus, overflow=overflow)
+            s['phase'] = 'REWARD'
         else: s['phase'] = 'LOSE' if s['tosses'] <= 0 or not self.living() else 'DRAW'
         self.touch()
 
@@ -442,7 +466,7 @@ class Game:
 
     def enter_shop(self):
         if self.state['phase'] != 'CHOICE': return
-        self.state['phase'] = 'SHOP'; self.roll_shop(); self.touch()
+        self.state.update(phase='SHOP', rerolls=0); self.roll_shop(); self.touch()
 
     def roll_shop(self):
         pools = self.data['shopPool']; third = 'pieceTrait' if self.random() < .5 else 'charm'
@@ -459,7 +483,7 @@ class Game:
         kind, key = offer['kind'], offer['ref']
         if kind == 'stick':
             if len(s['collection']) >= 32: return False
-            self.add_item(key)
+            offer['uid'] = self.add_item(key)
         elif kind == 'deckTrait':
             if len(s['deck_traits']) >= self.rules['deckTraitSlots'] or any(t['id'] == key for t in s['deck_traits']): return False
             s['deck_traits'].append(dict(id=key, level=1))
@@ -477,7 +501,8 @@ class Game:
         if s['phase'] != ('CHOICE' if skip_shop else 'SHOP'): return
         if skip_shop: s['coins'] += self.interest()
         s['round'] += 1
-        s.update(phase='TRAIT', score=0, pieces=[], groups=[], guards=[], master=None, hand=[], draw=[], selected=[], pending=None, feedback=[], enemies=[], events=[], last_roll=None)
+        s.update(phase='TRAIT', target=self.row['target'], score=0, pieces=[], groups=[], guards=[], master=None, hand=[], draw=[], selected=[], pending=None, feedback=[], enemies=[], events=[], last_roll=None, roll_detail=None)
+        self.offer_risks()
         self.touch()
 
     def toggle_deck(self, uid):

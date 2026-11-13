@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "yutochess-selected-studio",
+  "source": "https://github.com/Donchitos/Claude-Code-Game-Studios",
+  "revision": "abc0de79d6ceb0b5d7aa693945849b3937afbe6a",
+  "selection": "UX review for the existing HTML and pico2d game",
+  "skills": [".agents/skills/ux-review/SKILL.md"],
+  "roles": [".codex/agents/studio-ux-reviewer.toml"],
+  "upstreamInputs": [".claude/skills/ux-review/SKILL.md", ".claude/agents/ux-designer.md"],
+  "registeredHookEvents": [],
+  "license": ".agents/skills/ux-review/LICENSE"
+}

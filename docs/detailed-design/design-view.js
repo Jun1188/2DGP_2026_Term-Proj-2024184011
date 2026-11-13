@@ -46,5 +46,10 @@
   }
   function fail(error){$('loader').classList.add('show');const root=$('boxingGame');if(root)root.innerHTML='<p class="note">데이터를 읽지 못했습니다. 문서 상단에서 1.6 game-data.json을 선택하세요. '+esc(error?.message||'')+'</p>';}
   $('jsonFile').addEventListener('change',async e=>{if(!e.target.files[0])return;try{render(JSON.parse((await e.target.files[0].text()).replace(/^\uFEFF/,'')));$('loader').classList.remove('show');}catch(error){fail(error);}});
-  fetch('game-data.json',{cache:'no-cache'}).then(r=>r.ok?r.json():Promise.reject()).then(render).catch(()=>{try{render(JSON.parse($('embeddedGameData').textContent));}catch(error){fail(error);}});
+  function renderEmbedded() {
+    try { render(JSON.parse($('embeddedGameData').textContent)); }
+    catch(error) { fail(error); }
+  }
+  if(location.protocol==='file:')renderEmbedded();
+  else fetch('game-data.json',{cache:'no-cache'}).then(r=>r.ok?r.json():Promise.reject()).then(render).catch(renderEmbedded);
 })();

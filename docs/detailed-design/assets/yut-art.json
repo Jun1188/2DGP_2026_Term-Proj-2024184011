@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "source": "Codex image_gen.imagegen",
+  "date": "2026-11-13",
+  "reference": "../img/toss-screen-concept.png",
+  "runtimeCopy": "../../../run-test/assets",
+  "assets": [
+    {
+      "id": "yut-card-back",
+      "file": "yut-card-back.png",
+      "size": [
+        160,
+        240
+      ],
+      "purpose": "덱 더미와 손패로 날아오는 비공개 카드",
+      "subject": "네 윷을 담은 마름모 문양",
+      "composition": "세로 2:3 정면 인쇄면, 짙은 청록 바탕과 옥색·금색 계단 테두리",
+      "constraints": "전체 화면을 덮는 카드면, 작은 크기에서도 알아볼 외곽선, 글자 없음",
+      "prompt": "Using the referenced Yutochess toss-screen concept only for its handheld pixel-art palette and wooden yut shape, derive a single full-bleed portrait 2:3 Korean yut game card BACK texture for display as a small deck. Perfectly flat front-on orthographic rectangular print reaching all four image edges. A large central symmetric gilded emblem of four wooden yut sticks inside a diamond, gold and pale jade strokes, deep petrol teal field, stepped corner ornaments and strong pixel borders. Clean chunky discrete pixels, restrained limited palette, legible at 72x108. No shadows outside card, no tabletop, no perspective, no unrelated objects, no typography, letters, numbers, brands or watermarks. The whole output canvas is the printed card surface."
+    },
+    {
+      "id": "yut-sticks",
+      "file": "yut-sticks.png",
+      "size": [
+        256,
+        128
+      ],
+      "purpose": "공개된 시작 손패에서 나무 윷과 표시 윷 구별",
+      "subject": "나무 윷 한 개와 붉은 X가 새겨진 표시 윷 한 개",
+      "composition": "투명 배경 정사각형 두 칸, 좌하단에서 우상단으로 기운 목재, 좌상단 광원",
+      "constraints": "두 윷의 크기와 여백 일치, 셀 밖으로 나가지 않음",
+      "prompt": "Use the provided Yutochess concept as palette and material reference. Game-ready transparent sprite atlas, landscape 2:1, two perfectly equal square cells side by side with completely transparent background. Each cell has ONE oversized diagonal traditional Korean wooden yut stick oriented from lower left to upper right, gently rounded ends. Left cell: plain warm tan flat wooden stick, simple carved grain and a golden rim. Right cell: identical shape and scale, the special marked yut has a single prominent dark red engraved X centered across its flat surface. Both silhouettes fully inside their individual cells, centered, equal padding, occupy 84% of the cell diagonal, no overlap. Handcrafted retro RPG pixel-art with deliberate stair steps, strong dark outline, warm upper-left highlight as in the concept. No cards, no frames, no numbers, no text, no ground or shadows outside either stick."
+    },
+    {
+      "id": "yut-combat",
+      "file": "yut-combat.png",
+      "size": [
+        256,
+        128
+      ],
+      "purpose": "HTML 전투 초상, pico2d 전투 초상 및 보스 기물",
+      "subject": "청록 목마와 붉은 도깨비 수문장",
+      "composition": "투명 배경 정사각형 두 칸, 서로 마주 보는 조각상",
+      "constraints": "한쪽 셀에 한 기물, 작은 보드 노드와 큰 전투 초상 양쪽에서 식별",
+      "prompt": "Generate a game-ready transparent sprite atlas for Yutochess, taking the warm chunky pixel palette and Korean folk-game world from the provided concept. Landscape exactly 2:1 with two equal square cells, fully transparent: LEFT cell one friendly jade/teal lacquered wooden horse janggi totem chess pawn, side profile facing right with carved mane, pale mint face, gold saddle and wooden pedestal, NO rider. RIGHT cell one imposing red Korean dokkaebi guardian carved in crimson lacquer and dark wood, stocky bust with two ochre horns, ivory tusks and stern brows, faces left toward the pawn. Both figures are centered separately in their square cells, isolated and completely within cell with 9% padding, similar height, full silhouettes. Strong deliberately stepped pixel outlines, limited palette, ochre rim light upper left, gold and jade accents. Iconic enough to see at 30 pixels and detailed enough at 110 pixels. No floor, box, cards, particle effect, printed text, numbers, letter symbols, watermark or drop shadow. Identical transparent padding around each figure."
+    }
+  ],
+  "generation": {
+    "complexity": "프롬프트에서 단일 정면 또는 두 칸 고정 구도를 지정",
+    "quality": "도구 기본 설정. 런타임 크기로 축소한 PNG를 사용"
+  }
+}
